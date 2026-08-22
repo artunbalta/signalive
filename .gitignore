@@ -1,0 +1,30 @@
+# dependencies
+node_modules
+
+# next build output
+.next
+out
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# local secrets
+.env*.local
+
+# waitlist fallback store (see app/api/waitlist/route.ts)
+.data
+
+# playwright screenshots from scripts/verify.mjs and scripts/shots.mjs
+.verify
+
+# asset generation scratch.
+# The prompts and the two shell scripts ARE tracked: they are how every image,
+# video and voice on this site can be regenerated. Everything else in here is
+# intermediate output, several hundred megabytes of extracted frames and
+# analysis sheets, and must never be committed.
+.assetgen/out
+.assetgen/logs
+.assetgen/probe
+.assetgen/fonts
+
+# macOS
+.DS_Store

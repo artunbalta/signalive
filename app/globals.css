@@ -1,0 +1,312 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   SIGNALIVE DESIGN TOKENS
+   Spec 2.2 palette, 2.3 typography, 2.4 layout, 4.3 motion.
+   Six palette values. --signal is semantic: it marks the attended element
+   and nothing else. If amber is being used to make something look nice,
+   it is wrong and must be removed.
+   ========================================================================== */
+
+@theme {
+  /* --- Palette (spec 2.2) --- */
+  --color-ink: #0B0B0C;
+  /* Broken white, not pure white. It matches the ground the logos were
+     drawn on and takes the glare off the light sections. */
+  --color-paper: #FFFFF9;
+  --color-fog: #8A8A8F;
+  --color-slate: #2A2D33;
+  --color-signal: #FFC24B;
+
+  /* Accessibility floor (spec 6.3): fog on ink clears AA for large text only.
+     Body copy under 18px on ink steps up to this value. Not a decorative
+     seventh colour, it is the same grey raised to a legible contrast. */
+  --color-mist: #B4B4B9;
+
+  /* --- Typography (spec 2.3). No serifs anywhere on this site. --- */
+  --font-display: var(--font-inter-tight), "Inter Tight", system-ui, sans-serif;
+  --font-body: var(--font-inter), "Inter", system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), "JetBrains Mono", ui-monospace, monospace;
+
+  --text-hero: clamp(3.25rem, 9vw, 8rem);
+  --text-h1: clamp(2.5rem, 6vw, 5rem);
+  --text-h2: clamp(1.75rem, 3.5vw, 2.75rem);
+  --text-lead: clamp(1.125rem, 1.6vw, 1.5rem);
+  --text-body: 1.0625rem;
+  --text-small: 0.875rem;
+  --text-mono: 0.75rem;
+
+  /* --- Motion (spec 4.3) --- */
+  --ease-out-att: cubic-bezier(0.16, 1, 0.30, 1);
+  --ease-inout-att: cubic-bezier(0.76, 0, 0.24, 1);
+
+  /* --- Radii (spec 2.4). Sections square, cards 12, pills full. --- */
+  --radius-card: 12px;
+  --radius-pill: 999px;
+}
+
+@theme inline {
+  --color-hairline: var(--hairline);
+}
+
+:root {
+  /* Dividers: 0.12 paper on dark, 0.10 ink on light. Set per surface. */
+  --hairline: rgba(255, 255, 249, 0.12);
+
+  --d-fast: 240ms;
+  --d-base: 600ms;
+  --d-slow: 900ms;
+
+  --gutter: 24px;
+  --maxw: 1280px;
+  --rhythm: 120px;
+
+  --nav-h: 72px;
+  --bar-h: 44px;
+}
+
+@media (min-width: 768px) {
+  :root { --gutter: 48px; }
+}
+@media (min-width: 1024px) {
+  :root { --gutter: 80px; --rhythm: 200px; }
+}
+
+/* Light surfaces rebind the neutrals rather than introducing new tokens.
+   The palette stays six roles; each role is simply correct on its surface.
+   Measured: fog #8A8A8F on paper is 3.44:1, which fails AA for normal text,
+   so on light surfaces fog resolves to the same neutral darkened to 5.07:1.
+   Anything using text-fog or text-mist inside a paper section gets the
+   legible value automatically, with no per component decision. */
+.surface-paper {
+  --hairline: rgba(0, 0, 0, 0.10);
+  --color-fog: #6E6E73;
+  --color-mist: #3A3A3F;
+}
+
+/* ==========================================================================
+   BASE
+
+   These live in @layer base on purpose. Unlayered CSS beats anything Tailwind
+   puts in @layer utilities, so an unlayered `p { margin: 0 }` silently wins
+   over every mt-* and mb-* utility applied to a paragraph. Putting the element
+   resets in the base layer restores the normal precedence: utilities override
+   resets, which is what every component here assumes.
+   ========================================================================== */
+
+@layer base {
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  /* Lenis drives scrolling. Native smooth scroll would fight it. */
+  scroll-behavior: auto;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis-weight: none;
+  overflow-x: clip;
+}
+
+/* Lenis requires these to hand scrolling to its own rAF loop. */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-stopped { overflow: hidden; }
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 500;      /* Never 700. Spec 2.3. */
+  margin: 0;
+  text-wrap: balance;
+}
+
+p { margin: 0; }
+
+} /* end @layer base */
+
+/* Display face: very tight leading is the signature of this treatment.
+   Letter spacing tightens as size increases. */
+.t-hero {
+  font-family: var(--font-display);
+  font-size: var(--text-hero);
+  font-weight: 500;
+  line-height: 0.88;
+  letter-spacing: -0.03em;
+}
+.t-h1 {
+  font-family: var(--font-display);
+  font-size: var(--text-h1);
+  font-weight: 500;
+  line-height: 0.90;
+  letter-spacing: -0.025em;
+}
+.t-h2 {
+  font-family: var(--font-display);
+  font-size: var(--text-h2);
+  font-weight: 500;
+  line-height: 0.92;
+  letter-spacing: -0.015em;
+}
+.t-lead {
+  font-size: var(--text-lead);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+/* Mono is for measurements, labels, step indices and technical terms only.
+   Never for body copy. Spec 2.3. */
+.t-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+/* ==========================================================================
+   LAYOUT
+   ========================================================================== */
+
+.shell {
+  width: 100%;
+  max-width: var(--maxw);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.section {
+  padding-block: var(--rhythm);
+  border-radius: 0;   /* Sections are full bleed, never floating cards. */
+}
+
+.grid12 {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 24px;
+}
+
+/* ==========================================================================
+   FOCUS AND INTERACTION
+   ========================================================================== */
+
+:focus-visible {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+:focus:not(:focus-visible) { outline: none; }
+
+.skip-link {
+  position: absolute;
+  left: var(--gutter);
+  top: 8px;
+  z-index: 200;
+  transform: translateY(-200%);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  padding: 10px 18px;
+  border-radius: var(--radius-pill);
+  transition: transform var(--d-fast) var(--ease-out-att);
+}
+.skip-link:focus { transform: translateY(0); }
+
+::selection { background: var(--color-signal); color: var(--color-ink); }
+
+/* ==========================================================================
+   REVEALS
+   Entrances only. Never replay on scroll back. Spec 4.4.
+   ========================================================================== */
+
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity var(--d-base) var(--ease-out-att),
+    transform var(--d-base) var(--ease-out-att);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+[data-reveal].is-in {
+  opacity: 1;
+  transform: none;
+}
+
+/* Headline mask reveal: each line clipped by its own overflow wrapper.
+
+   The display leading here is 0.88 to 0.92, which is tighter than the em box,
+   so descenders (g, y, p) sit below the line box and a plain overflow: hidden
+   shears them off. The clip region is extended below the baseline and the
+   layout pulled back by an equal negative margin, so the type is uncut while
+   the vertical rhythm is unchanged. The start offset gains the same amount so
+   the line still begins fully outside the taller clip box. */
+.line-mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.22em;
+  margin-bottom: -0.22em;
+}
+.line-mask > span {
+  display: block;
+  transform: translateY(calc(100% + 0.25em));
+  transition: transform var(--d-slow) var(--ease-out-att);
+  transition-delay: var(--line-delay, 0ms);
+  will-change: transform;
+}
+.is-in .line-mask > span, .line-mask.is-in > span { transform: translateY(0); }
+
+/* ==========================================================================
+   REDUCED MOTION (spec 4.8)
+   Everything becomes instantly visible. Nothing moves.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  [data-reveal] { opacity: 1 !important; transform: none !important; }
+  .line-mask > span { transform: none !important; }
+}
+
+/* ==========================================================================
+   PAGE LOAD SEQUENCE (spec 4.7)
+   While html carries data-intro, every reveal is held at its start state.
+   These selectors are deliberately more specific than .is-in so they win
+   until the loader removes the attribute, at which point the normal
+   transitions play. This keeps the loader decoupled: no section component
+   needs to know it exists.
+   ========================================================================== */
+
+html[data-intro] [data-reveal] {
+  opacity: 0;
+  transform: translateY(24px);
+}
+html[data-intro] .line-mask > span {
+  /* Must match the start offset above, or the intro would hold the lines at a
+     shallower position than the clip box and show a sliver of the type. */
+  transform: translateY(calc(100% + 0.25em));
+}
+html[data-intro] [data-intro-fade] {
+  opacity: 0;
+}
+[data-intro-fade] {
+  transition: opacity var(--d-slow) var(--ease-out-att);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-intro] [data-reveal] { opacity: 1 !important; transform: none !important; }
+  html[data-intro] .line-mask > span { transform: none !important; }
+  html[data-intro] [data-intro-fade] { opacity: 1 !important; }
+}
