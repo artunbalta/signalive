@@ -80,6 +80,13 @@ export const problem = {
 
 export const howItWorks = {
   eyebrow: "How it works",
+  /** Labels for the filing figure under step 03. Not a section of their own. */
+  destinations: [
+    { label: "A date", body: "Goes to your calendar with the context around it" },
+    { label: "A name", body: "Goes to your contacts with where you met" },
+    { label: "A task", body: "Goes to your list in the words they used" },
+    { label: "A number", body: "Goes to your notes with what it referred to" },
+  ],
   headlineLines: ["Three things happen", "in under two seconds"],
   steps: [
     {
@@ -171,14 +178,6 @@ export const thePoint = {
     body: "The same double clench means skip while you are listening to music and take that back while you are listening to a person. Attention supplies the context, so the gesture does not have to carry it. This is why we do not need a menu, a wake word, or a vocabulary you have to memorise.",
   },
 
-  /** Subsection C. Where a captured thing actually ends up. */
-  destinationsHeading: "Where it goes",
-  destinations: [
-    { label: "A date", body: "Goes to your calendar with the context around it" },
-    { label: "A name", body: "Goes to your contacts with where you met" },
-    { label: "A task", body: "Goes to your list in the words they used" },
-    { label: "A number", body: "Goes to your notes with what it referred to" },
-  ],
 };
 
 export const useCases = {

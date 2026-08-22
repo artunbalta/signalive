@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import MaskHeadline from "@/components/ui/MaskHeadline";
 import Reveal from "@/components/ui/Reveal";
-import { howItWorks, thePoint } from "@/lib/copy";
+import { howItWorks } from "@/lib/copy";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 
 /* ==========================================================================
@@ -76,7 +76,7 @@ const TICKS_MAJOR = ticks(true);
  *  description cannot drift from the labels the figure actually draws. */
 const FIGURE_LABEL =
   "Diagram of a conversation running left to right. Each thing heard is marked on the line, and one at a time it is carried down into the slot it belongs in: " +
-  thePoint.destinations.map((d) => d.label.toLowerCase()).join(", ") +
+  howItWorks.destinations.map((d) => d.label.toLowerCase()).join(", ") +
   ".";
 
 /**
@@ -271,7 +271,7 @@ function FilingFigure({ paused }: { paused: boolean }) {
       {/* No gap, so the four top rules meet as one continuous line under the
           figure and only the receiving quarter of it goes amber. */}
       <ul className="grid grid-cols-4">
-        {thePoint.destinations.map((d, i) => (
+        {howItWorks.destinations.map((d, i) => (
           <li
             key={d.label}
             className={

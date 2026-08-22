@@ -1,427 +1,831 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import MaskHeadline from "@/components/ui/MaskHeadline";
 import Reveal from "@/components/ui/Reveal";
 import { thePoint } from "@/lib/copy";
-
-/* ==========================================================================
-   FIGURE GEOMETRY, in viewBox units.
-
-   All three figures share one axis so they read as three states of the same
-   instrument rather than three illustrations. Nothing here is decorative: the
-   axis is time, the mark is the moment the device registered the gesture, and
-   amber only ever sits on whichever element is active at that instant.
-   ========================================================================== */
-const FIG_W = 260;
-const FIG_H = 104;
-
-const AXIS_Y = 74;
-const X_START = 8;
-const X_END = 252;
-const TICK_TOP = 66;
-const TICK_COUNT = 9;
-
-/** Where the mark is laid down, and how far back behind it gets marked. */
-const MARK_X = 214;
-const SPAN_X0 = 138;
-const MARK_TOP = 44;
-const MARK_BOTTOM = 86;
-
-/** The sustained gesture, and the channel the answer comes back on. */
-const BAR_X0 = 30;
-const BAR_X1 = 150;
-const REPLY_Y = 32;
-const REPLY_X0 = 30;
-const REPLY_X1 = 200;
-
-const TICKS = Array.from(
-  { length: TICK_COUNT },
-  (_, i) => X_START + (i * (X_END - X_START)) / (TICK_COUNT - 1)
-);
+import { useReducedMotion } from "@/lib/useReducedMotion";
 
 /**
- * Descriptions of the three figures for anyone who cannot see them. These are
- * not product copy and must never become visible text: they describe the
- * drawing, nothing more. Visible strings all come from lib/copy.
+ * The point.
+ *
+ * The section carries the argument the product rests on: an assistant you can
+ * reach without stopping. Two parts, in the order the argument runs. What the
+ * three gestures actually do, then why three of them is the whole vocabulary.
+ *
+ * The vocabulary is the part that was not explaining itself, so it is no longer
+ * a list of readouts. It is a pinned panel scrubbed through the three gestures,
+ * and the drawing on the right plays each one out: the ring at the ear, the
+ * thing travelling to the phone, and what the phone does with it. It shares its
+ * visual vocabulary with the pinned scene after the hero on purpose. The reader
+ * has already been taught there that an amber ring at the ear means the device
+ * registered something, and nothing here contradicts that.
+ *
+ * Amber appears only on the rings, on the thing in transit, and on the captured
+ * item while it is still new. Everything the drawing is made of is fog.
  */
-const FIGURE_LABELS = [
-  "A timeline with a single mark laid down on it and the span behind that mark highlighted.",
-  "The same timeline, with the mark and the span behind it lifted back off, leaving only a faint trace.",
-  "A timeline where a bar fills for as long as the gesture is held, then a reply returns along the channel above it.",
+
+const HEADING_ID = "the-point-heading";
+const VOCAB_ID = "the-point-vocabulary";
+
+/** Scroll distance the pin holds for, in viewport heights.
+ *
+ *  Three gestures, and each one is a loop of about three and a half seconds
+ *  that has to be seen at least once through. 2.7 gives every stage roughly
+ *  0.9 of a viewport of travel, which at an ordinary scroll rate is a few
+ *  seconds of dwell. Below about 2.4 the hold sequence, the longest of the
+ *  three, gets cut off before the answer comes back. */
+const SCROLL_VH = 2.7;
+
+/** Where each gesture takes over, as pin progress. The last band is the widest
+ *  because the hold sequence travels out and back and needs the extra dwell,
+ *  and because a reader who has reached it is about to be released from the
+ *  pin and should not be released mid sentence. */
+const STAGE_STARTS = [0, 0.3, 0.63];
+
+/* ==========================================================================
+   STAGE GEOMETRY, in viewBox units.
+
+   One viewBox for all three sequences, so switching gesture never moves the
+   ear, the phone or the route between them. Only what happens along that route
+   changes, which is the entire point being made: same channel, three meanings.
+   ========================================================================== */
+const W = 560;
+const H = 320;
+
+/** The wearer. A solid rounded shape at the ear, not a drawing of an ear. */
+const EAR_X = 124;
+const EAR_Y = 163;
+const EAR_W = 22;
+const EAR_H = 30;
+
+/** The wearer.
+ *
+ *  Not a whole head. A full profile needs the nose, lip and chin to be right or
+ *  it reads as a cartoon, and at this size those details collapse into noise.
+ *  An ear reduces honestly to two nested curves, the helix and the antihelix,
+ *  and it is instantly readable at any scale. The earbud sits in the concha
+ *  where one actually sits, and the mandible runs out of frame below it, which
+ *  is enough to say "this is on a person" without drawing the person. */
+const HELIX =
+  "M 150 116 C 110 100 78 124 80 162 C 82 198 104 218 128 214";
+const ANTIHELIX =
+  "M 141 136 C 116 128 100 148 103 172 C 105 192 116 202 128 200";
+
+/** The mandible, running forward and out of frame. It is the part that moves,
+ *  so it is the part that goes amber at the clench. */
+const JAW = "M 143 196 C 166 210 182 226 190 248";
+
+/** Base radius of the pulse rings. Larger than half the earbud shape, so a
+ *  ring at rest already sits clear of it rather than cutting through it. */
+const RING_R = 22;
+
+/** The phone. Outline only: no notch, no buttons, no invented interface. */
+const PHONE_X = 400;
+const PHONE_Y = 55;
+const PHONE_W = 105;
+const PHONE_H = 210;
+const PHONE_R = 16;
+
+/** Content already in there, and the slot a captured thing lands in. */
+const RULE_X = PHONE_X + 18;
+const CONTENT = [
+  { y: 92, w: 69 },
+  { y: 114, w: 52 },
+  { y: 136, w: 62 },
+];
+const SLOT_Y = 168;
+const SLOT_W = 60;
+
+/**
+ * The route between them. One gentle arc, drawn once in very faint fog and
+ * copied per sequence as the track the travelling dot runs on. Both copies use
+ * the same `d`, so the dot can never drift off the line it is supposed to
+ * follow at any viewport width.
+ */
+const LINK = "M140 156C214 108 316 106 392 148";
+
+/**
+ * Descriptions of the drawing for anyone who cannot see it. These are not
+ * product copy and must never become visible text: they describe what is drawn
+ * and nothing else. Every visible string in this file comes from lib/copy.
+ */
+const STAGE_LABELS = [
+  "An earbud at the ear with one ring pulsing out from it, an amber dot travelling along a curve to a phone, and a new rule appearing among the lines inside the phone.",
+  "An earbud at the ear with two rings pulsing out from it in quick succession, a rule lifting away from the lines inside the phone, and an amber dot travelling back along the curve from the phone to the ear.",
+  "An earbud at the ear with one ring held open around it, an amber dot travelling along the curve to the phone and back again, and a small ring blooming at the ear as it returns.",
 ];
 
 /**
- * Figure animation.
+ * Stage animation.
  *
- * CSS rather than JavaScript because the resting state of each figure has to
- * be the readout in its finished state: with the animation switched off the
- * base rules below are what remains, which is a legible static instrument.
- * The reduced motion query does exactly that switch, so nothing needs a rAF
- * loop, a timer, or a hydration boundary, and the whole section stays server
- * rendered.
+ * CSS keyframes rather than JavaScript, for the same reason the figures in
+ * HowItWorks are: the base rule of every animated element is that element in
+ * its finished state, so switching the animation off leaves a legible still
+ * rather than a blank stage or a half drawn one. No rAF, no timers, no
+ * measurement, and nothing to tear down.
  *
- * The three cycles are deliberately different lengths so three loops sharing a
- * viewport never beat in unison.
+ * Each sequence closes by fading its own artefacts out, so the loop restart is
+ * a fade and not a cut. The three cycles are deliberately different lengths,
+ * which matters less here than in HowItWorks because only one plays at a time,
+ * but it also means each gesture has the tempo its own story needs: single is
+ * quick, double has to fire twice before it does anything, hold has to hold.
+ *
+ * The travelling dot is a single round dash on a copy of the route, moved with
+ * stroke-dashoffset against pathLength 100. Same technique as the filing figure
+ * in HowItWorks: the dot follows the curve exactly with nothing measuring the
+ * drawing, and one keyframe set works at every width.
  */
-const FIGURE_CSS = `
+const STAGE_CSS = `
+/* Every animated element carries .tp-a. It sets the transform box, and it is
+   the single hook the two switch off rules below need. */
 .tp-a { transform-box: fill-box; }
 
-/* Single: the mark drops in, then the span behind it is marked. */
-.tp-s-span {
-  transform-origin: right center;
-  transform: scaleX(1);
-  animation: tp-s-span 3200ms var(--ease-out-att) infinite;
-}
-@keyframes tp-s-span {
-  0%, 8%   { transform: scaleX(0); opacity: 1; }
-  28%, 82% { transform: scaleX(1); opacity: 1; }
-  100%     { transform: scaleX(1); opacity: 0; }
-}
-.tp-s-mark {
-  transform: translateY(0);
-  animation: tp-s-mark 3200ms var(--ease-out-att) infinite;
-}
-@keyframes tp-s-mark {
-  0%       { transform: translateY(-10px); opacity: 0; }
-  8%, 82%  { transform: translateY(0); opacity: 1; }
-  100%     { transform: translateY(0); opacity: 0; }
-}
+.tp-ring { fill: none; stroke: var(--color-signal); stroke-width: 1; }
 
-/* Double: the same sequence, run backwards. The mark leaves the way it came
-   and the trace underneath is all that is left, which is the resting state. */
-.tp-d-span {
-  transform-origin: right center;
-  transform: scaleX(0);
-  animation: tp-d-span 3600ms var(--ease-out-att) infinite;
+/* The jaw at rest is part of the head, in fog. It only carries amber while it
+   is actually moving, which is what makes the clench the thing you notice. */
+.tp-jaw { stroke: var(--color-fog); stroke-width: 1; stroke-opacity: 0.55; }
+@keyframes tp-jaw-flex {
+  0%, 100% { stroke: var(--color-fog); stroke-width: 1; stroke-opacity: 0.55; }
+  6%       { stroke: var(--color-signal); stroke-width: 2; stroke-opacity: 1; }
+  22%      { stroke: var(--color-fog); stroke-width: 1; stroke-opacity: 0.55; }
 }
-@keyframes tp-d-span {
-  0%, 8%    { transform: scaleX(0); }
-  26%, 50%  { transform: scaleX(1); }
-  68%, 100% { transform: scaleX(0); }
+@keyframes tp-jaw-hold {
+  0%, 100%  { stroke: var(--color-fog); stroke-width: 1; stroke-opacity: 0.55; }
+  9%, 34%   { stroke: var(--color-signal); stroke-width: 2; stroke-opacity: 1; }
+  44%       { stroke: var(--color-fog); stroke-width: 1; stroke-opacity: 0.55; }
 }
-.tp-d-mark {
-  transform: translateY(-22px);
-  animation: tp-d-mark 3600ms var(--ease-out-att) infinite;
+.tp-s-jaw { animation: tp-jaw-flex 3400ms var(--ease-out-att) infinite; }
+.tp-d-jaw-1 { animation: tp-jaw-flex 3600ms var(--ease-out-att) infinite; animation-delay: 360ms; }
+.tp-d-jaw-2 { animation: tp-jaw-flex 3600ms var(--ease-out-att) infinite; animation-delay: 510ms; }
+.tp-h-jaw { animation: tp-jaw-hold 4000ms var(--ease-inout-att) infinite; }
+.tp-dot {
+  fill: none;
+  stroke: var(--color-signal);
+  stroke-width: 9;
+  stroke-linecap: round;
+  stroke-dasharray: 0.01 100;
 }
-@keyframes tp-d-mark {
-  0%        { transform: translateY(-22px); opacity: 0; }
-  8%, 50%   { transform: translateY(0); opacity: 1; }
-  68%, 100% { transform: translateY(-22px); opacity: 0; }
-}
+.tp-rule { fill: var(--color-signal); }
 
-/* Hold: the bar is amber while it is the thing being held, then hands amber
-   over to the reply. The colour is the transfer of attention, not an accent. */
-.tp-h-bar {
+/* ---- SINGLE, 3400ms. One ring, one trip, one thing filed. --------------
+   Ring fires at 170ms and is gone by 750ms. The dot leaves at 580ms and lands
+   at 1500ms. The rule draws in behind it, holds amber while it is new, and
+   settles to fog at 2450ms, which is the state the still shows. */
+.tp-s-ring {
+  opacity: 0.9;
+  transform: scale(1.15);
+  animation: tp-s-ring 3400ms var(--ease-out-att) infinite;
+}
+@keyframes tp-s-ring {
+  0%, 5%   { transform: scale(0.60); opacity: 0; }
+  8%       { transform: scale(0.85); opacity: 1; }
+  22%      { transform: scale(1.90); opacity: 0; }
+  100%     { transform: scale(1.90); opacity: 0; }
+}
+.tp-s-dot {
+  stroke-dashoffset: -99.5;
+  opacity: 1;
+  animation: tp-s-dot 3400ms var(--ease-out-att) infinite;
+}
+@keyframes tp-s-dot {
+  0%, 17%   { stroke-dashoffset: 0;     opacity: 0; }
+  19%       { stroke-dashoffset: 0;     opacity: 1; }
+  44%, 53%  { stroke-dashoffset: -99.5; opacity: 1; }
+  58%, 100% { stroke-dashoffset: -99.5; opacity: 0; }
+}
+.tp-s-file {
   transform-origin: left center;
   transform: scaleX(1);
-  stroke: var(--color-fog);
-  animation: tp-h-bar 4000ms var(--ease-out-att) infinite;
+  animation: tp-s-file 3400ms var(--ease-out-att) infinite;
 }
-@keyframes tp-h-bar {
-  0%       { transform: scaleX(0.08); stroke: var(--color-signal); opacity: 1; }
-  14%, 46% { transform: scaleX(1); stroke: var(--color-signal); opacity: 1; }
-  56%, 88% { transform: scaleX(1); stroke: var(--color-fog); opacity: 1; }
-  100%     { transform: scaleX(1); stroke: var(--color-fog); opacity: 0; }
-}
-.tp-h-reply {
-  transform-origin: right center;
-  transform: scaleX(1);
-  animation: tp-h-reply 4000ms var(--ease-out-att) infinite;
-}
-@keyframes tp-h-reply {
-  0%, 50%  { transform: scaleX(0); opacity: 1; }
-  70%, 88% { transform: scaleX(1); opacity: 1; }
-  100%     { transform: scaleX(1); opacity: 0; }
-}
-.tp-h-cap { animation: tp-h-cap 4000ms var(--ease-out-att) infinite; }
-@keyframes tp-h-cap {
-  0%, 66%  { opacity: 0; }
-  72%, 88% { opacity: 1; }
-  100%     { opacity: 0; }
+@keyframes tp-s-file {
+  0%, 44%   { transform: scaleX(0); fill: var(--color-signal); opacity: 1; }
+  52%, 58%  { transform: scaleX(1); fill: var(--color-signal); opacity: 1; }
+  72%, 91%  { transform: scaleX(1); fill: var(--color-fog);    opacity: 1; }
+  100%      { transform: scaleX(1); fill: var(--color-fog);    opacity: 0; }
 }
 
-/* Reduced motion: every figure holds its finished state. The !important is
-   load bearing, since globals.css neutralises durations globally with the same
-   weight and would otherwise leave these snapping to their last keyframe. */
+/* ---- DOUBLE, 3600ms. Two rings, then the thing comes back off. --------
+   Both rings share one keyframe set. The second gets a delay of one cycle
+   minus 150ms, which is a negative offset rather than a positive one so it is
+   never sitting at its unstarted base style during the first 150ms: it simply
+   fires 150ms behind the first, on every pass. That gap is what makes the
+   gesture read as a double rather than as two unrelated pulses. */
+@keyframes tp-d-ring {
+  0%, 10%  { transform: scale(0.60); opacity: 0; }
+  13%      { transform: scale(0.85); opacity: 1; }
+  27%      { transform: scale(1.80); opacity: 0; }
+  100%     { transform: scale(1.80); opacity: 0; }
+}
+.tp-d-ring-1 {
+  opacity: 0.95;
+  transform: scale(1.05);
+  animation: tp-d-ring 3600ms var(--ease-out-att) infinite;
+}
+.tp-d-ring-2 {
+  opacity: 0.45;
+  transform: scale(1.55);
+  animation: tp-d-ring 3600ms var(--ease-out-att) infinite;
+  animation-delay: -3450ms;
+}
+/* Base is hidden, so the still is the fog trace alone: the thing is gone and
+   only the mark it left is still there. */
+.tp-d-file {
+  opacity: 0;
+  animation: tp-d-file 3600ms var(--ease-out-att) infinite;
+}
+@keyframes tp-d-file {
+  0%, 25%  { transform: translateY(0);     opacity: 1; }
+  36%, 88% { transform: translateY(-16px); opacity: 0; }
+  /* Snapped back into the slot while invisible, so the next pass starts with
+     the phone holding it again and the loop never jumps. */
+  89%      { transform: translateY(0);     opacity: 0; }
+  100%     { transform: translateY(0);     opacity: 1; }
+}
+.tp-d-dot {
+  stroke-dashoffset: 0;
+  opacity: 1;
+  animation: tp-d-dot 3600ms var(--ease-out-att) infinite;
+}
+@keyframes tp-d-dot {
+  0%, 31%   { stroke-dashoffset: -99.5; opacity: 0; }
+  34%       { stroke-dashoffset: -99.5; opacity: 1; }
+  58%       { stroke-dashoffset: 0;     opacity: 1; }
+  64%, 100% { stroke-dashoffset: 0;     opacity: 0; }
+}
+
+/* ---- HOLD, 4000ms. The ring is held, and the answer comes back. -------
+   The ring reaches full size at 440ms and stays there until 1360ms. That 920ms
+   plateau is the whole difference between this and a single: it has to read as
+   sustained rather than snapped, so it uses the in-out ease and the plateau is
+   a real hold between two keyframes at the same scale. */
+.tp-h-ring {
+  opacity: 0.9;
+  transform: scale(1.30);
+  animation: tp-h-ring 4000ms var(--ease-inout-att) infinite;
+}
+@keyframes tp-h-ring {
+  0%, 4%    { transform: scale(0.50); opacity: 0; }
+  11%, 34%  { transform: scale(1.30); opacity: 1; }
+  39%       { transform: scale(2.00); opacity: 0; }
+  100%      { transform: scale(2.00); opacity: 0; }
+}
+/* The question going out. Hidden in the still: two dots frozen on one route
+   would say nothing about which way either of them was going. */
+.tp-h-out {
+  stroke-dashoffset: -99.5;
+  opacity: 0;
+  animation: tp-h-out 4000ms var(--ease-out-att) infinite;
+}
+@keyframes tp-h-out {
+  0%, 36%   { stroke-dashoffset: 0;     opacity: 0; }
+  38%       { stroke-dashoffset: 0;     opacity: 1; }
+  56%       { stroke-dashoffset: -99.5; opacity: 1; }
+  59%, 100% { stroke-dashoffset: -99.5; opacity: 0; }
+}
+/* The answer coming back. This is the one the still keeps, sitting at the ear
+   end of the route inside the bloom, because that is what the copy promises. */
+.tp-h-back {
+  stroke-dashoffset: 0;
+  opacity: 1;
+  animation: tp-h-back 4000ms var(--ease-out-att) infinite;
+}
+@keyframes tp-h-back {
+  0%, 61%   { stroke-dashoffset: -99.5; opacity: 0; }
+  63%       { stroke-dashoffset: -99.5; opacity: 1; }
+  82%       { stroke-dashoffset: 0;     opacity: 1; }
+  88%, 100% { stroke-dashoffset: 0;     opacity: 0; }
+}
+.tp-h-bloom {
+  opacity: 0.8;
+  transform: scale(0.90);
+  animation: tp-h-bloom 4000ms var(--ease-out-att) infinite;
+}
+@keyframes tp-h-bloom {
+  0%, 79%  { transform: scale(0.45); opacity: 0; }
+  84%      { transform: scale(0.90); opacity: 1; }
+  95%      { transform: scale(1.50); opacity: 0; }
+  100%     { transform: scale(1.50); opacity: 0; }
+}
+
+/* Every sequence holds its finished state when it is not allowed to move.
+   The !important is load bearing: globals.css neutralises animation-duration
+   globally at the same weight under reduced motion, and without this the
+   sequences would snap to their last keyframe, which is the fade out. */
 @media (prefers-reduced-motion: reduce) {
   .tp-a { animation: none !important; }
 }
+/* The same switch, applied per stage rather than per user, for the stills the
+   reduced motion branch renders. */
+.tp-still .tp-a { animation: none !important; }
 `;
 
-/** The shared axis. Fog, always, in all three figures. */
-function Axis() {
+/* ==========================================================================
+   THE STAGE
+   ========================================================================== */
+
+/** The fixed apparatus. Identical in all three sequences and never animated:
+ *  the wearer, the route, the phone, and what the phone already holds. */
+function StageBase() {
   return (
-    <g className="stroke-fog" fill="none">
-      <line x1={X_START} y1={AXIS_Y} x2={X_END} y2={AXIS_Y} strokeWidth={1} />
-      {TICKS.map((x) => (
-        <line
-          key={x}
-          x1={x}
-          y1={TICK_TOP}
-          x2={x}
-          y2={AXIS_Y}
+    <g>
+      {/* Drawn first so the ear shape and the phone sit over its ends.
+          Every hairline in the drawing carries non-scaling-stroke, so a 1px
+          rule stays 1px at 375px as well as at full width. Without it the
+          whole apparatus thins to well under half a pixel on a phone and the
+          phone outline starts dropping out on some displays. */}
+      <path
+        className="stroke-fog"
+        d={LINK}
+        fill="none"
+        strokeWidth={1}
+        strokeOpacity={0.28}
+        vectorEffect="non-scaling-stroke"
+      />
+
+      {[HELIX, ANTIHELIX].map((d, i) => (
+        <path
+          key={i}
+          className="stroke-fog"
+          d={d}
+          fill="none"
           strokeWidth={1}
-          strokeOpacity={0.55}
+          strokeOpacity={i === 0 ? 0.6 : 0.4}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      ))}
+
+      <rect
+        className="fill-fog"
+        x={EAR_X - EAR_W / 2}
+        y={EAR_Y - EAR_H / 2}
+        width={EAR_W}
+        height={EAR_H}
+        rx={EAR_W / 2}
+      />
+
+      <rect
+        className="stroke-fog"
+        x={PHONE_X}
+        y={PHONE_Y}
+        width={PHONE_W}
+        height={PHONE_H}
+        rx={PHONE_R}
+        fill="none"
+        strokeWidth={1}
+        vectorEffect="non-scaling-stroke"
+      />
+
+      {CONTENT.map((line) => (
+        <rect
+          key={line.y}
+          className="fill-fog"
+          x={RULE_X}
+          y={line.y}
+          width={line.w}
+          height={2}
+          rx={1}
+          fillOpacity={0.55}
         />
       ))}
     </g>
   );
 }
 
-function FigureFrame({ label, children }: { label: string; children: ReactNode }) {
+/** A pulse ring at the ear. Scaled rather than resized so one keyframe set
+ *  drives it, and non-scaling-stroke keeps it at exactly 1px at every size it
+ *  passes through. A ring that thickens as it grows would read as a glow. */
+/** The mandible mark. Shares each sequence's ring timing, because it is the
+ *  same event seen from the other side: the jaw tightens, the device registers
+ *  it. Drawn at the hinge so the two read as cause and effect, not as two
+ *  decorations firing together. */
+function Jaw({ cls }: { cls: string }) {
   return (
-    <svg
-      role="img"
-      aria-label={label}
-      viewBox={`0 0 ${FIG_W} ${FIG_H}`}
-      className="block h-auto w-full max-w-[400px] lg:ml-auto"
-    >
-      <Axis />
-      {children}
-    </svg>
+    <path
+      className={`tp-a tp-jaw ${cls}`}
+      d={JAW}
+      fill="none"
+      strokeLinecap="round"
+      vectorEffect="non-scaling-stroke"
+    />
   );
 }
 
-/** Single: a mark laid down, and the span behind it marked with it. */
-function SingleFigure() {
+function Ring({ cls, r = RING_R }: { cls: string; r?: number }) {
   return (
-    <FigureFrame label={FIGURE_LABELS[0]}>
-      <line
-        className="tp-a tp-s-span stroke-signal"
-        x1={SPAN_X0}
-        y1={AXIS_Y}
-        x2={MARK_X}
-        y2={AXIS_Y}
-        strokeWidth={3}
-      />
-      <line
-        className="tp-a tp-s-mark stroke-signal"
-        x1={MARK_X}
-        y1={MARK_TOP}
-        x2={MARK_X}
-        y2={MARK_BOTTOM}
-        strokeWidth={2}
-      />
-    </FigureFrame>
+    <circle
+      className={`tp-a tp-ring ${cls}`}
+      cx={EAR_X}
+      cy={EAR_Y}
+      r={r}
+      vectorEffect="non-scaling-stroke"
+    />
   );
 }
 
-/** Double: the same mark, lifted back off. The dashed trace stays put so the
-    figure still says which mark was taken back. */
-function DoubleFigure() {
+/** The thing in transit, riding the same curve the faint route is drawn from. */
+function Dot({ cls }: { cls: string }) {
+  return <path className={`tp-a tp-dot ${cls}`} d={LINK} pathLength={100} />;
+}
+
+/** Single: one ring, one trip out, one new line in the phone. */
+function SingleSequence() {
   return (
-    <FigureFrame label={FIGURE_LABELS[1]}>
-      <g className="stroke-fog" strokeOpacity={1} strokeDasharray="3 3">
-        <line x1={SPAN_X0} y1={AXIS_Y} x2={MARK_X} y2={AXIS_Y} strokeWidth={3} />
-        <line x1={MARK_X} y1={MARK_TOP} x2={MARK_X} y2={MARK_BOTTOM} strokeWidth={2} />
-      </g>
-      <line
-        className="tp-a tp-d-span stroke-signal"
-        x1={SPAN_X0}
-        y1={AXIS_Y}
-        x2={MARK_X}
-        y2={AXIS_Y}
-        strokeWidth={3}
+    <g>
+      <Ring cls="tp-s-ring" />
+      <Jaw cls="tp-s-jaw" />
+      <Dot cls="tp-s-dot" />
+      <rect
+        className="tp-a tp-rule tp-s-file"
+        x={RULE_X}
+        y={SLOT_Y}
+        width={SLOT_W}
+        height={2}
+        rx={1}
       />
-      <line
-        className="tp-a tp-d-mark stroke-signal"
-        x1={MARK_X}
-        y1={MARK_TOP}
-        x2={MARK_X}
-        y2={MARK_BOTTOM}
-        strokeWidth={2}
-      />
-    </FigureFrame>
+    </g>
   );
 }
 
-/** Hold: a bar for as long as the jaw is held, then an answer coming back. */
-function HoldFigure() {
+/** Double: two rings 150ms apart, the line lifted back out, one trip home.
+ *  The dashed trace stays behind so the drawing still says which line was the
+ *  one taken back, rather than just showing an emptier phone. */
+function DoubleSequence() {
   return (
-    <FigureFrame label={FIGURE_LABELS[2]}>
+    <g>
       <line
-        className="tp-a tp-h-bar"
-        x1={BAR_X0}
-        y1={AXIS_Y}
-        x2={BAR_X1}
-        y2={AXIS_Y}
-        strokeWidth={3}
+        className="stroke-fog"
+        x1={RULE_X}
+        y1={SLOT_Y + 1}
+        x2={RULE_X + SLOT_W}
+        y2={SLOT_Y + 1}
+        strokeWidth={1.5}
+        strokeDasharray="3 4"
+        strokeOpacity={0.6}
+        vectorEffect="non-scaling-stroke"
       />
-      <line
-        className="tp-a tp-h-reply stroke-signal"
-        x1={REPLY_X0}
-        y1={REPLY_Y}
-        x2={REPLY_X1}
-        y2={REPLY_Y}
-        strokeWidth={2}
+      <rect
+        className="tp-a tp-rule tp-d-file"
+        x={RULE_X}
+        y={SLOT_Y}
+        width={SLOT_W}
+        height={2}
+        rx={1}
       />
-      <line
-        className="tp-a tp-h-cap stroke-signal"
-        x1={REPLY_X0}
-        y1={REPLY_Y - 6}
-        x2={REPLY_X0}
-        y2={REPLY_Y + 6}
-        strokeWidth={2}
-      />
-    </FigureFrame>
+      <Ring cls="tp-d-ring-1" />
+      <Ring cls="tp-d-ring-2" />
+      <Jaw cls="tp-d-jaw-1" />
+      <Jaw cls="tp-d-jaw-2" />
+      <Dot cls="tp-d-dot" />
+    </g>
   );
 }
 
-/** The vocabulary is a fixed set of three in the copy deck, and each figure
-    draws the specific action its row describes, so the pairing is positional
-    on purpose. A fourth entry would need a fourth figure, not a fallback. */
-const FIGURES = [SingleFigure, DoubleFigure, HoldFigure];
+/** Hold: the ring is held open, the question goes, the answer comes back and
+ *  blooms at the ear. Nothing is filed, because nothing was captured. */
+function HoldSequence() {
+  return (
+    <g>
+      <Ring cls="tp-h-ring" />
+      <Jaw cls="tp-h-jaw" />
+      <Dot cls="tp-h-out" />
+      <Dot cls="tp-h-back" />
+      <Ring cls="tp-h-bloom" r={14} />
+    </g>
+  );
+}
+
+const SEQUENCES = [SingleSequence, DoubleSequence, HoldSequence];
 
 /**
- * The point.
+ * The shared stage.
  *
- * The largest section on the page, because it carries the argument the product
- * rests on: an assistant you can reach without stopping. Three subsections, in
- * the order the argument runs. What the gestures are, why three of them is the
- * whole vocabulary, and what happens to what you captured.
- *
- * Server rendered. The copy is the substance here and exists without
- * JavaScript; only the entrances and the figure loops are motion, and both
- * degrade to plain visible content.
+ * `still` freezes the sequence at its finished state, which is what the reduced
+ * motion branch renders. Otherwise the sequence group is keyed on the gesture
+ * index, so moving between gestures remounts it and every animation restarts
+ * from its first keyframe instead of joining the new one part way through a
+ * cycle, which would show the answer before the gesture that asked for it.
  */
-export default function ThePoint() {
+function Stage({ mode, still = false }: { mode: number; still?: boolean }) {
+  const Sequence = SEQUENCES[mode];
   return (
-    <section
-      id="the-point"
-      aria-labelledby="the-point-heading"
-      className="section bg-ink text-paper scroll-mt-[var(--nav-h)]"
+    <div
+      className={
+        "w-full rounded-card border border-[var(--hairline)] p-4 sm:p-6 lg:p-8" +
+        (still ? " tp-still" : "")
+      }
     >
-      <style href="the-point-figures" precedence="default">
-        {FIGURE_CSS}
-      </style>
+      <svg
+        role="img"
+        aria-label={STAGE_LABELS[mode]}
+        viewBox={`0 0 ${W} ${H}`}
+        className="block h-auto w-full"
+        focusable="false"
+      >
+        <StageBase />
+        <g key={mode}>
+          <Sequence />
+        </g>
+      </svg>
+    </div>
+  );
+}
 
-      <div className="shell">
-        {/* OPENING */}
-        <div className="grid12">
-          <div className="col-span-12 lg:col-span-10">
-            <Reveal>
-              <p className="t-mono text-fog">{thePoint.eyebrow}</p>
-            </Reveal>
+/* ==========================================================================
+   COPY BLOCKS
+   ========================================================================== */
 
-            <MaskHeadline
-              id="the-point-heading"
-              lines={thePoint.headlineLines}
-              className="t-h1 mt-8 text-paper"
-            />
+/** The opening. Identical in both branches, so it lives in one place. */
+function Opening() {
+  return (
+    <div className="grid12">
+      <div className="col-span-12 lg:col-span-10">
+        <Reveal>
+          <p className="t-mono text-fog">{thePoint.eyebrow}</p>
+        </Reveal>
 
-            <Reveal
-              className="mt-12 flex max-w-[62ch] flex-col gap-6"
-              staggerChildren={60}
-            >
-              {thePoint.paragraphs.map((paragraph) => (
-                // Lead size: this is the section's argument, and at body size
-                // under an 80px headline it read as fine print.
-                <p key={paragraph} className="t-lead max-w-[54ch] text-mist">
-                  {paragraph}
-                </p>
-              ))}
-            </Reveal>
-          </div>
-        </div>
+        <MaskHeadline
+          id={HEADING_ID}
+          lines={thePoint.headlineLines}
+          className="t-h1 mt-8 text-paper"
+        />
 
-        {/* A. THE VOCABULARY. One row per gesture, each row the gesture on the
-            left and the resulting action drawn on the right. */}
-        <div className="mt-28 lg:mt-44">
-          <Reveal>
-            <h3 className="t-mono text-fog">{thePoint.vocabularyHeading}</h3>
-          </Reveal>
+        <Reveal className="mt-12 flex flex-col gap-6" staggerChildren={60}>
+          {thePoint.paragraphs.map((paragraph) => (
+            // Lead size: this is the section's argument, and at body size
+            // under an 80px headline it read as fine print.
+            <p key={paragraph} className="t-lead max-w-[54ch] text-mist">
+              {paragraph}
+            </p>
+          ))}
+        </Reveal>
+      </div>
+    </div>
+  );
+}
 
-          <ul className="mt-10 lg:mt-14">
-            {thePoint.vocabulary.map((item, i) => {
-              const Figure = FIGURES[i];
-              return (
+/** Why three is enough. The crux, so it gets a rule above it, a narrower
+ *  measure and the largest gap on the page either side. */
+function Context() {
+  return (
+    <div className="grid12 border-t border-hairline pt-24 lg:pt-36">
+      <div className="col-span-12 lg:col-span-8 lg:col-start-3">
+        <MaskHeadline
+          as="h3"
+          lines={thePoint.context.headlineLines}
+          className="t-h2 text-paper"
+        />
+        <Reveal>
+          <p className="t-lead mt-10 max-w-[52ch] text-mist">
+            {thePoint.context.body}
+          </p>
+        </Reveal>
+      </div>
+    </div>
+  );
+}
+
+/* ==========================================================================
+   SECTION
+   ========================================================================== */
+
+export default function ThePoint() {
+  const reduced = useReducedMotion();
+
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [index, setIndex] = useState(0);
+
+  /* ------------------------------------------------------ pin and stages */
+
+  useEffect(() => {
+    if (reduced) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    let dispose = () => {};
+    let disposed = false;
+
+    (async () => {
+      // Dynamic so GSAP and ScrollTrigger stay out of the first paint graph.
+      const { gsap } = await import("gsap");
+      const { ScrollTrigger } = await import("gsap/ScrollTrigger");
+      gsap.registerPlugin(ScrollTrigger);
+      // useReducedMotion cannot know the answer until after mount, so this
+      // effect can start with motion allowed and then have the reduced motion
+      // tree swap the trigger out from under it while the dynamic import is
+      // still in flight. Pinning a node that is no longer in the document
+      // throws inside GSAP when it tries to insert its spacer, which is a
+      // WebKit visible page error. Check the node is still attached.
+      if (disposed || !panel.isConnected) return;
+
+      let current = -1;
+
+      const st = ScrollTrigger.create({
+        trigger: panel,
+        start: "top top",
+        // A function so the distance is remeasured on refresh rather than
+        // frozen at whatever the viewport was on mount.
+        end: () => "+=" + window.innerHeight * SCROLL_VH,
+        pin: true,
+        // Pinning a full viewport panel jumps if the pin lands late, so let
+        // ScrollTrigger apply it a frame early on fast scrolls.
+        anticipatePin: 1,
+        invalidateOnRefresh: true,
+        onUpdate: (self) => {
+          const p = self.progress;
+          let next = 0;
+          for (let i = STAGE_STARTS.length - 1; i >= 0; i--) {
+            if (p >= STAGE_STARTS[i]) {
+              next = i;
+              break;
+            }
+          }
+          if (next === current) return;
+          current = next;
+          setIndex(next);
+        },
+      });
+
+      // Everything above this section settles its own media after we mount,
+      // which moves our start position. One refresh once we are live corrects
+      // it, and matches what the pinned scene after the hero does.
+      ScrollTrigger.refresh();
+
+      dispose = () => st.kill(true); // true reverts the pin and its spacer
+    })();
+
+    return () => {
+      disposed = true;
+      dispose();
+    };
+  }, [reduced]);
+
+  /* ------------------------------------------------------- reduced motion */
+
+  if (reduced) {
+    // No pin, no scrub, no loop. The vocabulary becomes what it was always
+    // describing, read top to bottom: three ruled rows, each with its gesture
+    // and the finished state of what that gesture produces.
+    return (
+      <section
+        id="the-point"
+        aria-labelledby={HEADING_ID}
+        className="section bg-ink text-paper scroll-mt-[var(--nav-h)]"
+      >
+        <style href="the-point-stage" precedence="default">
+          {STAGE_CSS}
+        </style>
+
+        <div className="shell">
+          <Opening />
+
+          <div className="mt-28 lg:mt-44">
+            <h3 id={VOCAB_ID} className="t-mono text-fog">
+              {thePoint.vocabularyHeading}
+            </h3>
+
+            <ol aria-labelledby={VOCAB_ID} className="mt-10 lg:mt-14">
+              {thePoint.vocabulary.map((item, i) => (
                 <li
                   key={item.label}
                   className="grid12 items-start border-t border-hairline py-14 lg:py-20"
                 >
-                  <Reveal className="col-span-12 lg:col-span-6">
+                  <div className="col-span-12 lg:col-span-5">
                     <p className="t-mono text-fog">{item.label}</p>
-                    {/* h4 under the h3 above it: the section heading is the h2,
-                        the subsection label is the h3, these are its members. */}
+                    {/* h4 under the h3 above it: the section heading is the
+                        h2, the subsection label is the h3, these are its
+                        members. */}
                     <h4 className="t-h2 mt-5 text-paper">{item.title}</h4>
                     <p className="mt-6 max-w-[46ch] text-mist">{item.body}</p>
-                  </Reveal>
+                  </div>
 
-                  <Reveal
-                    className="col-span-12 mt-12 lg:col-span-5 lg:col-start-8 lg:mt-2"
-                    delay={120}
-                  >
-                    <Figure />
-                  </Reveal>
+                  <div className="col-span-12 mt-12 lg:col-span-6 lg:col-start-7 lg:mt-0">
+                    <Stage mode={i} still />
+                  </div>
                 </li>
-              );
-            })}
-          </ul>
-        </div>
+              ))}
+            </ol>
+          </div>
 
-        {/* B. WHY THREE IS ENOUGH. The crux, so it gets a rule above it, a
-            narrower measure and the largest gap on the page either side. */}
-        <div className="grid12 mt-28 border-t border-hairline pt-24 lg:mt-44 lg:pt-36">
-          <div className="col-span-12 lg:col-span-8 lg:col-start-3">
-            <MaskHeadline
-              as="h3"
-              lines={thePoint.context.headlineLines}
-              className="t-h2 text-paper"
-            />
-            <Reveal>
-              <p className="t-lead mt-10 max-w-[52ch] text-mist">
-                {thePoint.context.body}
-              </p>
-            </Reveal>
+          <div className="mt-28 lg:mt-44">
+            <Context />
           </div>
         </div>
+      </section>
+    );
+  }
 
-        {/* C. WHERE IT GOES.
+  /* --------------------------------------------------------------- render */
 
-            Not a card grid. Four rounded boxes of equal weight say nothing
-            about what this section is actually describing, which is routing:
-            a thing heard in a conversation being sent somewhere specific. So
-            it is set as a ruled index, the same instrument language the
-            science figure and the filing diagram already use. Hovering a row
-            draws an amber leader from the label to its destination, which is
-            the route being made, and is the only amber here. */}
-        <div className="mt-28 lg:mt-44">
-          <Reveal>
-            <h3 className="t-mono text-fog">{thePoint.destinationsHeading}</h3>
-          </Reveal>
+  return (
+    <section
+      id="the-point"
+      aria-labelledby={HEADING_ID}
+      data-stage-active={index}
+      className="bg-ink text-paper scroll-mt-[var(--nav-h)]"
+    >
+      <style href="the-point-stage" precedence="default">
+        {STAGE_CSS}
+      </style>
 
-          <Reveal
-            as="ul"
-            className="mt-10 border-t border-hairline lg:mt-12"
-            staggerChildren={60}
-          >
-            {thePoint.destinations.map((item) => (
-              <li
-                key={item.label}
-                className="group border-b border-hairline"
-              >
-                <div className="flex flex-col gap-4 py-7 md:flex-row md:items-baseline md:gap-10 lg:py-9">
-                  <p className="t-mono w-[10ch] shrink-0 text-mist transition-colors duration-[240ms] ease-[var(--ease-out-att)] group-hover:text-paper">
-                    {item.label}
-                  </p>
+      {/* OPENING. Unpinned, and the only part of the section a reader who
+          never scrolls past it needs in order to get the argument. */}
+      <div className="shell pt-[var(--rhythm)] pb-28 lg:pb-44">
+        <Opening />
+      </div>
 
-                  {/* The leader. A fog rule that an amber one grows along from
-                      the label end, so the movement reads left to right, from
-                      the thing captured toward where it lands. */}
-                  <span
-                    aria-hidden="true"
-                    className="relative hidden h-px flex-1 self-center bg-[var(--hairline)] md:block"
-                  >
-                    <span className="absolute inset-0 origin-left scale-x-0 bg-signal transition-transform duration-[600ms] ease-[var(--ease-out-att)] group-hover:scale-x-100" />
-                  </span>
-
-                  <p className="text-mist md:max-w-[42ch] md:text-right">
-                    {item.body}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </Reveal>
+      {/* THE VOCABULARY. Pinned, and scrubbed through the three gestures.
+          Full bleed and no radius: the panel is a section, not a card. */}
+      <div
+        ref={panelRef}
+        className="relative flex h-[100svh] min-h-[100svh] w-full flex-col overflow-hidden"
+      >
+        <div className="shell pt-[calc(var(--nav-h)+28px)]">
+          <h3 id={VOCAB_ID} className="t-mono text-fog">
+            {thePoint.vocabularyHeading}
+          </h3>
         </div>
+
+        {/* Vertical budget, measured at 375x667, which is the tightest
+            viewport this has to hold: 100px of top offset, the label, then the
+            copy block and the stage stacked. The mobile padding here is what
+            keeps the stage from being pushed under the fold inside its own
+            pin, so it is deliberately tighter than the desktop value. */}
+        <div className="shell flex flex-1 items-center pb-10 pt-6 lg:pb-20 lg:pt-10">
+          {/* No gap utility here: .grid12 is unlayered CSS and its 24px gap
+              would beat any Tailwind gap class applied on top of it. */}
+          <div className="grid12 w-full items-center">
+            <div className="col-span-12 lg:col-span-5">
+              {/* Three short rules, the active one amber. Amber is legitimate
+                  here for the same reason it is everywhere else on the page:
+                  it marks the one being attended to. Hidden from assistive
+                  technology because the list below already says there are
+                  three of these and which one is current. */}
+              <ul aria-hidden="true" className="flex items-center gap-2">
+                {thePoint.vocabulary.map((item, i) => (
+                  <li
+                    key={item.label}
+                    className={
+                      "h-px transition-[width,background-color] duration-[240ms] ease-[var(--ease-out-att)] " +
+                      (i === index
+                        ? "w-14 bg-signal"
+                        : "w-8 bg-[var(--hairline)]")
+                    }
+                  />
+                ))}
+              </ul>
+
+              {/* All three gestures are always in the DOM and always in the
+                  accessibility tree, stacked in one grid cell so the block
+                  never changes height as the scrub moves. Only opacity and
+                  transform change, so a screen reader gets the whole
+                  vocabulary as one ordered list. */}
+              <ol aria-labelledby={VOCAB_ID} className="mt-6 grid lg:mt-10">
+                {thePoint.vocabulary.map((item, i) => {
+                  const active = i === index;
+                  return (
+                    <li
+                      key={item.label}
+                      style={{ gridArea: "1 / 1" }}
+                      aria-current={active ? "true" : undefined}
+                    >
+                      <div
+                        style={{
+                          opacity: active ? 1 : 0,
+                          transform: active ? "none" : "translateY(10px)",
+                          // Inactive gestures are stacked on top of the active
+                          // one, so they must not intercept a click or a text
+                          // selection while they are invisible.
+                          pointerEvents: active ? "auto" : "none",
+                          transition:
+                            "opacity var(--d-fast) var(--ease-out-att), transform var(--d-fast) var(--ease-out-att)",
+                        }}
+                      >
+                        <p className="t-mono text-fog">{item.label}</p>
+                        <h4 className="t-h2 mt-4 text-paper">{item.title}</h4>
+                        <p className="mt-5 max-w-[38ch] text-mist">
+                          {item.body}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+
+            <div className="col-span-12 lg:col-span-6 lg:col-start-7">
+              <Stage mode={index} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* WHY THREE IS ENOUGH. */}
+      <div className="shell pt-28 pb-[var(--rhythm)] lg:pt-44">
+        <Context />
       </div>
     </section>
   );

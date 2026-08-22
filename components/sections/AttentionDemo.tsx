@@ -99,6 +99,14 @@ function idleCurve(n: number, seed: number): Float32Array {
 
 const clampSigned = (n: number) => (n < -1 ? -1 : n > 1 ? 1 : n);
 
+/** Mean absolute deviation from the 128 centre, ie is the analyser saying anything. */
+function energy(src: Uint8Array): number {
+  let sum = 0;
+  // Every eighth sample is plenty to answer a yes or no question.
+  for (let i = 0; i < src.length; i += 8) sum += Math.abs(src[i] - 128);
+  return sum / (src.length / 8);
+}
+
 /** Peak picking downsample from the analyser buffer into the drawing buffer. */
 function resamplePeaks(src: Uint8Array, out: Float32Array) {
   const step = src.length / out.length;
@@ -318,6 +326,32 @@ export default function AttentionDemo({ className = "" }: Props) {
     };
   }, []);
 
+  /* --- silence when the control is out of sight --------------------------- */
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    // Sound that keeps playing after its control has scrolled away is sound
+    // the reader can no longer see a reason for or a way to stop, so leaving
+    // the demo behind switches it off rather than merely pausing the drawing.
+    // Deliberately not resumed on the way back: restarting audio nobody asked
+    // for a second time would be worse than making them press it again.
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) return;
+        const rig = rigRef.current;
+        if (!rig) return;
+        audioARef.current?.pause();
+        audioBRef.current?.pause();
+        rig.ctx.suspend().catch(() => {});
+        setEnabled(false);
+      },
+      { threshold: 0 }
+    );
+    io.observe(root);
+    return () => io.disconnect();
+  }, []);
+
   /* --- cursor tracking over the control ----------------------------------- */
   useEffect(() => {
     if (reduced || coarse) return;
@@ -427,6 +461,10 @@ export default function AttentionDemo({ className = "" }: Props) {
 
     let raf = 0;
     let running = false;
+    // Consecutive frames the analyser has reported silence while the graph is
+    // supposed to be running. Half a second of nothing means we stop trusting
+    // it and draw the idle curve instead.
+    let mute = 0;
     let prev = performance.now();
     let committed = 0.5;
     let committedAt = 0;
@@ -466,14 +504,23 @@ export default function AttentionDemo({ className = "" }: Props) {
       const aAtt = smoothstep(clamp01(1 - v));
       const bAtt = smoothstep(clamp01(v));
       const rig = rigRef.current;
-      const live = rig !== null && rig.ctx.state === "running";
+      const running_ = rig !== null && rig.ctx.state === "running";
 
-      if (live && rig) {
+      if (running_ && rig) {
         rig.a.analyser.getByteTimeDomainData(rig.a.bytes);
         rig.b.analyser.getByteTimeDomainData(rig.b.bytes);
+        if (energy(rig.a.bytes) + energy(rig.b.bytes) < 0.6) mute++;
+        else mute = 0;
         resamplePeaks(rig.a.bytes, bufA);
         resamplePeaks(rig.b.bytes, bufB);
+      } else {
+        mute = 0;
       }
+
+      // Draw real samples only while they carry something. Otherwise the idle
+      // curve stands in, still coloured and scaled by the cursor, so the
+      // interaction keeps reading even where the analyser does not work.
+      const live = running_ && mute < 30;
 
       c.clearRect(0, 0, cssW, cssH);
 
@@ -666,11 +713,11 @@ export default function AttentionDemo({ className = "" }: Props) {
     >
       {/* Never autoplays. Nothing here makes a sound until the button below is
           pressed, which is also the only place the AudioContext is created. */}
-      <audio ref={audioARef} loop preload="none" aria-hidden="true" tabIndex={-1}>
+      <audio ref={audioARef} loop preload="metadata" aria-hidden="true" tabIndex={-1}>
         <source src="/media/voice-a.webm" type="audio/webm; codecs=opus" />
         <source src="/media/voice-a.mp3" type="audio/mpeg" />
       </audio>
-      <audio ref={audioBRef} loop preload="none" aria-hidden="true" tabIndex={-1}>
+      <audio ref={audioBRef} loop preload="metadata" aria-hidden="true" tabIndex={-1}>
         <source src="/media/voice-b.webm" type="audio/webm; codecs=opus" />
         <source src="/media/voice-b.mp3" type="audio/mpeg" />
       </audio>

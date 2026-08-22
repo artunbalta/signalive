@@ -203,7 +203,13 @@ export default function ScrubSequence() {
       const { gsap } = await import("gsap");
       const { ScrollTrigger } = await import("gsap/ScrollTrigger");
       gsap.registerPlugin(ScrollTrigger);
-      if (disposed) return;
+      // useReducedMotion cannot know the answer until after mount, so this
+      // effect can start with motion allowed and then have the reduced motion
+      // tree swap the trigger out from under it while the dynamic import is
+      // still in flight. Pinning a node that is no longer in the document
+      // throws inside GSAP when it tries to insert its spacer, which is a
+      // WebKit visible page error. Check the node is still attached.
+      if (disposed || !section.isConnected) return;
 
       const state = { frame: 0 };
       const tween = gsap.to(state, {
