@@ -42,6 +42,36 @@ export default function SmoothScroll() {
       gsap.ticker.add(raf);
       gsap.ticker.lagSmoothing(0);
 
+      /* ---- keeping every pinned section honest about where it starts ----
+       *
+       * There are three pinned sections, each created in its own effect behind
+       * its own dynamic import, and each one inserts a pin spacer that changes
+       * the height of the page for everything below it. On top of that the
+       * hero video, the lazy carousel images and the webfonts all land after
+       * first paint and move things again. A ScrollTrigger that measured its
+       * start before any of that has settled pins early, which puts a fixed
+       * panel on top of copy that has not scrolled away yet.
+       *
+       * ScrollTrigger.refresh() remeasures every trigger, so this is the one
+       * place that needs to own it. Debounced, because a burst of lazy images
+       * would otherwise refresh once per image. */
+      let refreshTimer = 0;
+      const refresh = () => {
+        window.clearTimeout(refreshTimer);
+        refreshTimer = window.setTimeout(() => ScrollTrigger.refresh(), 150);
+      };
+
+      if (document.readyState === "complete") refresh();
+      else window.addEventListener("load", refresh, { once: true });
+
+      // Webfonts change the height of every headline on the page.
+      document.fonts?.ready.then(refresh).catch(() => {});
+
+      // Anything that changes the document height: a video reaching its poster
+      // size, a lazy image arriving, a section revealing.
+      const ro = new ResizeObserver(refresh);
+      ro.observe(document.body);
+
       // Anchor links have to go through Lenis or they fight it.
       const onClick = (e: MouseEvent) => {
         const el = (e.target as HTMLElement)?.closest?.('a[href^="#"]');
@@ -56,6 +86,9 @@ export default function SmoothScroll() {
       document.addEventListener("click", onClick);
 
       destroy = () => {
+        window.clearTimeout(refreshTimer);
+        ro.disconnect();
+        window.removeEventListener("load", refresh);
         document.removeEventListener("click", onClick);
         gsap.ticker.remove(raf);
         lenis.destroy();

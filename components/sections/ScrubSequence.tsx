@@ -187,12 +187,21 @@ export default function ScrubSequence() {
   /* --------------------------------------------------- pin and scrub */
 
   useEffect(() => {
-    if (reduced || !ready) return;
+    if (reduced) return;
     const section = sectionRef.current;
     if (!section) return;
 
-    // Paint frame zero before the trigger exists, so the first sight of the
-    // section is the earbud and not an empty canvas.
+    // Deliberately NOT gated on the preload finishing.
+    //
+    // This pin inserts a spacer almost two viewports tall. Waiting for sixty
+    // frames to download before creating it meant that spacer appeared long
+    // after the page had been measured, and every pinned section below it kept
+    // a start position that was now 1575px too high. The visible result was
+    // the next section pinning early and sitting on top of copy that had not
+    // scrolled away yet. Page geometry cannot depend on asset loading, so the
+    // trigger is created on mount and the frames arrive whenever they arrive.
+    // draw() skips a frame that has not loaded, and the progress readout is
+    // covering the canvas until they are all in.
     draw(0);
 
     let dispose = () => {};
@@ -250,7 +259,7 @@ export default function ScrubSequence() {
       disposed = true;
       dispose();
     };
-  }, [reduced, ready, draw]);
+  }, [reduced, draw]);
 
   /* --------------------------------------------------------------- render */
 

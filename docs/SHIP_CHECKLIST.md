@@ -102,6 +102,13 @@ each channel, since each now carries two listening beats and two acting ones.
 22. **Sound kept playing after its control scrolled away.** An IntersectionObserver on the demo now pauses both tracks, suspends the context and clears the enabled state when it leaves the viewport. Deliberately not resumed on the way back.
 23. **Three pinned sections plus reduced motion threw in WebKit.** useReducedMotion cannot know the answer until after mount, so a pin effect can start with motion allowed and then have the reduced motion tree swap the trigger out while the dynamic GSAP import is still in flight. Pinning a detached node throws inside GSAP as it inserts its spacer. All three pinned effects now check the trigger is still connected after the import resolves.
 
+24. **A pinned section sat on top of the copy above it.** THE POINT pinned roughly 1500px early, so its fixed panel overlaid the headline and paragraphs that had not scrolled away yet. Two causes, both about measuring the page before it had settled:
+
+    - The scrubbed rotation created its ScrollTrigger only after all sixty frames had preloaded. That pin inserts a spacer almost two viewports tall, so the spacer appeared long after everything below it had been measured, and every later pin kept a start position that was now 1575px too high. Page geometry must not depend on asset loading: the trigger is now created on mount and the frames arrive whenever they arrive. `draw()` already skips a frame that has not loaded.
+    - Nothing owned remeasurement. Webfonts, the hero video and the lazy carousel images all change the height of the page after first paint, and each pinned section was refreshing only around its own creation. `components/SmoothScroll.tsx` now owns a single debounced `ScrollTrigger.refresh()` driven by `window.load`, `document.fonts.ready` and a `ResizeObserver` on the body, so every trigger is remeasured together whenever the document changes height.
+
+    Verified by measuring rather than by eye: the panel's document offset and the scroll position the pin fires at now agree to within the 30px that `anticipatePin` is deliberately buying.
+
 ## Known limitations
 
 - **Framer Motion is not installed.** It would have taken the bundle over the 180KB budget. Reasoning in `docs/PERFORMANCE.md`.
