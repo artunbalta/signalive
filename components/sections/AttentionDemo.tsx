@@ -1,10 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  KeyboardEvent as ReactKeyboardEvent,
-  PointerEvent as ReactPointerEvent,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { hero } from "@/lib/copy";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 
@@ -23,7 +20,7 @@ const SIGNAL_RGB = [255, 194, 75] as const;
 const FOG_RGB = [138, 138, 143] as const;
 
 const GAIN_ATTENDED = 1.0;
-const GAIN_DUCKED = 0.18;
+const GAIN_DUCKED = 0.08;
 const CUTOFF_ATTENDED = 20000;
 const CUTOFF_DUCKED = 900;
 /** Voice A sits left, voice B sits right, so the two are separable by ear. */
@@ -122,16 +119,6 @@ function resamplePeaks(src: Uint8Array, out: Float32Array) {
   }
 }
 
-function svgPath(curve: Float32Array, w: number, cy: number, halfH: number): string {
-  let d = "";
-  for (let i = 0; i < curve.length; i++) {
-    const x = (i / (curve.length - 1)) * w;
-    const y = cy - curve[i] * halfH;
-    d += `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)} `;
-  }
-  return d.trim();
-}
-
 /* ==========================================================================
    AUDIO GRAPH
    ========================================================================== */
@@ -193,658 +180,208 @@ type Rig = {
   b: VoiceChain;
 };
 
-/* ==========================================================================
-   COMPONENT
-   ========================================================================== */
-
 type Props = { className?: string };
 
 export default function AttentionDemo({ className = "" }: Props) {
   const reduced = useReducedMotion();
-
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const trackRef = useRef<HTMLDivElement>(null);
-  const handleRef = useRef<HTMLDivElement>(null);
   const audioARef = useRef<HTMLAudioElement>(null);
   const audioBRef = useRef<HTMLAudioElement>(null);
-
-  /** Raw input position. 0 attends voice A, 1 attends voice B, 0.5 is neither. */
-  const targetRef = useRef(0.5);
-  /** Smoothed position actually rendered and sent to the audio graph. */
-  const easedRef = useRef(0.5);
   const rigRef = useRef<Rig | null>(null);
-  const draggingRef = useRef(false);
-
+  const targetRef = useRef(0.5);
+  const busyRef = useRef(false);
+  const repaintRef = useRef<(() => void) | null>(null);
   const [att, setAtt] = useState(0.5);
   const [enabled, setEnabled] = useState(false);
-  const [coarse, setCoarse] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
 
-  /* --- pointer class ---------------------------------------------------- */
-  useEffect(() => {
-    const mq = window.matchMedia("(pointer: coarse)");
-    const apply = () => setCoarse(mq.matches);
-    apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, []);
-
-  /* --- audio parameter writes ------------------------------------------- */
-
-  /**
-   * Push one position into the graph. Attendedness of A is the mirror of B, so
-   * the midpoint leaves both at the same, partly ducked, value: honest, because
-   * with no clear target there is nothing to bring forward.
-   */
   const applyAudio = useCallback((value: number) => {
     const rig = rigRef.current;
     if (!rig) return;
-    const now = rig.ctx.currentTime;
-    const aAtt = smoothstep(clamp01(1 - value));
-    const bAtt = smoothstep(clamp01(value));
-
-    const write = (chain: VoiceChain, attendedness: number) => {
-      chain.gain.gain.setTargetAtTime(
-        GAIN_DUCKED + (GAIN_ATTENDED - GAIN_DUCKED) * attendedness,
-        now,
-        AUDIO_TAU
-      );
-      // Cutoff is swept geometrically, which is how the ear reads frequency.
-      chain.filter.frequency.setTargetAtTime(
-        CUTOFF_DUCKED * Math.pow(CUTOFF_ATTENDED / CUTOFF_DUCKED, attendedness),
-        now,
-        AUDIO_TAU
-      );
-    };
-
-    write(rig.a, aAtt);
-    write(rig.b, bAtt);
+    [rig.a, rig.b].forEach((chain, i) => {
+      const weight = smoothstep(i === 0 ? 1 - value : value);
+      chain.gain.gain.setTargetAtTime(GAIN_DUCKED + (GAIN_ATTENDED - GAIN_DUCKED) * weight, rig.ctx.currentTime, AUDIO_TAU);
+      chain.filter.frequency.setTargetAtTime(CUTOFF_DUCKED * Math.pow(CUTOFF_ATTENDED / CUTOFF_DUCKED, weight), rig.ctx.currentTime, AUDIO_TAU);
+    });
   }, []);
 
-  /* --- enabling sound, inside the gesture ------------------------------- */
+  const select = (value: number) => {
+    const next = clamp01(value);
+    targetRef.current = next;
+    setAtt(next);
+    applyAudio(next);
+  };
 
-  const toggleSound = useCallback(async () => {
-    const elA = audioARef.current;
-    const elB = audioBRef.current;
-    if (!elA || !elB) return;
-
-    if (rigRef.current && enabled) {
-      elA.pause();
-      elB.pause();
-      await rigRef.current.ctx.suspend().catch(() => {});
-      setEnabled(false);
-      return;
-    }
-
-    // The context is constructed here and nowhere else. Every browser blocks
-    // a context created outside a user gesture, and nothing on this page is
-    // allowed to make noise until someone asks for it.
-    let rig = rigRef.current;
-    if (!rig) {
-      const w = window as WebkitWindow & { AudioContext?: typeof AudioContext };
-      const Ctor = w.AudioContext ?? w.webkitAudioContext;
-      if (!Ctor) return;
-      const ctx = new Ctor();
-      rig = {
-        ctx,
-        a: createChain(ctx, elA, -PAN_SPREAD),
-        b: createChain(ctx, elB, PAN_SPREAD),
-      };
-      rigRef.current = rig;
-    }
-
-    // Both calls are issued synchronously, before anything awaits: iOS only
-    // honours play() and resume() while the gesture token is still live, and
-    // awaiting one before starting the other spends it. Both tracks are
-    // loudness matched and looped, and a failure on one must not silence
-    // the other, hence allSettled.
-    const started = Promise.allSettled([elA.play(), elB.play()]);
-    const resumed = rig.ctx.resume().catch(() => {});
-    await Promise.all([started, resumed]);
-    applyAudio(easedRef.current);
-    setEnabled(true);
-  }, [enabled, applyAudio]);
-
-  /* --- teardown ---------------------------------------------------------- */
-  useEffect(() => {
-    const elA = audioARef.current;
-    const elB = audioBRef.current;
-    return () => {
-      elA?.pause();
-      elB?.pause();
-      const rig = rigRef.current;
-      rigRef.current = null;
-      if (rig) {
-        try {
-          rig.a.gain.disconnect();
-          rig.b.gain.disconnect();
-        } catch {
-          /* already torn down */
-        }
-        rig.ctx.close().catch(() => {});
-      }
-    };
-  }, []);
-
-  /* --- silence when the control is out of sight --------------------------- */
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    // Sound that keeps playing after its control has scrolled away is sound
-    // the reader can no longer see a reason for or a way to stop, so leaving
-    // the demo behind switches it off rather than merely pausing the drawing.
-    // Deliberately not resumed on the way back: restarting audio nobody asked
-    // for a second time would be worse than making them press it again.
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) return;
-        const rig = rigRef.current;
-        if (!rig) return;
-        audioARef.current?.pause();
-        audioBRef.current?.pause();
-        rig.ctx.suspend().catch(() => {});
+  const toggleSound = async () => {
+    const a = audioARef.current;
+    const b = audioBRef.current;
+    if (!a || !b || busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    setError(false);
+    try {
+      if (enabled) {
+        a.pause(); b.pause();
+        await rigRef.current?.ctx.suspend();
         setEnabled(false);
-      },
-      { threshold: 0 }
-    );
-    io.observe(root);
-    return () => io.disconnect();
-  }, []);
-
-  /* --- cursor tracking over the control ----------------------------------- */
-  useEffect(() => {
-    if (reduced || coarse) return;
-    const root = rootRef.current;
-    const track = trackRef.current;
-    if (!root || !track) return;
-
-    // The sweep is bounded by the BAR, not by the hero and not by the page.
-    //
-    // Scoping this to the whole section meant the far left of the screen, a
-    // long way from any control, sat at one voice fully forward, and the
-    // gradient the demo exists to show was spread across a thousand pixels of
-    // headline. Mapping to the track's own width puts the whole transition
-    // where the affordance is, and leaving the demo holds the last position
-    // rather than snapping, so nothing moves when the pointer is elsewhere on
-    // the page.
-    let rect = track.getBoundingClientRect();
-
-    const measure = () => {
-      rect = track.getBoundingClientRect();
-    };
-    const onMove = (e: PointerEvent) => {
-      if (draggingRef.current) return; // the handle owns the pointer
-      if (rect.width <= 0) return;
-      targetRef.current = clamp01((e.clientX - rect.left) / rect.width);
-    };
-
-    root.addEventListener("pointerenter", measure);
-    root.addEventListener("pointermove", onMove, { passive: true });
-    window.addEventListener("resize", measure);
-    window.addEventListener("scroll", measure, { passive: true });
-    return () => {
-      root.removeEventListener("pointerenter", measure);
-      root.removeEventListener("pointermove", onMove);
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", measure);
-    };
-  }, [reduced, coarse]);
-
-  /* --- canvas sizing, drawing and the animation loop ---------------------- */
-  useEffect(() => {
-    if (reduced) return;
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const c = canvas.getContext("2d");
-    if (!c) return;
-
-    let cssW = 0;
-    let cssH = 0;
-    let points = 0;
-    let idleA: Float32Array = new Float32Array(0);
-    let idleB: Float32Array = new Float32Array(0);
-    let bufA: Float32Array = new Float32Array(0);
-    let bufB: Float32Array = new Float32Array(0);
-
-    const size = () => {
-      const r = canvas.getBoundingClientRect();
-      if (r.width < 1 || r.height < 1) return;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      cssW = r.width;
-      cssH = r.height;
-      canvas.width = Math.round(cssW * dpr);
-      canvas.height = Math.round(cssH * dpr);
-      // Draw in CSS pixels and let the transform handle the device ratio.
-      c.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      const next = Math.max(96, Math.min(420, Math.floor(cssW / 3)));
-      if (next !== points) {
-        points = next;
-        idleA = idleCurve(points, 0.6);
-        idleB = idleCurve(points, 3.4);
-        bufA = new Float32Array(points);
-        bufB = new Float32Array(points);
-      }
-    };
-
-    const ro = new ResizeObserver(size);
-    ro.observe(canvas);
-    size();
-
-    const drawWave = (
-      pts: Float32Array,
-      cy: number,
-      halfH: number,
-      color: string,
-      width: number
-    ) => {
-      c.beginPath();
-      const last = pts.length - 1;
-      for (let i = 0; i <= last; i++) {
-        const x = (i / last) * cssW;
-        const y = cy - pts[i] * halfH;
-        if (i === 0) c.moveTo(x, y);
-        else c.lineTo(x, y);
-      }
-      c.strokeStyle = color;
-      c.lineWidth = width;
-      c.lineCap = "round";
-      c.lineJoin = "round";
-      c.stroke();
-    };
-
-    // Place the handle before the first frame so it never flashes at the edge.
-    if (handleRef.current) {
-      handleRef.current.style.left = `${easedRef.current * 100}%`;
-    }
-
-    let raf = 0;
-    let running = false;
-    // Consecutive frames the analyser has reported silence while the graph is
-    // supposed to be running. Half a second of nothing means we stop trusting
-    // it and draw the idle curve instead.
-    let mute = 0;
-    let prev = performance.now();
-    let committed = 0.5;
-    let committedAt = 0;
-    let applied = -1;
-
-    const frame = (now: number) => {
-      if (!running) return;
-      raf = requestAnimationFrame(frame);
-
-      const dt = Math.min(0.05, (now - prev) / 1000);
-      prev = now;
-
-      // Frame rate independent approach to the pointer position.
-      const k = 1 - Math.exp(-dt / EASE_TAU);
-      easedRef.current += (targetRef.current - easedRef.current) * k;
-      const v = easedRef.current;
-
-      // Once the ease has converged there is nothing left to schedule, and an
-      // idle page should not be writing audio events sixty times a second.
-      if (Math.abs(v - applied) > 0.0005) {
-        applied = v;
-        applyAudio(v);
-      }
-
-      if (handleRef.current) handleRef.current.style.left = `${v * 100}%`;
-
-      // React only needs a coarse value: it drives the labels and the aria
-      // value, neither of which benefits from sixty updates a second.
-      if (Math.abs(v - committed) > 0.01 && now - committedAt > 80) {
-        committed = v;
-        committedAt = now;
-        setAtt(v);
-      }
-
-      if (points === 0) return;
-
-      const aAtt = smoothstep(clamp01(1 - v));
-      const bAtt = smoothstep(clamp01(v));
-      const rig = rigRef.current;
-      const running_ = rig !== null && rig.ctx.state === "running";
-
-      if (running_ && rig) {
-        rig.a.analyser.getByteTimeDomainData(rig.a.bytes);
-        rig.b.analyser.getByteTimeDomainData(rig.b.bytes);
-        if (energy(rig.a.bytes) + energy(rig.b.bytes) < 0.6) mute++;
-        else mute = 0;
-        resamplePeaks(rig.a.bytes, bufA);
-        resamplePeaks(rig.b.bytes, bufB);
-      } else {
-        mute = 0;
-      }
-
-      // Draw real samples only while they carry something. Otherwise the idle
-      // curve stands in, still coloured and scaled by the cursor, so the
-      // interaction keeps reading even where the analyser does not work.
-      const live = running_ && mute < 30;
-
-      c.clearRect(0, 0, cssW, cssH);
-
-      const laneH = cssH / 2;
-      const lanes: Array<[Float32Array, number, number]> = [
-        [live ? bufA : idleA, laneH * 0.5, aAtt],
-        [live ? bufB : idleB, laneH * 1.5, bAtt],
-      ];
-
-      for (const [pts, cy, attendedness] of lanes) {
-        // Baseline sits at the same value as the site hairline.
-        c.beginPath();
-        c.moveTo(0, cy);
-        c.lineTo(cssW, cy);
-        c.strokeStyle = "rgba(255,255,249,0.12)";
-        c.lineWidth = 1;
-        c.stroke();
-
-        // The unattended stream is drawn at a visibly smaller amplitude. When
-        // the audio is live this is already true of the samples themselves;
-        // the extra scaling keeps the idle state reading the same way.
-        const scale = live ? 0.6 + 0.4 * attendedness : 0.34 + 0.66 * attendedness;
-        drawWave(
-          pts,
-          cy,
-          laneH * 0.4 * scale,
-          strokeFor(attendedness),
-          1.25 + 0.85 * attendedness
-        );
-      }
-    };
-
-    // The loop only runs while the demo is actually on screen and the tab is
-    // foregrounded. A hero that keeps a rAF loop and an analyser read alive for
-    // the whole page is a real battery cost, and a page about attention should
-    // not be busy drawing something nobody is looking at.
-    const start = () => {
-      if (running) return;
-      running = true;
-      prev = performance.now();
-      raf = requestAnimationFrame(frame);
-    };
-    const stop = () => {
-      if (!running) return;
-      running = false;
-      cancelAnimationFrame(raf);
-    };
-
-    let onScreen = true;
-    const sync = () => {
-      if (onScreen && document.visibilityState === "visible") start();
-      else stop();
-    };
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        onScreen = entries.some((e) => e.isIntersecting);
-        sync();
-      },
-      { threshold: 0 }
-    );
-    io.observe(canvas);
-    document.addEventListener("visibilitychange", sync);
-    sync();
-
-    return () => {
-      stop();
-      io.disconnect();
-      document.removeEventListener("visibilitychange", sync);
-      ro.disconnect();
-    };
-  }, [reduced, applyAudio]);
-
-  /* --- drag and keyboard on the handle ----------------------------------- */
-
-  const setFromClientX = useCallback((clientX: number) => {
-    const track = trackRef.current;
-    if (!track) return;
-    const r = track.getBoundingClientRect();
-    if (r.width <= 0) return;
-    targetRef.current = clamp01((clientX - r.left) / r.width);
-  }, []);
-
-  const onTrackPointerDown = useCallback(
-    (e: ReactPointerEvent<HTMLDivElement>) => {
-      draggingRef.current = true;
-      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      setFromClientX(e.clientX);
-      handleRef.current?.focus();
-    },
-    [setFromClientX]
-  );
-
-  const onTrackPointerMove = useCallback(
-    (e: ReactPointerEvent<HTMLDivElement>) => {
-      if (!draggingRef.current) return;
-      setFromClientX(e.clientX);
-    },
-    [setFromClientX]
-  );
-
-  const endDrag = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!draggingRef.current) return;
-    draggingRef.current = false;
-    const el = e.currentTarget as HTMLElement;
-    if (el.hasPointerCapture(e.pointerId)) el.releasePointerCapture(e.pointerId);
-  }, []);
-
-  const nudge = useCallback(
-    (delta: number) => {
-      const next = clamp01(targetRef.current + delta);
-      targetRef.current = next;
-      setAtt(next);
-      // Reduced motion has no animation loop to pick the change up.
-      if (reduced) {
-        easedRef.current = next;
-        applyAudio(next);
-      }
-    },
-    [reduced, applyAudio]
-  );
-
-  const onHandleKeyDown = useCallback(
-    (e: ReactKeyboardEvent<HTMLDivElement>) => {
-      const map: Record<string, number> = {
-        ArrowLeft: -0.05,
-        ArrowDown: -0.05,
-        ArrowRight: 0.05,
-        ArrowUp: 0.05,
-        PageDown: -0.2,
-        PageUp: 0.2,
-      };
-      if (e.key in map) {
-        e.preventDefault();
-        nudge(map[e.key]);
         return;
       }
-      if (e.key === "Home") {
-        e.preventDefault();
-        targetRef.current = 0;
-        nudge(0);
-      } else if (e.key === "End") {
-        e.preventDefault();
-        targetRef.current = 1;
-        nudge(0);
+      if (!rigRef.current) {
+        const Ctor = window.AudioContext || (window as WebkitWindow).webkitAudioContext;
+        if (!Ctor) throw new Error("Audio unavailable");
+        const ctx = new Ctor();
+        rigRef.current = { ctx, a: createChain(ctx, a, -PAN_SPREAD), b: createChain(ctx, b, PAN_SPREAD) };
       }
-    },
-    [nudge]
-  );
+      applyAudio(targetRef.current);
+      // All three calls must start inside the gesture, including on iOS.
+      const results = await Promise.allSettled([a.play(), b.play(), rigRef.current.ctx.resume()]);
+      if (results.some((result) => result.status === "rejected") || rigRef.current.ctx.state !== "running") throw new Error("Playback failed");
+      if (document.hidden || !rootRef.current || (rootRef.current.getBoundingClientRect().bottom <= 0 || rootRef.current.getBoundingClientRect().top >= window.innerHeight)) {
+        a.pause(); b.pause();
+        await rigRef.current.ctx.suspend();
+        return;
+      }
+      setEnabled(true);
+    } catch {
+      a.pause(); b.pause();
+      await rigRef.current?.ctx.suspend().catch(() => {});
+      setEnabled(false);
+      setError(true);
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
 
-  /* --- reduced motion: a static diagram and a two way switch -------------- */
+  useEffect(() => {
+    const a = audioARef.current;
+    const b = audioBRef.current;
+    const stop = () => {
+      a?.pause(); b?.pause();
+      void rigRef.current?.ctx.suspend().catch(() => {});
+      setEnabled(false);
+    };
+    const io = new IntersectionObserver(([entry]) => { if (!entry.isIntersecting) stop(); });
+    if (rootRef.current) io.observe(rootRef.current);
+    const onHidden = () => { if (document.hidden) stop(); };
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onHidden);
+      a?.pause(); b?.pause();
+      const rig = rigRef.current;
+      rigRef.current = null;
+      void rig?.ctx.close().catch(() => {});
+    };
+  }, []);
 
-  const setSide = useCallback(
-    (side: "a" | "b") => {
-      const next = side === "a" ? 0 : 1;
-      targetRef.current = next;
-      easedRef.current = next;
-      setAtt(next);
-      applyAudio(next);
-    },
-    [applyAudio]
-  );
-
-  /** The static diagram is the same two seeds the canvas uses, drawn once. */
-  const staticCurves = useMemo(
-    () => ({ a: idleCurve(180, 0.6), b: idleCurve(180, 3.4) }),
-    []
-  );
-
-  /* --- derived label state ------------------------------------------------ */
-
-  const aAttended = att < 0.44;
-  const bAttended = att > 0.56;
-  const attendedName = aAttended
-    ? hero.leftVoice
-    : bAttended
-      ? hero.rightVoice
-      : "";
-  const percent = Math.round(att * 100);
-  const dragLabel = coarse ? hero.interactionCaptionTouch : hero.interactionCaption;
-
-  const labelCls = (on: boolean) =>
-    "t-mono transition-colors duration-[240ms] " + (on ? "text-signal" : "text-fog");
-
-  return (
-    <div
-      id={ATTENTION_DEMO_ID}
-      ref={rootRef}
-      className={"w-full select-none " + className}
-    >
-      {/* Never autoplays. Nothing here makes a sound until the button below is
-          pressed, which is also the only place the AudioContext is created. */}
-      <audio ref={audioARef} loop preload="metadata" aria-hidden="true" tabIndex={-1}>
-        <source src="/media/voice-a.webm" type="audio/webm; codecs=opus" />
-        <source src="/media/voice-a.mp3" type="audio/mpeg" />
-      </audio>
-      <audio ref={audioBRef} loop preload="metadata" aria-hidden="true" tabIndex={-1}>
-        <source src="/media/voice-b.webm" type="audio/webm; codecs=opus" />
-        <source src="/media/voice-b.mp3" type="audio/mpeg" />
-      </audio>
-
-      <div className="flex items-baseline justify-between gap-4">
-        <span className={labelCls(aAttended)}>{hero.leftVoice}</span>
-        <span className={labelCls(bAttended)}>{hero.rightVoice}</span>
-      </div>
-
-      {reduced ? (
-        <>
-          {/* No loop, no rAF, no measurement. A fixed picture of the same
-              two streams, with the switch below deciding which one is marked. */}
-          <svg
-            viewBox="0 0 1000 200"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-            className="mt-4 h-[132px] w-full md:h-[168px]"
-          >
-            <line x1="0" y1="50" x2="1000" y2="50" stroke="rgba(255,255,249,0.12)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-            <line x1="0" y1="150" x2="1000" y2="150" stroke="rgba(255,255,249,0.12)" strokeWidth="1" vectorEffect="non-scaling-stroke" />
-            <path
-              d={svgPath(staticCurves.a, 1000, 50, aAttended ? 34 : 13.6)}
-              fill="none"
-              stroke={aAttended ? "#FFC24B" : "#8A8A8F"}
-              strokeWidth={aAttended ? 2 : 1.25}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
-            />
-            <path
-              d={svgPath(staticCurves.b, 1000, 150, bAttended ? 34 : 13.6)}
-              fill="none"
-              stroke={bAttended ? "#FFC24B" : "#8A8A8F"}
-              strokeWidth={bAttended ? 2 : 1.25}
-              strokeLinejoin="round"
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
-            />
-          </svg>
-
-          <div className="mt-5 flex gap-2">
-            {(["a", "b"] as const).map((side) => {
-              const on = side === "a" ? aAttended : bAttended;
-              return (
-                <button
-                  key={side}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => setSide(side)}
-                  className={
-                    "t-mono rounded-[var(--radius-pill)] border px-4 py-2.5 " +
-                    (on
-                      ? "border-signal text-signal"
-                      : "border-[var(--hairline)] text-mist")
-                  }
-                >
-                  {side === "a" ? hero.leftVoice : hero.rightVoice}
-                </button>
-              );
-            })}
-          </div>
-        </>
-      ) : (
-        <>
-          {/* Decorative in the accessibility tree: the labels above and the
-              slider below carry the same information in text. */}
-          <canvas
-            ref={canvasRef}
-            aria-hidden="true"
-            className="mt-4 block h-[132px] w-full md:h-[168px]"
-          />
-
-          <div
-            ref={trackRef}
-            onPointerDown={onTrackPointerDown}
-            onPointerMove={onTrackPointerMove}
-            onPointerUp={endDrag}
-            onPointerCancel={endDrag}
-            className="relative mt-5 h-11 w-full touch-none"
-          >
-            <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-[var(--hairline)]" />
-            <div
-              ref={handleRef}
-              role="slider"
-              tabIndex={0}
-              aria-label={dragLabel}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={percent}
-              aria-valuetext={attendedName || undefined}
-              onKeyDown={onHandleKeyDown}
-              className={
-                "absolute top-1/2 h-7 w-7 -translate-x-1/2 -translate-y-1/2 " +
-                "rounded-[var(--radius-pill)] border border-[var(--hairline)] bg-slate"
-              }
-            />
-          </div>
-
-          <p className="t-mono mt-4 text-mist">{dragLabel}</p>
-        </>
-      )}
-
-      <div className="mt-5 flex items-center justify-between gap-4">
-        <span className="t-mono flex items-center gap-2 text-fog">
-          {/* Live indicator. Amber here means the stream is actually running. */}
-          <span
-            aria-hidden="true"
-            className={
-              "h-1.5 w-1.5 rounded-[var(--radius-pill)] " +
-              (enabled ? "bg-signal" : "bg-fog")
-            }
-          />
-          {hero.listenLabel}
-        </span>
-        <button
-          type="button"
-          onClick={toggleSound}
-          aria-pressed={enabled}
-          className={
-            "t-mono rounded-[var(--radius-pill)] border border-[var(--hairline)] " +
-            "px-4 py-2.5 text-mist transition-colors duration-[240ms] hover:text-paper"
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    const idle = [idleCurve(100, 0.6), idleCurve(100, 3.4)];
+    const buffers = [new Float32Array(100), new Float32Array(100)];
+    let width = 0, height = 0, raf = 0, visible = false;
+    let value = targetRef.current, previous = performance.now();
+    const draw = (now: number) => {
+      const dt = Math.min((now - previous) / 1000, 0.05);
+      previous = now;
+      value = reduced ? targetRef.current : value + (targetRef.current - value) * (1 - Math.exp(-dt / EASE_TAU));
+      ctx.clearRect(0, 0, width, height);
+      const rig = rigRef.current;
+      [0, 1].forEach((side) => {
+        const attended = smoothstep(side === 0 ? 1 - value : value);
+        const chain = side === 0 ? rig?.a : rig?.b;
+        let curve = idle[side];
+        let live = false;
+        if (!reduced && rig?.ctx.state === "running" && chain) {
+          chain.analyser.getByteTimeDomainData(chain.bytes);
+          if (energy(chain.bytes) > 0.15) {
+            resamplePeaks(chain.bytes, buffers[side]);
+            curve = buffers[side];
+            live = true;
           }
-        >
-          {enabled ? hero.mute : hero.unmute}
+        }
+        const start = side === 0 ? 0 : width * 0.56;
+        const span = width * 0.44;
+        const cy = height / 2;
+        ctx.strokeStyle = "rgba(255,255,249,0.12)";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(start, cy); ctx.lineTo(start + span, cy); ctx.stroke();
+        ctx.strokeStyle = strokeFor(attended);
+        ctx.globalAlpha = 0.28 + attended * 0.72;
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        // Bars give speech a legible envelope at narrow mobile widths.
+        for (let i = 0; i < 44; i++) {
+          const x = start + 2 + i / 43 * (span - 4);
+          const sample = Math.abs(curve[Math.floor(i / 43 * (curve.length - 1))]);
+          const gain = live ? 0.85 : 0.12 + attended * 0.88;
+          const h = Math.max(1, sample * height * 0.43 * gain);
+          ctx.beginPath(); ctx.moveTo(x, cy - h); ctx.lineTo(x, cy + h); ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+      });
+      if (visible && !reduced && !document.hidden) raf = requestAnimationFrame(draw);
+    };
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      width = rect.width; height = rect.height;
+      const dpr = Math.min(devicePixelRatio || 1, 2);
+      canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      cancelAnimationFrame(raf); draw(performance.now());
+    };
+    const ro = new ResizeObserver(resize); ro.observe(canvas);
+    const io = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      cancelAnimationFrame(raf); if (visible) draw(performance.now());
+    });
+    io.observe(canvas);
+    const redraw = () => { cancelAnimationFrame(raf); draw(performance.now()); };
+    document.addEventListener("visibilitychange", redraw);
+    repaintRef.current = redraw;
+    resize();
+    return () => {
+      cancelAnimationFrame(raf); ro.disconnect(); io.disconnect();
+      document.removeEventListener("visibilitychange", redraw);
+      repaintRef.current = null;
+    };
+  }, [reduced]);
+
+  useEffect(() => { if (reduced) repaintRef.current?.(); }, [att, reduced]);
+
+  const aWeight = Math.round((1 - att) * 100);
+  const bWeight = 100 - aWeight;
+  const valueText = `${hero.leftVoice} ${aWeight}%, ${hero.rightVoice} ${bWeight}%`;
+  return (
+    <div id={ATTENTION_DEMO_ID} ref={rootRef} className={`attention-mixer ${className}`} style={{ "--attention": `${att * 100}%` } as CSSProperties}>
+      <audio ref={audioARef} loop preload="none" aria-hidden="true"><source src="/media/voice-a.mp3" type="audio/mpeg" /></audio>
+      <audio ref={audioBRef} loop preload="none" aria-hidden="true"><source src="/media/voice-b.mp3" type="audio/mpeg" /></audio>
+      <div className="attention-labels">
+        <button type="button" onClick={() => select(0)} className={att < 0.48 ? "is-attended" : ""} aria-label="Focus on Voice A">
+          <span className="t-mono">{hero.leftVoice}</span><span className="attention-weight">{aWeight}<small>%</small></span>
+        </button>
+        <span className="attention-center" aria-hidden="true">↔</span>
+        <button type="button" onClick={() => select(1)} className={att > 0.52 ? "is-attended" : ""} aria-label="Focus on Voice B">
+          <span className="t-mono">{hero.rightVoice}</span><span className="attention-weight">{bWeight}<small>%</small></span>
         </button>
       </div>
+      <canvas ref={canvasRef} aria-hidden="true" className="attention-wave" />
+      <div className="attention-control">
+        <div className="attention-rail" aria-hidden="true"><span style={{ left: `${Math.min(50, att * 100)}%`, width: `${Math.abs(att * 100 - 50)}%` }} /></div>
+        <input type="range" min={0} max={100} step={1} value={Math.round(att * 100)} onChange={(e) => select(Number(e.target.value) / 100)} aria-label="Voice attention balance" aria-valuetext={valueText} aria-describedby="attention-instruction" />
+      </div>
+      <div className="attention-footer">
+        <p id="attention-instruction">{hero.interactionCaptionTouch}</p>
+        <button type="button" onClick={toggleSound} disabled={busy} aria-pressed={enabled} className="attention-sound">
+          <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.3" aria-hidden="true"><path d="M3 8h3l4-4v12l-4-4H3z" />{enabled ? <path d="M13 6c3 2 3 6 0 8m2-10c5 3 5 9 0 12" /> : <path d="m13 8 4 4m0-4-4 4" />}</svg>
+          {busy ? "Loading" : enabled ? hero.mute : hero.unmute}
+        </button>
+      </div>
+      {error && <p role="status" className="attention-error">Sound could not start. Please try again.</p>}
     </div>
   );
 }

@@ -1,29 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState } from "react";
 import { oneClench } from "@/lib/copy";
 import {
   CLENCH_TIME,
   CLENCH_LEAD,
   EAR_X,
   EAR_Y,
-  VIDEO_ASPECT,
 } from "@/lib/clench";
 import { useReducedMotion } from "@/lib/useReducedMotion";
 
-/**
- * One clench. The pinned scene straight after the hero.
- *
- * Four beats of a single continuous take. Nothing cuts, nothing splits into
- * panels: the footage runs underneath the whole thing and the only edit is the
- * line of copy on top of it. The beat that matters is the third one, where the
- * amber ring fires at the ear on the frame the jaw actually moves, and the
- * fourth, where the calendar entry it produced settles in and stays.
- *
- * Amber appears exactly twice here, and both times it marks something the
- * device is acting on: the ring at the moment the clench is registered, and the
- * hairline on the confirmation that command produced.
- */
+/** Four scroll beats share a portrait film and a fixed editorial column.
+ * The registration ring follows the video's coordinates and playback clock.
+ * The final beat reveals the calendar entry below the narrative. */
 
 const HEADING_ID = "one-clench-heading";
 
@@ -62,54 +51,6 @@ const RING_PCT = 0.08;
 const RING_TO = 1.6;
 const PULSE_MS = 400;
 
-/* Confirmation card timing: in, hold, then settle to its resting position. */
-const CARD_IN_MS = 600;
-const CARD_HOLD_MS = 1200;
-
-/**
- * THE COVER STAGE.
- *
- * The source is portrait 720x1280 and this is a landscape stage, so something
- * has to be cropped. Rather than object-cover on the video (which crops from
- * the centre and takes the ear, the one part of the frame that matters, out of
- * frame on wide viewports), the video is given a box locked to its own 9/16
- * ratio and scaled up until it covers the section. The pulse ring then lives
- * inside that same box and is positioned in the video's own coordinates, so it
- * stays on the ear at every viewport size with no JS measurement at all.
- *
- * 100vw rather than 100% because a percentage height would resolve against the
- * parent's height, not its width. That counts the scrollbar, so the stage can
- * be a handful of pixels wider than the section, which the section clips.
- */
-const STAGE_W = `max(100vw, calc(100svh * ${VIDEO_ASPECT}))`;
-const STAGE_H = `max(100svh, calc(100vw / ${VIDEO_ASPECT}))`;
-
-/** Where the ear should sit vertically inside the section. Biasing the stage
- *  up like this is what keeps the head in frame instead of centring the video
- *  and cropping the top third away. Clamped so the stage can never leave a gap
- *  at the top or bottom on tall viewports, where it only just covers. */
-const EAR_TARGET_Y = 0.32;
-const STAGE_TOP = `clamp(calc(100% - ${STAGE_H}), calc(${
-  EAR_TARGET_Y * 100
-}% - ${STAGE_H} * ${EAR_Y}), 0px)`;
-
-const stageStyle: CSSProperties = {
-  left: "50%",
-  top: STAGE_TOP,
-  width: STAGE_W,
-  height: STAGE_H,
-  transform: "translateX(-50%)",
-};
-
-/** Two scrims in one layer: a heavier one under the copy at the bottom, a
- *  lighter one under the eyebrow at the top, and a clear band across the middle
- *  so the ring reads as a mark on the footage rather than through a wash. */
-const SCRIM =
-  "linear-gradient(to bottom, rgba(11,11,12,0.78) 0%, rgba(11,11,12,0.20) 26%, rgba(11,11,12,0) 44%)," +
-  "linear-gradient(to top, rgba(11,11,12,0.94) 0%, rgba(11,11,12,0.62) 30%, rgba(11,11,12,0.10) 62%, rgba(11,11,12,0) 78%)";
-
-type CardPhase = "out" | "in" | "settled";
-
 export default function OneClench() {
   const reduced = useReducedMotion();
 
@@ -118,7 +59,6 @@ export default function OneClench() {
   const ringRef = useRef<HTMLSpanElement>(null);
 
   const [beat, setBeat] = useState(0);
-  const [cardPhase, setCardPhase] = useState<CardPhase>("out");
 
   /** Read by the rAF loop, which must not re-subscribe every time a beat
    *  changes or it would drop the armed state mid clip. */
@@ -308,23 +248,6 @@ export default function OneClench() {
     cueRef.current?.();
   }, [beat, reduced]);
 
-  /* ------------------------------------------------------ the confirmation */
-
-  useEffect(() => {
-    if (reduced) return;
-    if (beat < 3) {
-      // Scrubbing back retracts it. It only exists once the command has landed.
-      setCardPhase("out");
-      return;
-    }
-    setCardPhase("in");
-    const t = window.setTimeout(
-      () => setCardPhase("settled"),
-      CARD_IN_MS + CARD_HOLD_MS
-    );
-    return () => window.clearTimeout(t);
-  }, [beat, reduced]);
-
   /* ------------------------------------------------------------- fragments */
 
   const ring = (
@@ -343,89 +266,15 @@ export default function OneClench() {
     />
   );
 
-  /**
-   * The confirmation.
-   *
-   * A slab that fades in says "a notification arrived". What actually happened
-   * is that a line was written into a day, so it is drawn as a fragment of a
-   * calendar column: ruled empty slots above and below, a day column edge, and
-   * the entry sitting in one of the slots behind an amber event bar. The rules
-   * carry no text, so no copy is invented by the structure.
-   *
-   * The entrance is staggered off one state change rather than popping: the
-   * rules settle, the amber bar wipes down, the entry is clipped open to the
-   * right of it, then the three lines arrive. It reads as being written.
-   */
-  const cardIn = cardPhase !== "out";
-  const ease = "var(--ease-out-att)";
-  const at = (delay: number, ms = 320) => ({
-    transition: `opacity ${ms}ms ${ease} ${delay}ms, transform ${ms}ms ${ease} ${delay}ms, clip-path ${ms}ms ${ease} ${delay}ms`,
-  });
-
+  const cardIn = reduced || beat === 3;
   const card = (
-    <div
-      role="img"
-      aria-label={oneClench.cardAlt}
-      className="w-[min(22rem,82vw)]"
-    >
-      <div className="relative pl-9">
-        {/* The edge of the day column. */}
-        <span
-          aria-hidden="true"
-          className="absolute inset-y-0 left-9 w-px bg-[var(--hairline)]"
-          style={{ opacity: cardIn ? 1 : 0, ...at(0) }}
-        />
-
-        {/* An empty slot above and below, so the entry reads as placed into a
-            day rather than floating on its own. */}
-        <span
-          aria-hidden="true"
-          className="block h-9 border-t border-hairline"
-          style={{ opacity: cardIn ? 1 : 0, ...at(0) }}
-        />
-
-        <div
-          className="relative overflow-hidden border-y border-hairline bg-slate"
-          style={{
-            clipPath: cardIn ? "inset(0 0 0 0)" : "inset(0 100% 0 0)",
-            ...at(220, 480),
-          }}
-        >
-          {/* The event bar, wiping down the way a calendar block is drawn.
-              Amber because this is the thing that just landed. */}
-          <span
-            aria-hidden="true"
-            className="absolute inset-y-0 left-0 w-[3px] origin-top bg-signal"
-            style={{ transform: `scaleY(${cardIn ? 1 : 0})`, ...at(140) }}
-          />
-
-          <div className="py-4 pl-5 pr-4">
-            {[
-              { key: "day", cls: "t-mono text-mist", text: oneClench.card.day },
-              { key: "title", cls: "pt-2 text-paper", text: oneClench.card.title },
-              { key: "time", cls: "t-mono pt-2 text-mist", text: oneClench.card.time },
-            ].map((line, i) => (
-              <p
-                key={line.key}
-                className={line.cls}
-                style={{
-                  opacity: cardIn ? 1 : 0,
-                  transform: cardIn ? "none" : "translateY(6px)",
-                  ...at(460 + i * 90),
-                }}
-              >
-                {line.text}
-              </p>
-            ))}
-          </div>
-        </div>
-
-        <span
-          aria-hidden="true"
-          className="block h-9 border-b border-hairline"
-          style={{ opacity: cardIn ? 1 : 0, ...at(0) }}
-        />
+    <div className="clench-calendar" data-visible={cardIn} aria-label={oneClench.cardAlt}>
+      <div className="clench-calendar-header"><span className="t-mono">Calendar</span><span className="clench-saved"><span aria-hidden="true">✓</span> Saved</span></div>
+      <div className="clench-calendar-body">
+        <div className="clench-date"><span className="t-mono">Thu</span><strong>14</strong><span className="t-mono">May</span></div>
+        <div className="clench-event"><span className="t-mono">{oneClench.card.time}</span><p>{oneClench.card.title}</p><span className="clench-event-rule" /></div>
       </div>
+      <div className="clench-calendar-footer"><span className="clench-confirm-dot" />Captured from your conversation</div>
     </div>
   );
 
@@ -482,124 +331,33 @@ export default function OneClench() {
     );
   }
 
-  /* --------------------------------------------------------------- render */
-
   return (
-    <section
-      ref={sectionRef}
-      id="one-clench"
-      aria-labelledby={HEADING_ID}
-      data-beat-active={beat}
-      className="relative bg-ink"
-    >
-      <div className="relative h-[100svh] min-h-[100svh] w-full overflow-hidden">
-        <div className="absolute" style={stageStyle}>
-          <video
-            ref={videoRef}
-            className="h-full w-full object-cover"
-            poster="/media/gesture-poster.jpg"
-            aria-label={oneClench.videoAlt}
-            muted
-            loop
-            playsInline
-            preload="metadata"
-          >
+    <section ref={sectionRef} id="one-clench" aria-labelledby={HEADING_ID} data-beat-active={beat} className="clench-scene">
+      <div className="clench-film" aria-hidden="true">
+        <div className="clench-film-stage">
+          <video ref={videoRef} poster="/media/gesture-poster.jpg" muted loop playsInline preload="metadata">
             <source src="/media/gesture.webm" type="video/webm" />
             <source src="/media/gesture.mp4" type="video/mp4" />
           </video>
-
-          {/* Inside the stage, so the marker is positioned in the video's own
-              coordinates and needs no measurement to stay on the ear. */}
-          <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-            {ring}
-          </div>
+          {ring}
         </div>
-
-        <div
-          className="pointer-events-none absolute inset-0"
-          aria-hidden="true"
-          style={{ background: SCRIM }}
-        />
-
-        {/* Persistent. It does not move or change between beats: it is the
-            name of the scene, not a caption on one part of it. */}
-        <div className="pointer-events-none absolute inset-x-0 top-0">
-          <div className="shell pt-[calc(var(--nav-h)+28px)]">
-            <h2 id={HEADING_ID} className="t-mono text-fog">
-              {oneClench.eyebrow}
-            </h2>
-          </div>
+        <div className="clench-film-shade" />
+        <span className="clench-film-caption t-mono">In the conversation. In the moment.</span>
+      </div>
+      <div className="shell clench-content">
+        <div className="clench-heading"><h2 id={HEADING_ID} className="t-mono">{oneClench.eyebrow}</h2><span className="t-mono text-fog">0{beat + 1} / 04</span></div>
+        <div className="clench-story">
+          <ol className="clench-beats">
+            {oneClench.beats.map((line, i) => (
+              <li key={line} aria-hidden={i !== beat} data-active={i === beat}>
+                <span>{line}</span>
+              </li>
+            ))}
+          </ol>
+          <div className="clench-calendar-slot">{card}</div>
         </div>
-
-        <div className="pointer-events-none absolute inset-x-0 bottom-0">
-          <div className="shell pb-[112px] md:pb-20">
-            <div className="flex flex-col gap-10 md:flex-row md:items-end md:justify-between md:gap-16">
-              {/* All four beats are always in the DOM and always in the
-                  accessibility tree. Only opacity and transform change, so a
-                  screen reader gets the whole scene as one ordered list. */}
-              <ol className="grid max-w-[21ch] md:max-w-[20ch] lg:max-w-[22ch]">
-                {oneClench.beats.map((line, i) => {
-                  const active = i === beat;
-                  return (
-                    <li
-                      key={i}
-                      className="t-h1 text-paper"
-                      style={{
-                        gridArea: "1 / 1",
-                        fontSize: "clamp(1.75rem, 3.2vw, 3.25rem)",
-                      }}
-                    >
-                      {/* Clip extended below the baseline and pulled back by an
-                          equal negative margin, so descenders are not sheared
-                          off by the mask. Same trick as .line-mask. */}
-                      <span className="mb-[-0.22em] block overflow-hidden pb-[0.22em]">
-                        <span
-                          className="block"
-                          style={{
-                            transform: active
-                              ? "translateY(0)"
-                              : i < beat
-                              ? "translateY(calc(-100% - 0.3em))"
-                              : "translateY(calc(100% + 0.3em))",
-                            opacity: active ? 1 : 0,
-                            // The outgoing line clears out fast and the
-                            // incoming one waits for it, so two lines are never
-                            // half visible in the same box at once.
-                            transition: active
-                              ? "transform var(--d-base) var(--ease-out-att) var(--d-fast), opacity var(--d-base) var(--ease-out-att) var(--d-fast)"
-                              : "transform var(--d-fast) var(--ease-inout-att), opacity var(--d-fast) var(--ease-inout-att)",
-                          }}
-                        >
-                          {line}
-                        </span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ol>
-
-              <div
-                className="self-end"
-                style={{
-                  transform:
-                    cardPhase === "out"
-                      ? "translateY(32px)"
-                      : cardPhase === "in"
-                      ? "translateY(0)"
-                      : // Settles a little lower and stays there. It is a
-                        // record of something that happened, not a toast.
-                        "translateY(10px)",
-                  opacity: cardPhase === "out" ? 0 : 1,
-                  transition:
-                    cardPhase === "settled"
-                      ? "transform var(--d-slow) var(--ease-inout-att), opacity var(--d-base) var(--ease-out-att)"
-                      : "transform var(--d-base) var(--ease-out-att), opacity var(--d-base) var(--ease-out-att)",
-                }}
-              >
-                {card}
-              </div>
-            </div>
-          </div>
+        <div className="clench-progress" aria-hidden="true">
+          {oneClench.beats.map((_, i) => <span key={i} data-active={i <= beat} />)}
         </div>
       </div>
     </section>
