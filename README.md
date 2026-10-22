@@ -17,6 +17,16 @@ npm run dev        # http://localhost:3000
 npm run build
 ```
 
+The web trial (earbud assistant, recorder and notes, whisper and noise lab, Rewind and
+Focus) is a separate Next.js app in `trial/`, deployed as its own Vercel project. See
+`trial/README.md`.
+
+`/features` presents what the trial does, gesture channel first, and says for each
+feature what in the trial stands in for the hardware. Its "Try" links point to
+`NEXT_PUBLIC_TRIAL_URL` (set it on this project once the trial is deployed). Without it,
+a production build points people to the waitlist instead; in development it uses the
+trial's local server, `http://localhost:3001`.
+
 ## Where things live
 
 ```

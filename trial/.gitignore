@@ -1,0 +1,25 @@
+# dependencies
+node_modules
+
+# next build output
+.next
+out
+next-env.d.ts
+*.tsbuildinfo
+
+# local secrets
+.env
+.env*.local
+
+# copied from node_modules by scripts/copy-vendor.mjs on every dev and build
+public/vendor
+
+# test output
+test-results
+playwright-report
+tests/fixtures/audio/*.wav
+tests/fixtures/audio/*.aiff
+
+# macOS
+.DS_Store
+tests/fixtures/video/

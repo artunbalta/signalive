@@ -1,0 +1,39 @@
+# Supabase CLI configuration for the Signalive web trial.
+# `supabase start` for a local stack; `supabase link` then `supabase db push`
+# to apply the migrations to a hosted project, and `supabase config push` to
+# apply the auth settings below to it.
+
+project_id = "signalive-trial"
+
+[db]
+major_version = 17
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/settings"]
+# Every visitor starts as an anonymous user, created after the consent screen.
+enable_anonymous_sign_ins = true
+# Lets an anonymous user add an email later and keep the same user id.
+enable_manual_linking = true
+
+[auth.rate_limit]
+# Per IP per hour. Anonymous sign in happens in the browser, so this counts
+# real visitors, not the server.
+anonymous_users = 30
+
+[auth.email]
+enable_signup = true
+enable_confirmations = true
+double_confirm_changes = true
+
+# For a public launch, protect anonymous sign in with Turnstile (the browser
+# then passes a captchaToken to signInAnonymously):
+# [auth.captcha]
+# enabled = true
+# provider = "turnstile"
+# secret = "env(TURNSTILE_SECRET)"
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"

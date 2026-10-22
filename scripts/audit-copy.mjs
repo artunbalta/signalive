@@ -13,13 +13,15 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, extname } from "node:path";
 
 const ROOT = process.cwd();
-const SKIP = new Set(["node_modules", ".next", ".git", ".assetgen", "public", "out"]);
+const SKIP = new Set(["node_modules", ".next", ".git", ".assetgen", "public", "out", "test-results", "playwright-report"]);
 const EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".css", ".json", ".html", ".md"]);
 // The two source briefs are the client's own documents, not output we author,
 // and they legitimately discuss the words this audit forbids.
 const SOURCE_DOCS = new Set([
   "WEBSITE_BUILD_SPEC.md",
   "AGENT_BRIEF_ear-attention-interface.md",
+  // Written by `next dev` in the trial app, in Next.js's own words.
+  "trial/AGENTS.md",
 ]);
 
 function walk(dir, acc = []) {

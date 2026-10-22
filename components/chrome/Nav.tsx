@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { nav, a11y } from "@/lib/copy";
 import { useReducedMotion } from "@/lib/useReducedMotion";
+import { anchored } from "@/lib/trial";
 
 /**
  * Fixed chrome. Spec 3.2.
@@ -16,7 +17,7 @@ import { useReducedMotion } from "@/lib/useReducedMotion";
  * The overlay menu lives inside this header so that one focus trap covers both
  * the menu and the hamburger that closes it.
  */
-export default function Nav() {
+export default function Nav({ base = "" }: { base?: string } = {}) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const reduced = useReducedMotion();
@@ -169,7 +170,7 @@ export default function Nav() {
           {nav.links.map((link, i) => (
             <a
               key={link.href}
-              href={link.href}
+              href={anchored(link.href, base)}
               onClick={close}
               className="t-h2 text-paper w-fit py-1 transition-opacity duration-[240ms] hover:opacity-60"
             >

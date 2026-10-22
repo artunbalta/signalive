@@ -21,6 +21,7 @@ export const nav = {
   wordmark: BRAND,
   links: [
     { label: "Product", href: "#how-it-works" },
+    { label: "Features", href: "/features" },
     { label: "Science", href: "#science" },
     { label: "About", href: "#problem" },
     { label: "Waitlist", href: "#waitlist" },
@@ -295,6 +296,7 @@ export const footer = {
         { label: "How it works", href: "#how-it-works" },
         { label: "The point", href: "#the-point" },
         { label: "Use cases", href: "#use-cases" },
+        { label: "Try the features", href: "/features" },
       ],
     },
     {
@@ -311,6 +313,116 @@ export const footer = {
     "Attention decoding performance varies between individuals and environments.",
   ],
   legal: `(c) ${BRAND_YEAR} ${BRAND}. ${BRAND_CITY}.`,
+};
+
+/**
+ * /features. What the web trial lets anyone try today, with the earbuds they
+ * already own. Every item says what in the trial stands in for the hardware,
+ * so nothing on that page reads as a measurement of the product. The gesture
+ * channel comes first, as on the home page.
+ */
+export const features = {
+  meta: {
+    title: `${BRAND} web trial. Try it with the earbuds you own.`,
+    description:
+      "Rewind, Focus, a voice assistant, notes and a whisper lab, running in a browser with any earbuds while the hardware is on its way.",
+  },
+  eyebrow: "The web trial",
+  headlineLines: ["Try it today,", "with the earbuds you own"],
+  lead: "The earbuds are not shipping yet. The software is. Open the trial in a browser, put in any pair of earbuds, and try the five things it already does.",
+  openTrial: "Open the trial",
+  joinWaitlist: "Join the waitlist",
+  trialClosed: "The trial opens to the waitlist first.",
+  inTheTrial: "In the trial",
+  tryPrefix: "Try",
+  indexLabel: "On this page",
+  channels: [
+    {
+      id: "rewind",
+      index: "01",
+      kind: "Gesture",
+      name: "Rewind",
+      headlineLines: ["Clench,", "and hear it again"],
+      body: [
+        "Missed what was just said? The last thirty seconds stay in memory on your device, overwritten as they go.",
+        "One clench plays the moment back in your ear, then tells you in a sentence what was said.",
+      ],
+      note: "A button or the J key stands in for the clench. The seconds you rewind are sent once, to be transcribed and summed up, and they are not kept.",
+      path: "/rewind",
+      figureLabel:
+        "The last thirty seconds as a line of speech over a timeline. The latest seconds are marked, and a playhead runs back to where they start, then forward again.",
+      ago: "30 s ago",
+      now: "Now",
+      recapLabel: "What was said",
+      recap: "Someone asked if the review can move to Friday at three.",
+    },
+    {
+      id: "focus",
+      index: "02",
+      kind: "Attention",
+      name: "Focus",
+      headlineLines: ["Turn to a voice,", "and it comes forward"],
+      body: [
+        "Three people talk at once around you. The one you turn to comes forward and the others step back.",
+        "Clench to hold on to that voice wherever you look, and ask what anyone said, even the voice you were not following.",
+      ],
+      note: "Your head direction, read by the camera on your own device, stands in for the earbud's attention signal. The three voices are separate recordings placed around you.",
+      path: "/focus",
+      figureLabel: "Three voices drawn as traces. One at a time comes forward while the other two recede.",
+      voices: ["Emma", "Daniel", "Barista"],
+    },
+  ],
+  moreEyebrow: "And three more",
+  moreHeadlineLines: ["Everything else", "it already does"],
+  more: [
+    {
+      id: "assistant",
+      index: "03",
+      name: "Assistant",
+      title: "Ask out loud, or in a whisper",
+      body: "Hold to talk, or leave it listening. Answers come back in your ear a sentence at a time, in Turkish or English, and can draw on your own notes. Whisper mode keeps them short and quiet.",
+      note: "Every stage is timed, so you can see how long the first word takes on your earbuds.",
+      path: "/assistant",
+      figureLabel: "A spoken question, then the answer coming back one sentence at a time.",
+    },
+    {
+      id: "notes",
+      index: "04",
+      name: "Notes",
+      title: "Talk, and it becomes notes",
+      body: "Record a meeting and it turns into notes: a summary, action items, topics and the people mentioned. Mark the moment that matters with a double clench, then search by the words or by what they meant.",
+      note: "An earbud double tap or the K key stands in for the double clench. Raw audio is kept only if you choose to keep it.",
+      path: "/recorder",
+      figureLabel: "Lines of a transcript with one moment marked, turning into a note with action items.",
+    },
+    {
+      id: "lab",
+      index: "05",
+      name: "Lab",
+      title: "Measured, not promised",
+      body: "Read short phrases in a whisper, in wind, on a street or in a cafe. Each take runs through four processing chains and is scored by word error rate, with confidence intervals and a CSV you can check.",
+      note: "The numbers describe your device and your room. They are not a claim about the earbuds.",
+      path: "/lab",
+      figureLabel: "Error rates for four processing chains, each with its confidence interval.",
+    },
+  ],
+  privacyEyebrow: "Privacy",
+  privacyHeadlineLines: ["What leaves", "your device"],
+  privacy: [
+    {
+      label: "Audio",
+      body: "The microphone stays in the browser until you start something: a question, a rewind, a recording or a lab take. Raw audio is kept only if you opt in, and then it expires.",
+    },
+    {
+      label: "Camera",
+      body: "Used only by Focus, and only after you choose it. Frames become a head direction on your device and go nowhere else.",
+    },
+    {
+      label: "Everything else",
+      body: "Export all of it whenever you like, or delete all of it. Deleting removes your notes, transcripts and any stored audio.",
+    },
+  ],
+  closingLines: ["The earbuds come later.", "You can start today."],
 };
 
 export const stickyCta = {

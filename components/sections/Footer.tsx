@@ -1,5 +1,6 @@
 import Reveal from "@/components/ui/Reveal";
 import { footer } from "@/lib/copy";
+import { anchored } from "@/lib/trial";
 
 /**
  * Page footer. Spec 3.11.
@@ -29,7 +30,7 @@ const LINK_CLASS = [
   "hover:after:scale-x-100 focus-visible:after:scale-x-100",
 ].join(" ");
 
-export default function Footer() {
+export default function Footer({ base = "" }: { base?: string } = {}) {
   return (
     <footer
       id="footer"
@@ -76,7 +77,7 @@ export default function Footer() {
                 <ul className="mt-6 flex flex-col gap-3.5">
                   {column.links.map((link) => (
                     <li key={link.href}>
-                      <a href={link.href} className={LINK_CLASS}>
+                      <a href={anchored(link.href, base)} className={LINK_CLASS}>
                         {link.label}
                       </a>
                     </li>
