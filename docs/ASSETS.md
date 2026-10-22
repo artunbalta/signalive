@@ -176,6 +176,8 @@ voices, which load only when someone turns sound on.
 OPENAI_API_KEY=... node .assetgen/focus_voices.mjs
 ```
 
-The voices are AI generated, and the page says so next to the sound control. With the
-room in the hero, the macro loop, its poster and the two hero voices above are no
-longer on the page; the files stay in `public/media`.
+The voices are AI generated, and the page says so next to the sound control.
+
+The hero macro loop is still on the page, behind the copy on wide screens: the top left
+corner, masked so it fades out toward the room and down toward the headline. Its poster
+and the two hero voices above are no longer used; the files stay in `public/media`.

@@ -4,10 +4,10 @@
 
 | Metric | Target | Where it is enforced |
 |---|---|---|
-| LCP | < 2.0s | the hero headline is the LCP candidate; the room behind it is client side only and never render blocking |
+| LCP | < 2.0s | the hero headline, or on wide screens the earbud loop behind it; the room is client side only and never render blocking |
 | CLS | < 0.05 | every image and video carries explicit width/height or an aspect-ratio box; the room's slot is sized before the room loads |
-| Total JS | < 180KB gz | 179.6KB measured, see below |
-| Hero media | no video, no poster | the room's figures are computed; its voices (about 820KB) load only when someone turns sound on |
+| Total JS | < 180KB gz | 179.8KB measured, see below |
+| Hero media | loop < 4MB, wide screens only | the earbud loop (291KB VP9, 843KB H.264) plays behind the copy from 1024px up and is never fetched below that; the room's figures are computed, and its voices (about 820KB) load only when someone turns sound on |
 | Lighthouse perf | > 90 mobile | the room draws fewer points on small screens and stops drawing when off screen |
 
 ## The Framer Motion decision
@@ -42,14 +42,14 @@ Measured on the home page: every script it loads, gzip level 9, after a scroll.
 Next 15 + React 19 runtime, shared chunks, layout   101.9KB
 GSAP core, CSSPlugin and ScrollTrigger               44.4KB
 Lenis                                                 5.3KB
-page sections                                        10.0KB
+page sections                                        10.1KB
 shared site code and copy                             9.3KB
 the Focus room                                        8.8KB
                                                     --------
-                                                    179.6KB
+                                                    179.8KB
 ```
 
-That leaves less than half a kilobyte. Anything added to the page from here needs something
+That leaves a fifth of a kilobyte. Anything added to the page from here needs something
 taken out first, or the budget moved on purpose.
 
 The room fits because of three decisions. It is plain WebGL rather than three.js,

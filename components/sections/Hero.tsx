@@ -1,11 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { hero, oneClench } from "@/lib/copy";
 import CTAButton from "@/components/ui/CTAButton";
 import MaskHeadline from "@/components/ui/MaskHeadline";
 import Reveal from "@/components/ui/Reveal";
+import { useReducedMotion } from "@/lib/useReducedMotion";
 
 /**
  * The room (WebGL, its voices and its loop) is the heaviest thing on the page
@@ -17,9 +18,9 @@ const FocusRoom = dynamic(() => import("@/components/focus-room/FocusRoom"), { s
 /**
  * Full bleed opening: the copy, and the Focus room beside it. Three people
  * talk around you and the one you turn to comes forward, which is the
- * headline, shown. On wide screens the copy holds the left half and the room
- * the right, running off the edge; stacked, the room sits between the
- * headline and the rest.
+ * headline, shown. On wide screens the copy holds the left half, over the
+ * earbud macro loop, and the room the right; stacked, the room sits between
+ * the headline and the rest, and there is no video at all.
  *
  * The h1 and the subhead are ordinary server rendered markup, and the room's
  * slot has its size before the room loads, so the hero reads, and nothing
@@ -28,6 +29,19 @@ const FocusRoom = dynamic(() => import("@/components/focus-room/FocusRoom"), { s
 export default function Hero() {
   const [section, setSection] = useState<HTMLElement | null>(null);
   const [slot, setSlot] = useState<HTMLDivElement | null>(null);
+  const reduced = useReducedMotion();
+  const video = useRef<HTMLVideoElement>(null);
+
+  // The loop is only fetched where it is shown, and never plays for someone
+  // who asked for less motion. React does not reliably reflect `muted`, and
+  // an unmuted video is refused autoplay, so it is set here too.
+  useEffect(() => {
+    const v = video.current;
+    if (!v) return;
+    if (reduced || !matchMedia("(min-width: 1024px)").matches) return v.pause();
+    v.muted = true;
+    v.play().catch(() => {});
+  }, [reduced]);
 
   return (
     <section
@@ -36,6 +50,15 @@ export default function Hero() {
       aria-labelledby="hero-headline"
       className="relative isolate min-h-[100svh] w-full overflow-hidden bg-ink"
     >
+      {/* The earbud, in the corner the copy leaves free, fading out before the
+          room and the headline. */}
+      <div aria-hidden="true" data-intro-fade className="hero-backdrop">
+        <video ref={video} muted loop playsInline preload="none" tabIndex={-1} disablePictureInPicture>
+          <source src="/media/hero.webm" type="video/webm" />
+          <source src="/media/hero.mp4" type="video/mp4" />
+        </video>
+      </div>
+
       {section && slot ? <FocusRoom hero={section} slot={slot} /> : null}
 
       <div className="relative z-10 flex min-h-[100svh] flex-col pt-[calc(var(--bar-h)+var(--nav-h)+24px)] pb-20 lg:pb-16">

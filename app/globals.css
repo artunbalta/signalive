@@ -430,9 +430,24 @@ html[data-intro] [data-intro-fade] {
 @media (prefers-reduced-motion: reduce) {
   .hero-scroll-cue { animation: none; transform: none; }
 }
-/* Beside the room the hero headline takes half the width, so it steps down. */
+/* The earbud macro loop behind the hero's copy, wide screens only: the top
+   left corner, fading out toward the room and down toward the headline. */
+.hero-backdrop { display: none; }
 @media (min-width: 1024px) {
-  .hero-headline { --text-hero: clamp(3.25rem, 4.6vw, 4.75rem); }
+  .hero-backdrop {
+    display: block; position: absolute; left: 0; top: 0; width: 62%; height: 88%; pointer-events: none;
+    -webkit-mask-image: linear-gradient(90deg, #000 42%, transparent 92%), linear-gradient(#000 38%, transparent 92%);
+    -webkit-mask-composite: source-in;
+    mask-image: linear-gradient(90deg, #000 42%, transparent 92%), linear-gradient(#000 38%, transparent 92%);
+    mask-composite: intersect;
+  }
+  .hero-backdrop video { width: 100%; height: 100%; object-fit: cover; object-position: 35% 35%; }
+}
+
+/* Beside the room the hero headline takes half the width, so it steps down,
+   and stops growing once its longest line fills the column. */
+@media (min-width: 1024px) {
+  .hero-headline { --text-hero: clamp(3.25rem, 4.6vw, 4.25rem); }
 }
 
 /* The Focus room at the top of the page. Its labels ride over each speaker's
@@ -479,12 +494,15 @@ html[data-intro] [data-intro-fade] {
 
 /* A portrait at its natural scale, beside an editorial narrative. */
 .clench-scene { position: relative; height: 100svh; min-height: 650px; overflow: hidden; background: var(--color-ink); }
-.clench-film { position: absolute; width: 51%; right: 0; inset-block: 0; overflow: hidden; }
-.clench-film-stage { position: absolute; width: 100%; aspect-ratio: 9/16; top: 0; }
+/* The film holds the left half, under the hero's copy, and is mirrored so the
+   person in it looks across at the story rather than off the page. It rises
+   out of ink at the top, so the hero hands over without a hard edge. */
+.clench-film { position: absolute; width: 51%; left: 0; inset-block: 0; overflow: hidden; }
+.clench-film-stage { position: absolute; width: 100%; aspect-ratio: 9/16; top: 0; transform: scaleX(-1); }
 .clench-film-stage video { width: 100%; height: 100%; object-fit: cover; }
-.clench-film-shade { position: absolute; inset: 0; background: linear-gradient(90deg, var(--color-ink), transparent 34%), linear-gradient(0deg, var(--color-ink), transparent 42%); }
-.clench-film-caption { position: absolute; bottom: 48px; right: 40px; color: var(--color-mist); font-size: 10px; }
-.clench-content { position: relative; height: 100%; display: flex; flex-direction: column; padding-top: calc(var(--bar-h) + var(--nav-h) + 28px); padding-bottom: 54px; }
+.clench-film-shade { position: absolute; inset: 0; background: linear-gradient(270deg, var(--color-ink), transparent 34%), linear-gradient(0deg, var(--color-ink), transparent 42%), linear-gradient(180deg, var(--color-ink), transparent 14%); }
+.clench-film-caption { position: absolute; bottom: 48px; left: 40px; color: var(--color-mist); font-size: 10px; }
+.clench-content { position: relative; height: 100%; display: flex; flex-direction: column; align-items: flex-end; padding-top: calc(var(--bar-h) + var(--nav-h) + 28px); padding-bottom: 54px; }
 .clench-heading { width: 42%; display: flex; justify-content: space-between; align-items: center; color: var(--color-mist); }
 .clench-story { width: 46%; flex: 1; display: flex; flex-direction: column; justify-content: center; padding-block: 24px; }
 .clench-beats { display: grid; }
@@ -563,10 +581,10 @@ html[data-intro] [data-intro-fade] {
 @media (max-width: 767px) {
   .clench-scene { min-height: 650px; }
   .clench-film { width: 100%; height: 55%; }
-  .clench-film-stage { top: 60px; }
+  .clench-film-stage { top: 60px; transform: none; }
   .clench-film-shade { background: linear-gradient(0deg, var(--color-ink), transparent 75%), linear-gradient(180deg, rgba(11,11,12,.8), rgba(11,11,12,.5) 45%, transparent 75%); }
   .clench-film-caption { display: none; }
-  .clench-content { padding-top: calc(var(--bar-h) + var(--nav-h) + 24px); padding-bottom: 104px; }
+  .clench-content { align-items: stretch; padding-top: calc(var(--bar-h) + var(--nav-h) + 24px); padding-bottom: 104px; }
   .clench-heading { width: 100%; }
   .clench-story { width: 100%; flex: 0 0 auto; margin-top: auto; padding-block: 0 20px; }
   .clench-beats li { font-size: clamp(1.8rem, 7.8vw, 2.8rem); max-width: 20ch; }

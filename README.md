@@ -100,7 +100,10 @@ spends the moment the pinned scene is built around.
 The hero is the Focus room from the web trial, rebuilt for this page: three people
 talk around you, and the one you turn to comes forward. You are seen from behind, each
 speaker's mouth moves with their voice, the sound flows from each mouth to you as bright
-as you hear it, and a beam shows where your attention points.
+as you hear it, and a beam shows where your attention points. On wide screens the copy
+sits on the left over the earbud macro loop and the room takes the right; below 1024px
+they stack, with no video. The pinned scene that follows mirrors that layout, its film
+on the left (mirrored, so the person looks across at the story) rising out of ink.
 
 - **Steering.** A mouse turns your head to wherever it is in the room, mapped through
   the speakers' own positions on screen, so pointing at someone faces them; leaving the

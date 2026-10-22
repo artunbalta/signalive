@@ -298,8 +298,9 @@ export default function OneClench() {
           <div className="grid12 pt-12">
             <div className="col-span-12 md:col-span-5">
               {/* The box is the source ratio, so nothing is cropped and the ear
-                  coordinates land exactly where they do in the file. */}
-              <div className="relative aspect-[9/16] w-full max-w-[380px] overflow-hidden rounded-card bg-slate">
+                  coordinates land exactly where they do in the file. Mirrored,
+                  like the moving version, so the person looks at the story. */}
+              <div className="relative aspect-[9/16] w-full max-w-[380px] -scale-x-100 overflow-hidden rounded-card bg-slate">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/media/gesture-poster.jpg"

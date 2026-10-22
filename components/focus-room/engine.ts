@@ -128,10 +128,11 @@ export class FocusRoomEngine {
     };
     els.canvas.addEventListener("webglcontextlost", onLost);
 
-    // The room fills the slot the layout gives it, under its controls and
-    // out to the hero's right edge. Beside the copy it runs on to the hero's
-    // foot, where you are cut off, seen over the shoulder; spanning the page
-    // (stacked, its left edge too), it stops above the row under it.
+    // The room fills the slot the layout gives it, under its controls, and
+    // at most a gutter past it, so on a wide screen it stays with the copy
+    // instead of drifting to the window's edge. Beside the copy it runs on to
+    // the hero's foot, where you are cut off, seen over the shoulder;
+    // stacked, it spans the page and stops above the row under it.
     const layout = () => {
       const h = els.hero.getBoundingClientRect();
       const s = els.slot.getBoundingClientRect();
@@ -139,9 +140,10 @@ export class FocusRoomEngine {
       const a = els.asks.getBoundingClientRect();
       const spans = s.width > h.width * 0.75;
       const left = spans ? 0 : s.left - h.left;
+      const right = spans ? h.width : Math.min(h.width, s.right - h.left + 80);
       const top = c.bottom - h.top + 12;
       const bottom = !spans ? h.height : a.height > 0 ? a.top - h.top - 8 : s.bottom - h.top;
-      const frame: RoomFrame = { x: left, y: top, w: h.width - left, h: Math.max(160, bottom - top), labelHeight: 0, bleed: spans };
+      const frame: RoomFrame = { x: left, y: top, w: right - left, h: Math.max(160, bottom - top), labelHeight: 0, bleed: spans };
       // On wide screens each label carries the question (QUESTION px tall)
       // unless the people stand too close for it, when the question moves to
       // a row of its own. That is decided from the framing with the question
@@ -170,8 +172,11 @@ export class FocusRoomEngine {
       });
       const asks = els.asks.getBoundingClientRect();
       els.slot.style.setProperty("--room-asks", `${Math.round(asks.height > 0 ? s.bottom - asks.top : 0)}px`);
-      // Stacked, the copy carries on under the room: you fade out before it.
-      const fade = spans ? `linear-gradient(#000 ${Math.round(bottom - 64)}px,transparent ${Math.round(bottom)}px)` : "";
+      // You fade out where the room ends: stacked, before the copy that
+      // carries on under it; beside the copy, before the hero's foot, so the
+      // next section rises out of ink rather than meeting a cut.
+      const end = spans ? bottom : h.height - 8;
+      const fade = `linear-gradient(#000 ${Math.round(end - (spans ? 64 : 150))}px,transparent ${Math.round(end)}px)`;
       els.canvas.style.setProperty("mask-image", fade);
       els.canvas.style.setProperty("-webkit-mask-image", fade);
     };
