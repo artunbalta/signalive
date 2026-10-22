@@ -44,45 +44,30 @@ export const hero = {
 };
 
 /**
- * The room behind the hero: three people talking at once around a listener,
- * and the one the listener turns to comes forward. The pointer, a drag or the
- * arrow keys stand in for turning; J or the button stands in for the clench
- * that locks onto a voice. The recaps are written from the fixed monologues.
+ * The room at the top of the page: three people talking at once around a
+ * listener, and the one the listener turns to comes forward. The pointer, a
+ * drag or the arrow keys stand in for turning; J or the button stands in for
+ * the clench, which plays back the last ten seconds of the person faced, in
+ * their own voice, with their words on screen. The words come with the
+ * recordings (public/media/focus/words.json), like captions.
  */
 export const focusRoom = {
   label:
-    "Three people talking around you. Move the pointer across the room, drag, or use the arrow keys to turn toward one of them.",
+    "Three people talking around you. Move the pointer across the room, drag, or use the arrow keys to turn toward one of them, then clench to hear their last 10 seconds again.",
   speakers: [
-    {
-      name: "Emma",
-      topic: "A trip to Cappadocia",
-      recap:
-        "Emma was up at four in the morning in Cappadocia. The balloon lifted off at half past six with about a hundred others, and she wants to go back in October and hike Pigeon Valley.",
-    },
-    {
-      name: "Daniel",
-      topic: "A startup idea",
-      recap:
-        "Daniel is pitching a sensor that tells you when a plant needs water. Twelve hundred downloads in the first month, four ninety-nine a month, and an investor meeting next Tuesday.",
-    },
-    {
-      name: "Barista",
-      topic: "Orders up",
-      recap:
-        "The barista called out an oat milk latte for Selin, two americanos, one iced, and croissants out of the oven in five minutes.",
-    },
+    { name: "Emma", topic: "A trip to Cappadocia" },
+    { name: "Daniel", topic: "A startup idea" },
+    { name: "Barista", topic: "Orders up" },
   ],
   forward: "Forward",
-  locked: "Locked",
+  replaying: "Replaying",
   turnTo: "Turn to",
-  whatDidTheySay: "What did they say?",
-  lock: "Clench to lock",
-  unlock: "Clench to let go",
-  lockHint: "J or this button stands in for the clench.",
-  lockHintTouch: "This button stands in for the clench.",
+  clench: "Clench to replay",
+  clenchHint: "J or this button stands in for the clench: it plays back the last 10 seconds of the person you face.",
+  clenchHintTouch: "This button stands in for the clench: it plays back the last 10 seconds of the person you face.",
   loading: "Loading voices",
   soundError: "Sound could not start. Tap to try again.",
-  recapHeading: "What they said",
+  replayHeading: "Last 10 seconds",
   close: "Close",
   aiVoices: "Voices are AI generated.",
 };

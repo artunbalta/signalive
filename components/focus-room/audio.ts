@@ -1,8 +1,15 @@
 /**
  * The room's sound: three recorded voices placed around the listener (HRTF
  * panning), a listener that turns with the head, a level per voice for
- * attention, and the spoken recaps. This module is only fetched once
- * someone asks for sound, and nothing plays without that tap.
+ * attention, and the clench's replay of the last seconds of one voice, in
+ * that voice, from where that person stands. This module is only fetched
+ * the first time someone asks for sound or clenches, and nothing plays
+ * without that tap.
+ *
+ * Every voice loops on the room's own clock: at room time t, voice i is at
+ * (t + d * i / 3) mod d, d being its length, so the three never line up,
+ * and what a clench replays is what that person was saying, sound on or
+ * off.
  */
 
 const VOICES = ["emma", "daniel", "barista"] as const;
@@ -11,10 +18,19 @@ const DISTANCE = 1.6;
 /** Level changes glide over this time constant, so they never click. */
 const TAU = 0.08;
 
-async function decode(ctx: AudioContext, url: string): Promise<AudioBuffer> {
+/** Per voice: its length, and every word with the second it starts. */
+type Words = { d: number; w: [string, number][] }[];
+
+/** A replay: its words, each with when it starts in the clip, and when the clip has finished. */
+export interface Replay {
+  words: [string, number][];
+  done: Promise<void>;
+}
+
+async function fetchOk(url: string) {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`audio ${res.status}`);
-  return ctx.decodeAudioData(await res.arrayBuffer());
+  if (!res.ok) throw new Error(`${url} ${res.status}`);
+  return res;
 }
 
 export class RoomAudio {
@@ -23,16 +39,13 @@ export class RoomAudio {
   /** Each voice before its attention level: how loud the speaker is, for their mouth. */
   private readonly analysers: AnalyserNode[];
   private readonly data = new Float32Array(512);
-  private readonly recapOut: GainNode;
-  private voices: Promise<AudioBuffer[]> | null = null;
-  private readonly recaps = new Map<number, Promise<AudioBuffer>>();
+  private loaded: Promise<[AudioBuffer[], Words]> | null = null;
   private sources: AudioBufferSourceNode[] = [];
-  private recap: AudioBufferSourceNode | null = null;
-  private recapRun = 0;
+  private clip: AudioBufferSourceNode | null = null;
 
   constructor(
     readonly ctx: AudioContext,
-    azimuths: readonly number[],
+    private readonly azimuths: readonly number[],
   ) {
     this.bus = ctx.createGain();
     this.bus.connect(ctx.destination);
@@ -41,59 +54,63 @@ export class RoomAudio {
       a.fftSize = 512;
       return a;
     });
-    this.levels = azimuths.map((deg) => {
+    this.levels = azimuths.map((_, i) => {
       const level = ctx.createGain();
       level.gain.value = 0;
-      const panner = ctx.createPanner();
-      panner.panningModel = "HRTF";
-      panner.distanceModel = "inverse";
-      panner.refDistance = 1;
-      panner.rolloffFactor = 0.5;
-      const a = (deg * Math.PI) / 180;
-      panner.setPosition(Math.sin(a) * DISTANCE, 0, -Math.cos(a) * DISTANCE);
-      level.connect(panner).connect(this.bus);
+      level.connect(this.panner(i)).connect(this.bus);
       return level;
     });
-    this.recapOut = ctx.createGain();
-    this.recapOut.connect(ctx.destination);
   }
 
-  /** The three voices, fetched and decoded once. A failed load is forgotten, to retry. */
-  load(): Promise<AudioBuffer[]> {
-    if (!this.voices) {
-      const voices = Promise.all(VOICES.map((v) => decode(this.ctx, `/media/focus/${v}.mp3`)));
-      voices.catch(() => {
-        if (this.voices === voices) this.voices = null;
+  /** A panner where speaker i stands. */
+  private panner(i: number) {
+    const p = this.ctx.createPanner();
+    p.panningModel = "HRTF";
+    p.distanceModel = "inverse";
+    p.refDistance = 1;
+    p.rolloffFactor = 0.5;
+    const a = (this.azimuths[i] * Math.PI) / 180;
+    p.setPosition(Math.sin(a) * DISTANCE, 0, -Math.cos(a) * DISTANCE);
+    return p;
+  }
+
+  /** The three voices and their words, fetched once. A failed load is forgotten, to retry. */
+  load() {
+    if (!this.loaded) {
+      const loaded = Promise.all([
+        Promise.all(VOICES.map(async (v) => this.ctx.decodeAudioData(await (await fetchOk(`/media/focus/${v}.mp3`)).arrayBuffer()))),
+        fetchOk("/media/focus/words.json").then((r) => r.json() as Promise<Words>),
+      ]);
+      loaded.catch(() => {
+        if (this.loaded === loaded) this.loaded = null;
       });
-      this.voices = voices;
+      this.loaded = loaded;
     }
-    return this.voices;
+    return this.loaded;
   }
 
-  /** Starts every voice, looping, each a third further in, so the three never line up. */
-  start(buffers: AudioBuffer[]) {
+  /** Where voice i is in its loop at room time t, seconds. */
+  private at(i: number, t: number, d: number) {
+    return (t + (d * i) / VOICES.length) % d;
+  }
+
+  /** Starts every voice, looping, where it is at room time t. */
+  start(buffers: AudioBuffer[], t: number) {
     this.stopVoices();
-    const at = this.ctx.currentTime + 0.05;
+    const when = this.ctx.currentTime + 0.05;
     this.sources = buffers.map((b, i) => {
       const src = this.ctx.createBufferSource();
       src.buffer = b;
       src.loop = true;
       src.connect(this.analysers[i]);
       src.connect(this.levels[i]);
-      src.start(at, (b.duration * i) / buffers.length);
+      src.start(when, this.at(i, t + 0.05, b.duration));
       return src;
     });
   }
 
   stopVoices() {
-    for (const s of this.sources) {
-      try {
-        s.stop();
-      } catch {
-        // never started
-      }
-      s.disconnect();
-    }
+    for (const s of this.sources) stop(s);
     this.sources = [];
   }
 
@@ -117,51 +134,73 @@ export class RoomAudio {
     return Math.min(1, Math.max(0, (10 * Math.log10(sum / this.data.length + 1e-12) + 50) / 35));
   }
 
-  /** Everyone in the room steps back while a recap speaks. */
+  /** The room steps back while a replay speaks. */
   duck(on: boolean) {
     this.bus.gain.setTargetAtTime(on ? 10 ** (-22 / 20) : 1, this.ctx.currentTime, 0.15);
   }
 
-  /** Speaks one recap; resolves when it ends or is stopped. */
-  async playRecap(i: number): Promise<void> {
-    this.stopRecap();
-    const run = this.recapRun;
-    let buffer = this.recaps.get(i);
-    if (!buffer) {
-      buffer = decode(this.ctx, `/media/focus/recap-${VOICES[i]}.mp3`);
-      buffer.catch(() => this.recaps.delete(i));
-      this.recaps.set(i, buffer);
-    }
-    const b = await buffer;
-    // Stopped, or replaced, while it loaded.
-    if (run !== this.recapRun) return;
+  /**
+   * What speaker i said in the `seconds` up to room time t, said again in
+   * their voice: from the first word that starts inside the window to the
+   * end of the word they were in the middle of. The window can reach back
+   * across the start of the loop, into its previous pass.
+   */
+  async replay(i: number, t: number, seconds: number): Promise<Replay> {
+    this.stopReplay();
+    const [buffers, words] = await this.load();
+    const b = buffers[i];
+    const d = b.duration;
+    const now = this.at(i, t, d);
+    // Two passes of the words, the previous one shifted back by a loop.
+    const passes = [...words[i].w.map(([w, s]): [string, number] => [w, s - d]), ...words[i].w];
+    const first = passes.findIndex(([, s]) => s >= now - seconds);
+    const last = passes.findIndex(([, s]) => s >= now);
+    if (first < 0 || first >= last) return { words: [], done: Promise.resolve() };
+    const inside = passes.slice(settle(passes, first), last);
+    const next = passes[last];
+    const from = inside[0][1];
+    const to = Math.min(next ? next[1] : now + 1, now + 1);
     const src = this.ctx.createBufferSource();
     src.buffer = b;
-    src.connect(this.recapOut);
-    this.recap = src;
-    await new Promise<void>((resolve) => {
-      src.onended = () => resolve();
-      src.start();
-    });
-    if (this.recap === src) this.recap = null;
+    src.loop = true;
+    src.connect(this.panner(i)).connect(this.ctx.destination);
+    this.clip = src;
+    const done = new Promise<void>((resolve) => (src.onended = () => resolve()));
+    src.start(this.ctx.currentTime + 0.05, ((from % d) + d) % d, to - from);
+    return { words: inside.map(([w, s]) => [w, s - from]), done };
   }
 
-  stopRecap() {
-    this.recapRun++;
-    const src = this.recap;
-    this.recap = null;
-    if (!src) return;
-    try {
-      src.stop();
-    } catch {
-      // never started
-    }
-    src.disconnect();
+  stopReplay() {
+    if (this.clip) stop(this.clip);
+    this.clip = null;
   }
 
   close() {
-    this.stopRecap();
+    this.stopReplay();
     this.stopVoices();
     void this.ctx.close().catch(() => {});
   }
+}
+
+/**
+ * Moves a replay's first word back to the start of its sentence, or failing
+ * that of its clause, when that is at most 3 seconds earlier, so it does not
+ * begin halfway through one.
+ */
+function settle(passes: [string, number][], first: number) {
+  for (const boundary of [/[.!?]$/, /[,;:]$/]) {
+    for (let j = first; j >= 0 && passes[first][1] - passes[j][1] <= 3; j--) {
+      if (j === 0 || boundary.test(passes[j - 1][0])) return j;
+    }
+  }
+  return first;
+}
+
+function stop(src: AudioBufferSourceNode) {
+  try {
+    src.stop();
+  } catch {
+    // never started
+  }
+  src.disconnect();
 }

@@ -101,8 +101,9 @@ The hero is the Focus room from the web trial, rebuilt for this page: three peop
 talk around you, and the one you turn to comes forward. You are seen from behind, each
 speaker's mouth moves with their voice, the sound flows from each mouth to you as bright
 as you hear it, and a beam shows where your attention points. On wide screens the copy
-sits on the left over the earbud macro loop and the room takes the right; below 1024px
-they stack, with no video. The pinned scene that follows mirrors that layout, its film
+sits on the left over the earbud macro loop and the room takes the right, its controls
+above it; below 1024px they stack, with no video: the headline, the room straight under
+it, then its controls. The pinned scene that follows mirrors that layout, its film
 on the left (mirrored, so the person looks across at the story) rising out of ink.
 
 - **Steering.** A mouse turns your head to wherever it is in the room, mapped through
@@ -110,12 +111,15 @@ on the left (mirrored, so the person looks across at the story) rising out of in
   room holds the last direction. A finger drags across the room. The arrow keys turn ten
   degrees at a time, 1, 2 and 3 face a speaker, and a speaker's name turns you to them.
   Until anyone steers, the head visits the three in turn.
-- **The clench.** J or the lock button stands in for it: it holds the voice you face,
-  whatever your head does next.
-- **What did they say?** Opens that speaker's recap (the text is in `lib/copy.ts`) and,
-  with sound on, speaks it over the room while the room steps back.
-- **Sound** is never fetched before someone taps for it, then the three voices load
-  (about 820KB) and the audio code with them. The voices are AI generated and the page
+- **The clench.** J or the clench button stands in for it. It plays back the last ten
+  seconds of whoever you face (or are nearest to), in their own voice and from where
+  they stand, while the room steps back, and shows their words lighting up as they are
+  said again. The replay starts at the beginning of the sentence it falls in, when
+  that is at most three seconds earlier. Every voice loops on the room's own clock, so
+  this works with the room's sound off too.
+- **Sound** is never fetched before someone taps for it or clenches, then the three
+  voices and their word timings load (about 820KB and 4KB) and the audio code with
+  them. The voices are AI generated and the page
   says so next to the control. They are made by `.assetgen/focus_voices.mjs`, see
   `docs/ASSETS.md`.
 - **No three.js.** It would cost most of the page's JS budget, so the scene is under

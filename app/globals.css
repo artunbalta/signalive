@@ -451,8 +451,8 @@ html[data-intro] [data-intro-fade] {
 }
 
 /* The Focus room at the top of the page. Its labels ride over each speaker's
-   head; amber marks the speaker who is forward (name and level), a lock (its
-   state and its dot) and a recap while it is spoken. */
+   head; amber marks the speaker who is forward (name and level) and a replay
+   while it is spoken (the speaker's state and the clench's dot). */
 .room-pill { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 16px; border: 1px solid rgba(255,255,249,.22); border-radius: var(--radius-pill); background: rgba(11,11,12,.45); color: var(--color-paper); font-size: .875rem; backdrop-filter: blur(4px); transition: border-color 200ms ease, color 200ms ease; }
 .room-pill:hover { border-color: rgba(255,255,249,.55); }
 .room-pill:disabled { cursor: wait; opacity: .7; }
@@ -468,7 +468,7 @@ html[data-intro] [data-intro-fade] {
 .room-label { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; width: max-content; padding-bottom: 12px; text-align: center; transform: translate(-200vw, 0); will-change: transform; }
 .room-state { height: 16px; font-size: 10px; color: var(--color-mist); opacity: 0; transition: opacity 300ms ease; }
 .room-state[data-on] { opacity: 1; }
-.room-state[data-locked] { color: var(--color-signal); }
+.room-state[data-live] { color: var(--color-signal); }
 .room-name { pointer-events: auto; margin-top: 2px; padding: 0 4px; border-radius: 6px; }
 .room-name b { display: block; font-family: var(--font-display); font-weight: 500; font-size: 1.125rem; line-height: 1; letter-spacing: -.02em; color: var(--color-paper); transition: color 300ms ease; }
 .room-name[aria-pressed=true] b { color: var(--color-signal); }
@@ -476,9 +476,6 @@ html[data-intro] [data-intro-fade] {
 .room-meter { display: block; width: 56px; height: 2px; margin-top: 10px; overflow: hidden; border-radius: 2px; background: rgba(255,255,249,.14); }
 .room-meter span { display: block; height: 100%; background: var(--color-paper); transform: scaleX(0); transform-origin: left; transition: background-color 300ms ease; }
 .room-meter[data-on] span { background: var(--color-signal); }
-.room-ask { display: none; pointer-events: auto; margin-top: 12px; min-height: 36px; padding: 0 14px; font-size: .8125rem; color: var(--color-mist); }
-.room-ask:hover { color: var(--color-paper); }
-.room-asks { display: flex; }
 .room-recap { pointer-events: auto; width: 100%; max-width: 400px; padding: 20px; border: 1px solid rgba(255,255,249,.14); border-radius: var(--radius-card); background: rgba(11,11,12,.86); backdrop-filter: blur(12px); }
 @media (min-width: 1024px) {
   .room-hint { text-align: right; }
@@ -486,11 +483,12 @@ html[data-intro] [data-intro-fade] {
   .room-name b { font-size: 1.375rem; }
   .room-name span { font-size: .8125rem; }
   .room-meter { width: 64px; margin-top: 12px; }
-  .room-ask { display: inline-flex; }
-  .room-asks { display: none; }
-  [data-compact] .room-ask { display: none; }
-  [data-compact] .room-asks { display: flex; }
 }
+/* A replay's words, each brightening as it is said again. Not motion: under
+   reduced motion they still brighten in time, just without the fade. */
+.room-words { margin-top: 8px; font-size: .9375rem; line-height: 1.6; }
+.room-words span { animation: room-word 240ms linear both; }
+@keyframes room-word { from { color: var(--color-fog); } to { color: var(--color-paper); } }
 
 /* A portrait at its natural scale, beside an editorial narrative. */
 .clench-scene { position: relative; height: 100svh; min-height: 650px; overflow: hidden; background: var(--color-ink); }

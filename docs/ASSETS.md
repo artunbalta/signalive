@@ -154,26 +154,31 @@ The room at the top of the page has no image or video assets. Its figures are a 
 of points on a signed distance field, computed in the browser
 (`components/focus-room/head.ts`), the same bust as the web trial's.
 
-Its sound is six files in `public/media/focus/`, made by `.assetgen/focus_voices.mjs`
-with `gpt-4o-mini-tts`:
+Its sound is three files in `public/media/focus/`, made by `.assetgen/focus_voices.mjs`
+with `gpt-4o-mini-tts`, and the time each of their words starts:
 
 | File | Voice | What |
 |---|---|---|
 | `emma.mp3` | coral | a trip to Cappadocia, 37s |
 | `daniel.mp3` | onyx | a startup idea, 34s |
 | `barista.mp3` | verse | orders called across a counter, 31s |
-| `recap-emma.mp3`, `recap-daniel.mp3`, `recap-barista.mp3` | marin | each recap, 8 to 11s |
+| `words.json` | | every word of the three, with when it starts |
 
-The monologues and speaking styles are the web trial's English ones
-(`trial/lib/shared/focus.ts`). The recaps are read from `focusRoom.speakers[].recap` in
-`lib/copy.ts`, so what is spoken is exactly what the card shows; change the copy, then
-run the script again. Every file is loudness normalised to the same target
-(`loudnorm=I=-20:TP=-2:LRA=11`) so the voice that comes forward is louder only because
-it was brought forward, and encoded as 64kbps mono MP3: about 820KB for the three
-voices, which load only when someone turns sound on.
+The monologues and speaking styles are the web trial's English ones, kept for these
+scripts in `.assetgen/focus_monologues.mjs`. Every file is loudness normalised to the
+same target (`loudnorm=I=-20:TP=-2:LRA=11`) so the voice that comes forward is louder
+only because it was brought forward, and encoded as 64kbps mono MP3: about 820KB for the
+three, which load only when someone turns sound on or clenches.
+
+The word times are what lets a clench show exactly what was said in the ten seconds it
+plays back. `.assetgen/focus_words.mjs` has whisper-1 time the words it hears, then lays
+those times onto the script's own words (its spelling and punctuation), matched in
+order; the few words the recogniser wrote differently are timed between their
+neighbours. Run it again whenever the voices change:
 
 ```bash
 OPENAI_API_KEY=... node .assetgen/focus_voices.mjs
+OPENAI_API_KEY=... node .assetgen/focus_words.mjs
 ```
 
 The voices are AI generated, and the page says so next to the sound control.

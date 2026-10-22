@@ -84,7 +84,7 @@ export default function Hero() {
               moves nothing; a drag across it turns your head. */}
           <div
             ref={setSlot}
-            className="relative mt-6 h-[min(150vw,620px)] touch-pan-y lg:col-span-6 lg:col-start-7 lg:row-span-2 lg:row-start-1 lg:mt-0 lg:h-auto"
+            className="relative mt-2 h-[min(136vw,560px)] touch-pan-y lg:col-span-6 lg:col-start-7 lg:row-span-2 lg:row-start-1 lg:mt-0 lg:h-auto"
           />
 
           <div className="mt-10 lg:col-span-6 lg:row-start-2 lg:mt-10">

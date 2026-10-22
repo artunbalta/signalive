@@ -8,7 +8,7 @@ import { createHeadCloud } from "./head";
  * the voice you attend to, each speaker's mouth moves with their voice,
  * sound flows from each mouth to you as bright as you hear it, and a beam
  * shows where your attention points. Amber marks the voice that is forward,
- * and the beam when it is locked.
+ * and the beam while a replay speaks.
  *
  * The canvas covers the whole hero and has no edges of its own: the room is
  * composed into a rectangle of it (the layout's slot for it), and anything
@@ -87,7 +87,7 @@ vColor=mix(uPaper,uAmber,uFocus);
 gl_PointSize=uPixel*(.55+.55*aSpeed)*(6./-mv.z);
 }`;
 
-/** Where your attention points: a pulsing line of dots from your head, amber and steady when locked. */
+/** Where your attention points: a pulsing line of dots from your head, amber and steady while a replay speaks. */
 const BEAM = `attribute float aD;
 uniform float uYaw,uLock,uShow,uTime;
 void main(){
@@ -238,10 +238,12 @@ export function frameRoom(azimuths: readonly number[], width: number, height: nu
     if (fits) break;
   }
   // Whatever height is left over (the people did not need it all) is shared
-  // above the labels and under your shoulders, so the room sits centred.
+  // above the labels and under your shoulders, so the room sits centred;
+  // spanning a phone, it all goes underneath, so the people sit up under
+  // the controls.
   const top = Math.max(...speakers.map((sp) => project(m, sp.top)[1])) + label;
   const bottom = project(m, [0, -1.75, 0.2])[1];
-  const lift = top < 1 && bottom > -1 ? (1 - top - (bottom + 1)) / 2 : 0;
+  const lift = top >= 1 ? 0 : frame.bleed ? 1 - top : bottom > -1 ? (1 - top - (bottom + 1)) / 2 : 0;
   // Then the frame's view goes where the frame sits on the canvas.
   const place = new Float32Array(16);
   place[0] = fw / cssW;
@@ -269,9 +271,10 @@ export function frameRoom(azimuths: readonly number[], width: number, height: nu
 export interface RoomFrameState {
   /** Where your head points, degrees, right positive. */
   yaw: number;
-  /** Where the beam points: the locked speaker, else your head. */
+  /** Where the beam points: the speaker being replayed, else your head. */
   beamYaw: number;
-  locked: boolean;
+  /** A replay is speaking: the beam turns amber. */
+  replaying: boolean;
   /** Per speaker, 0..1: how loud the voice is right now, and how loud you hear it. */
   levels: readonly number[];
   gains: readonly number[];
@@ -397,6 +400,7 @@ export function createRoom(canvas: HTMLCanvasElement, azimuths: readonly number[
   let intro = opts.reducedMotion ? 1 : 0;
   const talk = speakers.map(() => 0);
   const flow = speakers.map(() => 0);
+  /** 0..1: how far the beam has turned amber for a replay. */
   let lock = 0;
   let show = 0;
 
@@ -412,7 +416,7 @@ export function createRoom(canvas: HTMLCanvasElement, azimuths: readonly number[
     render(s, dt, time) {
       grow();
       if (!s.hold) intro = Math.min(1, intro + dt / 1.6);
-      lock = approach(lock, s.locked ? 1 : 0, dt, 8);
+      lock = approach(lock, s.replaying ? 1 : 0, dt, 8);
       show = approach(show, 1, dt, 4);
 
       gl.clearColor(0, 0, 0, 0);

@@ -5,10 +5,11 @@ import { createRoom, frameRoom, type Room, type RoomFrame } from "./scene";
  * The room's state and its one animation loop. The head turns toward
  * whatever steers it (the pointer's place in the room, a drag, the arrow
  * keys, a speaker's name, or, until someone does any of those, a slow tour
- * of the three), the voice it faces comes forward, a lock (the clench, which
- * J or a button stands in for) holds one voice whatever the head does, and
- * each speaker's mouth moves with their voice: the real one once sound is
- * on, the rhythm of speech before that.
+ * of the three), the voice it faces comes forward, and the clench (which J
+ * or a button stands in for) plays back the last ten seconds of the person
+ * faced, in their voice, with their words on screen. Each speaker's mouth
+ * moves with their voice: the real one once sound is on, the rhythm of
+ * speech before that.
  *
  * The same rules as the web trial's Focus screen
  * (trial/lib/shared/focus.ts): a speaker is faced within 18 degrees of
@@ -22,8 +23,8 @@ const FACE_HALF_DEG = 18;
 const CUT = 10 ** (-16 / 20);
 const NEUTRAL = 10 ** (-4 / 20);
 const STEER_MAX = 80;
-/** The question under a speaker's name on wide screens: its height and margin, px. */
-const QUESTION = 48;
+/** What a clench plays back, seconds. */
+const REPLAY_SEC = 10;
 /** Until someone steers, the head visits each speaker in turn. */
 const TOUR = [1, 0, 2] as const;
 const TOUR_SEC = 3.6;
@@ -31,14 +32,13 @@ const TOUR_SEC = 3.6;
 export type Sound = "off" | "loading" | "on" | "error";
 
 export interface RoomView {
-  /** The voice that is forward: the locked one, else the one faced. */
+  /** The voice that is forward: the one faced. */
   attended: number | null;
-  locked: number | null;
   sound: Sound;
-  /** The speaker whose recap is open. */
-  recap: number | null;
-  /** The recap is being spoken. */
-  speaking: boolean;
+  /** The last clench: which one, whose seconds, and their words (null while they load). */
+  replay: { id: number; speaker: number; words: [string, number][] | null } | null;
+  /** The replay is being spoken. */
+  replaying: boolean;
 }
 
 export interface RoomElements {
@@ -46,8 +46,6 @@ export interface RoomElements {
   slot: HTMLElement;
   canvas: HTMLCanvasElement;
   controls: HTMLElement;
-  /** The row under the room that asks what someone said, where labels are too narrow for it. */
-  asks: HTMLElement;
   labels: (HTMLElement | null)[];
   meters: (HTMLElement | null)[];
 }
@@ -83,7 +81,7 @@ function typing(t: EventTarget | null) {
 }
 
 export class FocusRoomEngine {
-  private state: RoomView = { attended: 1, locked: null, sound: "off", recap: null, speaking: false };
+  private state: RoomView = { attended: 1, sound: "off", replay: null, replaying: false };
   private readonly listeners = new Set<() => void>();
   /** For React: the view and its changes. */
   readonly get = () => this.state;
@@ -112,7 +110,12 @@ export class FocusRoomEngine {
   private audio: RoomAudio | null = null;
   private applied = "";
   private soundRun = 0;
-  private recapRun = 0;
+  private replayRun = 0;
+
+  /** Seconds on the room's clock; the voices, heard or not, keep to it. */
+  private clock() {
+    return (performance.now() - this.t0) / 1000;
+  }
 
   /** Mounts the room on the page's elements; returns cleanup. */
   mount(els: RoomElements, reducedMotion: boolean): () => void {
@@ -128,36 +131,30 @@ export class FocusRoomEngine {
     };
     els.canvas.addEventListener("webglcontextlost", onLost);
 
-    // The room fills the slot the layout gives it, under its controls, and
-    // at most a gutter past it, so on a wide screen it stays with the copy
-    // instead of drifting to the window's edge. Beside the copy it runs on to
-    // the hero's foot, where you are cut off, seen over the shoulder;
-    // stacked, it spans the page and stops above the row under it.
+    // The room fills the slot the layout gives it, and at most a gutter past
+    // it, so on a wide screen it stays with the copy instead of drifting to
+    // the window's edge. Beside the copy its controls sit above it and it
+    // runs on to the hero's foot, where you are cut off, seen over the
+    // shoulder; stacked, it spans the page right under the headline, and
+    // its controls follow it.
     const layout = () => {
       const h = els.hero.getBoundingClientRect();
       const s = els.slot.getBoundingClientRect();
       const c = els.controls.getBoundingClientRect();
-      const a = els.asks.getBoundingClientRect();
       const spans = s.width > h.width * 0.75;
+      const above = c.top - s.top < s.bottom - c.bottom;
       const left = spans ? 0 : s.left - h.left;
       const right = spans ? h.width : Math.min(h.width, s.right - h.left + 80);
-      const top = c.bottom - h.top + 12;
-      const bottom = !spans ? h.height : a.height > 0 ? a.top - h.top - 8 : s.bottom - h.top;
-      const frame: RoomFrame = { x: left, y: top, w: right - left, h: Math.max(160, bottom - top), labelHeight: 0, bleed: spans };
-      // On wide screens each label carries the question (QUESTION px tall)
-      // unless the people stand too close for it, when the question moves to
-      // a row of its own. That is decided from the framing with the question
-      // in, so hiding it (shorter labels, a closer camera, people further
-      // apart) cannot undo the decision.
-      const measured = Math.max(64, ...els.labels.map((l) => l?.offsetHeight ?? 0));
-      const wide = matchMedia("(min-width: 1024px)").matches;
-      const compactNow = els.slot.hasAttribute("data-compact");
-      const full = measured + (wide && compactNow ? QUESTION : 0);
-      const probe = frameRoom(AZIMUTHS, h.width, h.height, { ...frame, labelHeight: full }).anchors;
-      const gap = Math.min(...probe.slice(1).map((p, i) => p.x - probe[i].x));
-      const compact = wide && gap < (compactNow ? 180 : 170);
-      els.slot.toggleAttribute("data-compact", compact);
-      frame.labelHeight = compact ? full - QUESTION : full;
+      const top = (above ? c.bottom + 12 : s.top) - h.top;
+      const bottom = spans ? (above ? s.bottom : c.top - 12) - h.top : h.height;
+      const frame: RoomFrame = {
+        x: left,
+        y: top,
+        w: right - left,
+        h: Math.max(160, bottom - top),
+        labelHeight: Math.max(64, ...els.labels.map((l) => l?.offsetHeight ?? 0)),
+        bleed: spans,
+      };
       if (room) room.layout(h.width, h.height, frame);
       this.anchors = room ? room.anchors() : frameRoom(AZIMUTHS, h.width, h.height, frame).anchors;
       this.heroLeft = h.left;
@@ -170,8 +167,6 @@ export class FocusRoomEngine {
         const x = Math.min(h.width - half, Math.max(half, p.x));
         label.style.transform = `translate(${(x - s.left + h.left).toFixed(1)}px,${(p.y - s.top + h.top).toFixed(1)}px) translate(-50%,-100%)`;
       });
-      const asks = els.asks.getBoundingClientRect();
-      els.slot.style.setProperty("--room-asks", `${Math.round(asks.height > 0 ? s.bottom - asks.top : 0)}px`);
       // You fade out where the room ends: stacked, before the copy that
       // carries on under it; beside the copy, before the hero's foot, so the
       // next section rises out of ink rather than meeting a cut.
@@ -179,10 +174,12 @@ export class FocusRoomEngine {
       const fade = `linear-gradient(#000 ${Math.round(end - (spans ? 64 : 150))}px,transparent ${Math.round(end)}px)`;
       els.canvas.style.setProperty("mask-image", fade);
       els.canvas.style.setProperty("-webkit-mask-image", fade);
+      // The replay card opens just above whatever sits at the slot's foot.
+      els.slot.style.setProperty("--room-foot", `${Math.round(above ? 0 : s.bottom - c.top)}px`);
     };
     layout();
     const ro = new ResizeObserver(layout);
-    for (const el of [els.hero, els.slot, els.controls, els.asks, ...els.labels]) if (el) ro.observe(el);
+    for (const el of [els.hero, els.slot, els.controls, ...els.labels]) if (el) ro.observe(el);
 
     const io = new IntersectionObserver(
       ([e]) => {
@@ -218,8 +215,8 @@ export class FocusRoomEngine {
         this.nudge(e.key === "ArrowLeft" ? -10 : 10);
       } else if (e.key === "1" || e.key === "2" || e.key === "3") {
         this.face(Number(e.key) - 1);
-      } else if (e.key === "j" || e.key === "J") {
-        this.toggleLock();
+      } else if ((e.key === "j" || e.key === "J") && !e.repeat) {
+        void this.clench();
       }
     };
     els.slot.addEventListener("pointerdown", onDown);
@@ -243,7 +240,7 @@ export class FocusRoomEngine {
         {
           yaw: this.yaw,
           beamYaw: this.beamYaw,
-          locked: this.state.locked !== null,
+          replaying: this.state.replaying,
           levels: this.talk,
           gains: this.gains,
           focus: this.focus,
@@ -251,7 +248,7 @@ export class FocusRoomEngine {
           hold: document.documentElement.hasAttribute("data-intro"),
         },
         dt,
-        (stamp - this.t0) / 1000,
+        this.clock(),
       );
       els.meters.forEach((m, i) => {
         if (m) m.style.transform = `scaleX(${Math.min(1, this.gains[i] * (0.15 + this.talk[i])).toFixed(3)})`;
@@ -268,22 +265,22 @@ export class FocusRoomEngine {
       els.slot.removeEventListener("pointerdown", onDown);
       for (const [type, fn] of listen) removeEventListener(type, fn as EventListener);
       room?.dispose();
-      this.recapRun++;
+      this.replayRun++;
       this.soundRun++;
       this.audio?.close();
       this.audio = null;
       this.ctx = null;
       this.applied = "";
-      this.set({ sound: "off", speaking: false });
+      this.set({ sound: "off", replaying: false });
     };
   }
 
   private tick(dt: number, reduced: boolean) {
-    const t = (performance.now() - this.t0) / 1000;
+    const t = this.clock();
     if (!this.steered && !reduced) this.target = AZIMUTHS[TOUR[Math.floor(t / TOUR_SEC) % TOUR.length]];
     this.yaw = reduced ? this.target : approach(this.yaw, this.target, dt, 6);
-    const { locked, sound } = this.state;
-    const attended = locked ?? facedSpeaker(this.yaw);
+    const { sound, replay, replaying } = this.state;
+    const attended = facedSpeaker(this.yaw);
     this.set({ attended });
 
     const audio = sound === "on" ? this.audio : null;
@@ -293,7 +290,8 @@ export class FocusRoomEngine {
       this.focus[i] = approach(this.focus[i], i === attended ? 1 : 0, dt, 6);
       this.talk[i] = approach(this.talk[i], audio ? audio.level(i) : speech(i, t), dt, 18);
     });
-    this.beamYaw = approach(this.beamYaw, locked !== null ? AZIMUTHS[locked] : this.yaw, dt, 10);
+    // While a replay speaks, the beam holds on whoever is being replayed.
+    this.beamYaw = approach(this.beamYaw, replaying && replay ? AZIMUTHS[replay.speaker] : this.yaw, dt, 10);
 
     if (audio) {
       audio.setYaw(this.yaw);
@@ -326,10 +324,14 @@ export class FocusRoomEngine {
     this.target = Math.max(-STEER_MAX, Math.min(STEER_MAX, deg));
   }
 
-  /** The clench: lock onto the voice you face (or the nearest), or let go. */
-  toggleLock() {
-    this.steered = true;
-    this.set({ locked: this.state.locked !== null ? null : nearest(this.yaw) });
+  /** The audio, made and resumed inside the tap that asks for it, before anything is awaited. */
+  private async ensureAudio() {
+    this.ctx ??= new (window.AudioContext || (window as WebkitWindow).webkitAudioContext!)();
+    const resumed = this.ctx.resume();
+    const { RoomAudio } = await import("./audio");
+    this.audio ??= new RoomAudio(this.ctx, AZIMUTHS);
+    await resumed;
+    return this.audio;
   }
 
   /** Sound on or off. Call from a tap: that is what lets the browser play it. */
@@ -340,18 +342,13 @@ export class FocusRoomEngine {
     const run = ++this.soundRun;
     this.set({ sound: "loading" });
     try {
-      // Made and resumed inside the tap, before anything is awaited.
-      this.ctx ??= new (window.AudioContext || (window as WebkitWindow).webkitAudioContext!)();
-      const resumed = this.ctx.resume();
-      const { RoomAudio } = await import("./audio");
-      this.audio ??= new RoomAudio(this.ctx, AZIMUTHS);
-      const buffers = await this.audio.load();
-      await resumed;
+      const audio = await this.ensureAudio();
+      const [buffers] = await audio.load();
       if (run !== this.soundRun) return;
       if (!this.visible || document.hidden) return this.soundOff();
-      this.audio.start(buffers);
-      this.audio.setYaw(this.yaw);
-      this.audio.duck(this.state.speaking);
+      audio.start(buffers, this.clock());
+      audio.setYaw(this.yaw);
+      audio.duck(this.state.replaying);
       this.applied = "";
       this.set({ sound: "on" });
     } catch {
@@ -363,39 +360,49 @@ export class FocusRoomEngine {
 
   private soundOff() {
     this.soundRun++;
-    this.recapRun++;
-    if (this.audio) {
-      this.audio.stopVoices();
-      this.audio.stopRecap();
-      this.audio.duck(false);
-    }
+    this.stopReplay();
+    this.audio?.stopVoices();
     void this.ctx?.suspend().catch(() => {});
     this.applied = "";
-    this.set({ sound: "off", speaking: false });
+    this.set({ sound: "off" });
   }
 
-  /** What did they say: the recap opens, and is spoken over the room when sound is on. */
-  async recap(i: number) {
-    const run = ++this.recapRun;
-    this.set({ recap: i, speaking: false });
-    const audio = this.audio;
-    if (!audio || this.state.sound !== "on") return;
-    audio.duck(true);
-    this.set({ speaking: true });
+  /**
+   * The clench: the last ten seconds of whoever you face (or are nearest
+   * to), said again in their voice, from where they stand, while the room
+   * steps back. Plays with the room's sound off too; the room stays quiet.
+   */
+  async clench() {
+    this.steered = true;
+    const speaker = this.state.attended ?? nearest(this.yaw);
+    const run = ++this.replayRun;
+    const t = this.clock();
+    this.audio?.stopReplay();
+    this.set({ replay: { id: run, speaker, words: null }, replaying: true });
     try {
-      await audio.playRecap(i);
+      const audio = await this.ensureAudio();
+      const clip = await audio.replay(speaker, t, REPLAY_SEC);
+      if (run !== this.replayRun) return;
+      this.set({ replay: { id: run, speaker, words: clip.words } });
+      audio.duck(true);
+      await clip.done;
     } catch {
-      // The text is on screen either way.
+      // The card says what it can; nothing else depends on the replay.
     }
-    if (run !== this.recapRun) return;
-    audio.duck(false);
-    this.set({ speaking: false });
+    if (run !== this.replayRun) return;
+    this.stopReplay();
   }
 
-  closeRecap() {
-    this.recapRun++;
-    this.audio?.stopRecap();
+  private stopReplay() {
+    this.replayRun++;
+    this.audio?.stopReplay();
     this.audio?.duck(false);
-    this.set({ recap: null, speaking: false });
+    if (this.state.sound !== "on" && this.state.sound !== "loading") void this.ctx?.suspend().catch(() => {});
+    this.set({ replaying: false });
+  }
+
+  closeReplay() {
+    this.stopReplay();
+    this.set({ replay: null });
   }
 }

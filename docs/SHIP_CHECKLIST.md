@@ -36,9 +36,8 @@ Amber means "this is what is being attended to". Nothing here is decorative.
 | `AnnouncementBar` focus chip | an amber ring on an amber bar is invisible, so the focused control inverts to amber on ink instead |
 | Focus room speaker name | the speaker who is forward (in the canvas, their rim and their sound in the air too) |
 | Focus room level meter | how loud you hear the speaker who is forward |
-| Focus room Locked state | the voice a lock holds |
-| Focus room lock dot | the lock is on, the beam that holds the voice turns amber with it |
-| Focus room recap dot | a recap is being spoken |
+| Focus room Replaying state | the speaker whose last ten seconds are being played back |
+| Focus room clench dot (on the button and on the card) | a replay is playing; the beam holding on that speaker turns amber with it |
 | `Carousel` card top hairline | the centred, attended card |
 | `Footer` link underline | the hovered or focused link |
 | `Gesture` pulse ring | the exact frame the device registered the command |
@@ -63,7 +62,7 @@ the visitor's scrolling than its own box suggests.
 |---|---|
 | Gesture channel at least equal to attention | pass, ratio 1.63 to 1 (6059px vs 3715px at 1440x900) |
 | Clench seen within the first two viewports | pass, beat 3 active by scrollY 1643 of an 1800px budget |
-| The word "clench" above the fold | pass: the room's "Clench to lock" at y=140 and the eyebrow at y=399 at 1440x900; the eyebrow at y=140 on stacked layouts |
+| The word "clench" above the fold | pass: the room's "Clench to replay" at y=140 and the eyebrow at y=399 at 1440x900; the eyebrow at y=140 on stacked layouts |
 | Headlines alone give two capabilities | pass, listening and acting both present |
 
 Sections classified as "split" (how it works, use cases) are counted half to
