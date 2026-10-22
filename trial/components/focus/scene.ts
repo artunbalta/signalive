@@ -283,27 +283,31 @@ export function mountFocusScene(host: HTMLElement, opts: FocusSceneOptions): () 
   beam.frustumCulled = false;
   scene.add(beam);
 
-  // Framing: from behind and above you, pulled back until every speaker and
-  // their label fits, whatever the stage's shape.
+  // Framing: from behind and above you, pulled back until every speaker,
+  // their shoulders and the label over their head fit, whatever the stage's
+  // shape.
   const look = new THREE.Vector3(0, -0.1, -2.7);
   const offset = new THREE.Vector3(0, 4.4, 6.4);
-  const mustSee = speakers.flatMap((sp) => {
+  const sides = speakers.flatMap((sp) => {
     const side = new THREE.Vector3(Math.cos(sp.points.rotation.y), 0, Math.sin(sp.points.rotation.y)).multiplyScalar(1.25);
-    return [sp.top.clone().add(new THREE.Vector3(0, 0.75, 0)), sp.points.position.clone().add(side), sp.points.position.clone().sub(side)];
+    return [sp.points.position.clone().add(side), sp.points.position.clone().sub(side)];
   });
   const fit = () => {
     const w = Math.max(1, host.clientWidth);
     const h = Math.max(1, host.clientHeight);
     camera.aspect = w / h;
+    // The highest a head may sit, in device coordinates, with its label inside.
+    const labelHeight = Math.max(40, ...opts.labels.map((l) => l?.offsetHeight ?? 0));
+    const headroom = 1 - (2 * (labelHeight + 10)) / h;
     for (let scale = 0.9; scale < 4; scale += 0.03) {
       camera.position.copy(look).addScaledVector(offset, scale);
       camera.lookAt(look);
       camera.updateProjectionMatrix();
       camera.updateMatrixWorld();
-      if (mustSee.every((p) => {
-        const q = p.clone().project(camera);
-        return Math.abs(q.x) < 0.92 && q.y < 0.9;
-      })) break;
+      if (
+        sides.every((p) => Math.abs(p.clone().project(camera).x) < 0.92) &&
+        speakers.every((sp) => sp.top.clone().project(camera).y < headroom)
+      ) break;
     }
     renderer.setSize(w, h, false);
     const px = renderer.getPixelRatio() * (h / 640) * 1.7;
@@ -312,6 +316,7 @@ export function mountFocusScene(host: HTMLElement, opts: FocusSceneOptions): () 
   fit();
   const resize = new ResizeObserver(fit);
   resize.observe(host);
+  for (const l of opts.labels) if (l) resize.observe(l);
 
   // Dragging the scene turns your head, when the pointer is what steers.
   let dragX: number | null = null;

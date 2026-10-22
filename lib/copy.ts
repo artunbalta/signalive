@@ -44,6 +44,50 @@ export const hero = {
 };
 
 /**
+ * The room behind the hero: three people talking at once around a listener,
+ * and the one the listener turns to comes forward. The pointer, a drag or the
+ * arrow keys stand in for turning; J or the button stands in for the clench
+ * that locks onto a voice. The recaps are written from the fixed monologues.
+ */
+export const focusRoom = {
+  label:
+    "Three people talking around you. Move the pointer across the room, drag, or use the arrow keys to turn toward one of them.",
+  speakers: [
+    {
+      name: "Emma",
+      topic: "A trip to Cappadocia",
+      recap:
+        "Emma was up at four in the morning in Cappadocia. The balloon lifted off at half past six with about a hundred others, and she wants to go back in October and hike Pigeon Valley.",
+    },
+    {
+      name: "Daniel",
+      topic: "A startup idea",
+      recap:
+        "Daniel is pitching a sensor that tells you when a plant needs water. Twelve hundred downloads in the first month, four ninety-nine a month, and an investor meeting next Tuesday.",
+    },
+    {
+      name: "Barista",
+      topic: "Orders up",
+      recap:
+        "The barista called out an oat milk latte for Selin, two americanos, one iced, and croissants out of the oven in five minutes.",
+    },
+  ],
+  forward: "Forward",
+  locked: "Locked",
+  turnTo: "Turn to",
+  whatDidTheySay: "What did they say?",
+  lock: "Clench to lock",
+  unlock: "Clench to let go",
+  lockHint: "J or this button stands in for the clench.",
+  lockHintTouch: "This button stands in for the clench.",
+  loading: "Loading voices",
+  soundError: "Sound could not start. Tap to try again.",
+  recapHeading: "What they said",
+  close: "Close",
+  aiVoices: "Voices are AI generated.",
+};
+
+/**
  * The pinned scene that follows the hero. Four beats of one continuous take.
  * This is the page's emotional centre: it is where the gesture channel stops
  * being a feature and becomes the reason the product exists.

@@ -37,6 +37,8 @@ app/
   api/waitlist/       signup endpoint with a pluggable provider
 components/
   chrome/             announcement bar, nav, sticky CTA, page loader
+  focus-room/         the room at the top of the page: its WebGL scene, its
+                      sound and the engine that steers both
   sections/           one file per section of the page
                       OneClench is the pinned four beat scene after the hero
                       ThePoint is the largest section and the product's argument
@@ -93,13 +95,30 @@ signature moment. They appear **once**. Every other section uses a different
 subject on purpose: repeating a face across four blocks reads as stock, and it
 spends the moment the pinned scene is built around.
 
-## The hero demo is bounded by its bar
+## The room at the top of the page
 
-The cursor sweep in the hero maps to the width of the demo's own track, not to
-the hero and not to the page. Scoped wider, the far left of the screen sat at
-one voice fully forward while nowhere near a control, and the gradient the demo
-exists to demonstrate was spread across a thousand pixels of headline. Moving
-the pointer off the demo holds the last position rather than snapping.
+The hero is the Focus room from the web trial, rebuilt for this page: three people
+talk around you, and the one you turn to comes forward. You are seen from behind, each
+speaker's mouth moves with their voice, the sound flows from each mouth to you as bright
+as you hear it, and a beam shows where your attention points.
+
+- **Steering.** A mouse turns your head to wherever it is in the room, mapped through
+  the speakers' own positions on screen, so pointing at someone faces them; leaving the
+  room holds the last direction. A finger drags across the room. The arrow keys turn ten
+  degrees at a time, 1, 2 and 3 face a speaker, and a speaker's name turns you to them.
+  Until anyone steers, the head visits the three in turn.
+- **The clench.** J or the lock button stands in for it: it holds the voice you face,
+  whatever your head does next.
+- **What did they say?** Opens that speaker's recap (the text is in `lib/copy.ts`) and,
+  with sound on, speaks it over the room while the room steps back.
+- **Sound** is never fetched before someone taps for it, then the three voices load
+  (about 820KB) and the audio code with them. The voices are AI generated and the page
+  says so next to the control. They are made by `.assetgen/focus_voices.mjs`, see
+  `docs/ASSETS.md`.
+- **No three.js.** It would cost most of the page's JS budget, so the scene is under
+  five hundred lines of plain WebGL in `components/focus-room/scene.ts`. The figures are
+  computed, not loaded: a cloud of points on a signed distance field, built a few
+  milliseconds a frame so the page never stalls while it fills in.
 
 ## Amber means one thing
 

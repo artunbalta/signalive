@@ -34,10 +34,11 @@ Amber means "this is what is being attended to". Nothing here is decorative.
 | `globals.css` `::selection` | selected text is attended |
 | `AnnouncementBar` bar background | the bar is the thing demanding attention (spec 3.1 specifies it) |
 | `AnnouncementBar` focus chip | an amber ring on an amber bar is invisible, so the focused control inverts to amber on ink instead |
-| `AttentionDemo` voice label | names the attended stream |
-| `AttentionDemo` waveform stroke (x2) | the attended stream, fog for the ignored one |
-| `AttentionDemo` reduced motion toggle | the selected stream |
-| `AttentionDemo` live dot | the audio is actually running |
+| Focus room speaker name | the speaker who is forward (in the canvas, their rim and their sound in the air too) |
+| Focus room level meter | how loud you hear the speaker who is forward |
+| Focus room Locked state | the voice a lock holds |
+| Focus room lock dot | the lock is on, the beam that holds the voice turns amber with it |
+| Focus room recap dot | a recap is being spoken |
 | `Carousel` card top hairline | the centred, attended card |
 | `Footer` link underline | the hovered or focused link |
 | `Gesture` pulse ring | the exact frame the device registered the command |
@@ -60,9 +61,9 @@ the visitor's scrolling than its own box suggests.
 
 | Check | Result |
 |---|---|
-| Gesture channel at least equal to attention | pass, ratio 1.91 to 1 (6993px vs 3715px at 1440x900) |
-| Clench seen within the first two viewports | pass, beat 3 active by scrollY 1660 of an 1800px budget |
-| The word "clench" above the fold | pass, at y=140 in every viewport from 375x667 to 1440x900 |
+| Gesture channel at least equal to attention | pass, ratio 1.63 to 1 (6059px vs 3715px at 1440x900) |
+| Clench seen within the first two viewports | pass, beat 3 active by scrollY 1643 of an 1800px budget |
+| The word "clench" above the fold | pass: the room's "Clench to lock" at y=140 and the eyebrow at y=399 at 1440x900; the eyebrow at y=140 on stacked layouts |
 | Headlines alone give two capabilities | pass, listening and acting both present |
 
 Sections classified as "split" (how it works, use cases) are counted half to

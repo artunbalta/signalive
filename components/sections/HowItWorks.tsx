@@ -50,7 +50,7 @@ const DELAY = CAPTURES.map((_, i) => `${i === 0 ? 0 : i * BEAT_MS - CYCLE_MS}ms`
 /** Which capture feeds each slot, so a slot lights on its own sender's clock. */
 const SRC_OF_DEST = DEST_X.map((_, d) => CAPTURES.findIndex((c) => c.dest === d));
 
-/** The capture frozen mid flight in the static state. See the CSS below. */
+/** The capture frozen mid flight in the static state. See the diagram rules in globals.css. */
 const LEAD = 0;
 const LEAD_DEST = CAPTURES[LEAD].dest;
 
@@ -89,117 +89,11 @@ const FIGURE_LABEL =
  * rest of the cycle is a hold, so no transition ever runs longer than base.
  *
  * The animation is declared only inside prefers-reduced-motion: no-preference,
- * so the base rules below ARE the reduced motion state: a correct, readable,
+ * so the base rules ARE the reduced motion state: a correct, readable,
  * completely static diagram with no JS involved and no hydration flash. The
- * step 03 figure further down is built on exactly the same contract.
+ * step 03 figure further down is built on exactly the same contract. The
+ * rules live in globals.css, with the other sections' styles.
  */
-const DIAGRAM_CSS = `
-/* The sticky rail is five columns wide. The shared display scale is built for
-   a nine column measure and breaks to one word per line in here, so this
-   headline alone steps down. Layout constraint, not a new type style. */
-#how-it-works-title { font-size: clamp(2.25rem, 3.2vw, 3rem); }
-
-/* Step 03 is the payoff, so its title steps up above the shared h2 scale.
-   Same 3rem ceiling as the section headline, so it reads as the equal of the
-   headline rather than as a fourth size nobody else on the page uses. */
-#how-it-works-step-03 { font-size: clamp(2.25rem, 4.2vw, 3rem); }
-
-.hiw-stream { fill: none; stroke-linecap: round; }
-.hiw-stream--fore { stroke: var(--color-signal); stroke-width: 3; opacity: 1; }
-.hiw-stream--back { stroke: var(--color-fog); stroke-width: 1.25; opacity: 0.45; }
-
-@keyframes hiw-fore {
-  0%, 37.5%  { stroke: var(--color-signal); stroke-width: 3; opacity: 1; }
-  50%, 87.5% { stroke: var(--color-fog); stroke-width: 1.25; opacity: 0.45; }
-  100%       { stroke: var(--color-signal); stroke-width: 3; opacity: 1; }
-}
-@keyframes hiw-back {
-  0%, 37.5%  { stroke: var(--color-fog); stroke-width: 1.25; opacity: 0.45; }
-  50%, 87.5% { stroke: var(--color-signal); stroke-width: 3; opacity: 1; }
-  100%       { stroke: var(--color-fog); stroke-width: 1.25; opacity: 0.45; }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .hiw-stream--fore { animation: hiw-fore 4800ms var(--ease-inout-att) infinite; }
-  .hiw-stream--back { animation: hiw-back 4800ms var(--ease-inout-att) infinite; }
-  /* Only runs while its own step is the attended one. */
-  .hiw-paused .hiw-stream--fore,
-  .hiw-paused .hiw-stream--back { animation-play-state: paused; }
-}
-
-/* ---- Step 03 figure -----------------------------------------------------
-   Fog draws the fixed apparatus: the conversation, the four routes and the
-   four slots. Amber is only ever on the one item being captured or the one
-   slot receiving it, and never on both of two different captures at once.  */
-
-.hiw-axis, .hiw-tick { fill: none; stroke: var(--color-fog); stroke-width: 1; }
-.hiw-tick--minor { opacity: 0.32; }
-.hiw-tick--major { opacity: 0.6; }
-.hiw-route { fill: none; stroke: var(--color-fog); stroke-width: 1; opacity: 0.4; }
-
-/* A thing said, sitting on the line. */
-.hiw-heard { fill: var(--color-fog); }
-
-/* The thing in transit: a single round dash travelling its own route. Driving
-   it with dashoffset rather than a translate means the dot follows the curve
-   without anything having to measure the figure at each width, and pathLength
-   normalises every route to 100 so all four share one keyframe. */
-.hiw-item {
-  fill: none;
-  stroke: var(--color-signal);
-  stroke-width: 7;
-  stroke-linecap: round;
-  stroke-dasharray: 0.01 100;
-  stroke-dashoffset: 0;
-  opacity: 0;
-}
-
-.hiw-dest { border-top: 1px solid var(--hairline); color: var(--color-fog); }
-/* Labels inherit the slot colour, so one animation drives the rule and the
-   name together. The step down in size is a fit constraint: four slots across
-   a 375px viewport, and the names must not wrap to two lines in some columns
-   and one in others. */
-.hiw-dest .hiw-dest-label {
-  font-size: clamp(0.6875rem, 2.9vw, 0.75rem);
-  color: inherit;
-  white-space: nowrap;
-}
-
-/* THE STATIC STATE, which is also the reduced motion state: one capture frozen
-   at the instant it lands, its slot receiving, everything else at rest. It is
-   a true frame of the loop, not a placeholder. */
-.hiw-item--lead { stroke-dashoffset: -99.5; opacity: 1; }
-.hiw-dest--lead { border-top-color: var(--color-signal); color: var(--color-ink); }
-
-@keyframes hiw-heard {
-  0%        { fill: var(--color-fog); }
-  5%, 9%    { fill: var(--color-signal); }
-  14%, 100% { fill: var(--color-fog); }
-}
-/* 6% to 18.5% of 4800ms is 600ms of travel. The 5% steps are 240ms. */
-@keyframes hiw-item {
-  0%, 5%    { stroke-dashoffset: 0;     opacity: 0; }
-  6%        { stroke-dashoffset: 0;     opacity: 1; }
-  18.5%     { stroke-dashoffset: -99.5; opacity: 1; }
-  25%       { stroke-dashoffset: -99.5; opacity: 1; }
-  30%, 100% { stroke-dashoffset: -99.5; opacity: 0; }
-}
-@keyframes hiw-dest {
-  0%, 14%   { border-top-color: var(--hairline); color: var(--color-fog); }
-  19%, 27%  { border-top-color: var(--color-signal); color: var(--color-ink); }
-  32%, 100% { border-top-color: var(--hairline); color: var(--color-fog); }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .hiw-heard { animation: hiw-heard var(--hiw-cycle) var(--ease-out-att) infinite; }
-  .hiw-item  { animation: hiw-item var(--hiw-cycle) var(--ease-out-att) infinite; }
-  .hiw-dest  { animation: hiw-dest var(--hiw-cycle) var(--ease-out-att) infinite; }
-  .hiw-paused .hiw-heard,
-  .hiw-paused .hiw-item,
-  .hiw-paused .hiw-dest { animation-play-state: paused; }
-}
-`;
-
 /* A gentle wave rather than a waveform: eight quadratic arcs from x=12 to
    x=196 inside a 200x120 box, which matches the 1200x670 still's aspect so the
    two landscape media slots line up. The second stream starts in antiphase. */
@@ -339,7 +233,6 @@ export default function HowItWorks() {
       aria-labelledby="how-it-works-title"
       className="section surface-paper bg-paper text-ink"
     >
-      <style dangerouslySetInnerHTML={{ __html: DIAGRAM_CSS }} />
 
       <div className="shell">
         <div className="grid12">

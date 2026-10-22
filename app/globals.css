@@ -311,32 +311,171 @@ html[data-intro] [data-intro-fade] {
   html[data-intro] [data-intro-fade] { opacity: 1 !important; }
 }
 
-/* Attention mixer: the input remains native for touch, keyboard and AT. */
-.attention-mixer { border-top: 1px solid var(--hairline); padding-top: 20px; }
-.attention-labels { display: grid; grid-template-columns: 1fr 36px 1fr; align-items: center; }
-.attention-labels button { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; color: var(--color-fog); cursor: pointer; min-height: 64px; transition: color 180ms ease; }
-.attention-labels button:last-child { align-items: flex-end; }
-.attention-labels button.is-attended { color: var(--color-signal); }
-.attention-weight { font-family: var(--font-display); font-size: 34px; letter-spacing: -.04em; font-variant-numeric: tabular-nums; line-height: 1; }
-.attention-weight small { font-family: var(--font-mono); font-size: 11px; margin-left: 4px; }
-.attention-center { color: var(--color-fog); text-align: center; font-size: 22px; }
-.attention-wave { display: block; width: 100%; height: 94px; margin: 8px 0; }
-.attention-control { position: relative; height: 48px; }
-.attention-rail { position: absolute; left: 17px; right: 17px; top: 23px; height: 2px; background: var(--hairline); }
-.attention-rail::after { content: ''; position: absolute; left: 50%; top: -4px; height: 10px; width: 1px; background: var(--color-fog); }
-.attention-rail span { position: absolute; height: 2px; background: var(--color-signal); }
-.attention-control input { appearance: none; -webkit-appearance: none; width: 100%; height: 48px; margin: 0; background: transparent; position: relative; cursor: ew-resize; touch-action: pan-y; }
-.attention-control input::-webkit-slider-runnable-track { height: 2px; background: transparent; }
-.attention-control input::-moz-range-track { height: 2px; background: transparent; }
-.attention-control input::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 34px; height: 34px; margin-top: -16px; border: 6px solid var(--color-ink); border-radius: 50%; background: var(--color-paper); box-shadow: 0 0 0 1px rgba(255,255,249,.32); transition: background 150ms ease, box-shadow 150ms ease; }
-.attention-control input::-moz-range-thumb { box-sizing: border-box; width: 34px; height: 34px; border: 6px solid var(--color-ink); border-radius: 50%; background: var(--color-paper); box-shadow: 0 0 0 1px rgba(255,255,249,.32); }
-.attention-control input:active::-webkit-slider-thumb { background: var(--color-signal); box-shadow: 0 0 0 1px var(--color-signal); }
-.attention-control input:active::-moz-range-thumb { background: var(--color-signal); }
-.attention-footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 6px; font-size: 11px; color: var(--color-mist); }
-.attention-sound { display: flex; align-items: center; gap: 7px; padding: 10px 0 10px 10px; min-height: 44px; cursor: pointer; white-space: nowrap; }
-.attention-sound:hover, .attention-sound[aria-pressed=true] { color: var(--color-paper); }
-.attention-sound:disabled { opacity: .6; cursor: wait; }
-.attention-error { font-size: 12px; color: var(--color-mist); padding-top: 8px; }
+/* How it works: the step 02 and step 03 diagrams (see HowItWorks.tsx). */
+/* The sticky rail is five columns wide. The shared display scale is built for
+   a nine column measure and breaks to one word per line in here, so this
+   headline alone steps down. Layout constraint, not a new type style. */
+#how-it-works-title { font-size: clamp(2.25rem, 3.2vw, 3rem); }
+
+/* Step 03 is the payoff, so its title steps up above the shared h2 scale.
+   Same 3rem ceiling as the section headline, so it reads as the equal of the
+   headline rather than as a fourth size nobody else on the page uses. */
+#how-it-works-step-03 { font-size: clamp(2.25rem, 4.2vw, 3rem); }
+
+.hiw-stream { fill: none; stroke-linecap: round; }
+.hiw-stream--fore { stroke: var(--color-signal); stroke-width: 3; opacity: 1; }
+.hiw-stream--back { stroke: var(--color-fog); stroke-width: 1.25; opacity: 0.45; }
+
+@keyframes hiw-fore {
+  0%, 37.5%  { stroke: var(--color-signal); stroke-width: 3; opacity: 1; }
+  50%, 87.5% { stroke: var(--color-fog); stroke-width: 1.25; opacity: 0.45; }
+  100%       { stroke: var(--color-signal); stroke-width: 3; opacity: 1; }
+}
+@keyframes hiw-back {
+  0%, 37.5%  { stroke: var(--color-fog); stroke-width: 1.25; opacity: 0.45; }
+  50%, 87.5% { stroke: var(--color-signal); stroke-width: 3; opacity: 1; }
+  100%       { stroke: var(--color-fog); stroke-width: 1.25; opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hiw-stream--fore { animation: hiw-fore 4800ms var(--ease-inout-att) infinite; }
+  .hiw-stream--back { animation: hiw-back 4800ms var(--ease-inout-att) infinite; }
+  /* Only runs while its own step is the attended one. */
+  .hiw-paused .hiw-stream--fore,
+  .hiw-paused .hiw-stream--back { animation-play-state: paused; }
+}
+
+/* ---- Step 03 figure -----------------------------------------------------
+   Fog draws the fixed apparatus: the conversation, the four routes and the
+   four slots. Amber is only ever on the one item being captured or the one
+   slot receiving it, and never on both of two different captures at once.  */
+
+.hiw-axis, .hiw-tick { fill: none; stroke: var(--color-fog); stroke-width: 1; }
+.hiw-tick--minor { opacity: 0.32; }
+.hiw-tick--major { opacity: 0.6; }
+.hiw-route { fill: none; stroke: var(--color-fog); stroke-width: 1; opacity: 0.4; }
+
+/* A thing said, sitting on the line. */
+.hiw-heard { fill: var(--color-fog); }
+
+/* The thing in transit: a single round dash travelling its own route. Driving
+   it with dashoffset rather than a translate means the dot follows the curve
+   without anything having to measure the figure at each width, and pathLength
+   normalises every route to 100 so all four share one keyframe. */
+.hiw-item {
+  fill: none;
+  stroke: var(--color-signal);
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-dasharray: 0.01 100;
+  stroke-dashoffset: 0;
+  opacity: 0;
+}
+
+.hiw-dest { border-top: 1px solid var(--hairline); color: var(--color-fog); }
+/* Labels inherit the slot colour, so one animation drives the rule and the
+   name together. The step down in size is a fit constraint: four slots across
+   a 375px viewport, and the names must not wrap to two lines in some columns
+   and one in others. */
+.hiw-dest .hiw-dest-label {
+  font-size: clamp(0.6875rem, 2.9vw, 0.75rem);
+  color: inherit;
+  white-space: nowrap;
+}
+
+/* THE STATIC STATE, which is also the reduced motion state: one capture frozen
+   at the instant it lands, its slot receiving, everything else at rest. It is
+   a true frame of the loop, not a placeholder. */
+.hiw-item--lead { stroke-dashoffset: -99.5; opacity: 1; }
+.hiw-dest--lead { border-top-color: var(--color-signal); color: var(--color-ink); }
+
+@keyframes hiw-heard {
+  0%        { fill: var(--color-fog); }
+  5%, 9%    { fill: var(--color-signal); }
+  14%, 100% { fill: var(--color-fog); }
+}
+/* 6% to 18.5% of 4800ms is 600ms of travel. The 5% steps are 240ms. */
+@keyframes hiw-item {
+  0%, 5%    { stroke-dashoffset: 0;     opacity: 0; }
+  6%        { stroke-dashoffset: 0;     opacity: 1; }
+  18.5%     { stroke-dashoffset: -99.5; opacity: 1; }
+  25%       { stroke-dashoffset: -99.5; opacity: 1; }
+  30%, 100% { stroke-dashoffset: -99.5; opacity: 0; }
+}
+@keyframes hiw-dest {
+  0%, 14%   { border-top-color: var(--hairline); color: var(--color-fog); }
+  19%, 27%  { border-top-color: var(--color-signal); color: var(--color-ink); }
+  32%, 100% { border-top-color: var(--hairline); color: var(--color-fog); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hiw-heard { animation: hiw-heard var(--hiw-cycle) var(--ease-out-att) infinite; }
+  .hiw-item  { animation: hiw-item var(--hiw-cycle) var(--ease-out-att) infinite; }
+  .hiw-dest  { animation: hiw-dest var(--hiw-cycle) var(--ease-out-att) infinite; }
+  .hiw-paused .hiw-heard,
+  .hiw-paused .hiw-item,
+  .hiw-paused .hiw-dest { animation-play-state: paused; }
+}
+
+/* The hero's scroll cue. The reduced motion rule is not decoration: without
+   it the cue would freeze at scaleY(0) and disappear, because the global rule
+   shortens animations rather than removing them. */
+@keyframes signalive-scroll-cue {
+  0%   { transform: scaleY(0); transform-origin: 50% 0%; }
+  40%  { transform: scaleY(1); transform-origin: 50% 0%; }
+  60%  { transform: scaleY(1); transform-origin: 50% 100%; }
+  100% { transform: scaleY(0); transform-origin: 50% 100%; }
+}
+.hero-scroll-cue { transform-origin: 50% 0%; animation: signalive-scroll-cue 2s var(--ease-inout-att) infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-scroll-cue { animation: none; transform: none; }
+}
+/* Beside the room the hero headline takes half the width, so it steps down. */
+@media (min-width: 1024px) {
+  .hero-headline { --text-hero: clamp(3.25rem, 4.6vw, 4.75rem); }
+}
+
+/* The Focus room at the top of the page. Its labels ride over each speaker's
+   head; amber marks the speaker who is forward (name and level), a lock (its
+   state and its dot) and a recap while it is spoken. */
+.room-pill { display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 16px; border: 1px solid rgba(255,255,249,.22); border-radius: var(--radius-pill); background: rgba(11,11,12,.45); color: var(--color-paper); font-size: .875rem; backdrop-filter: blur(4px); transition: border-color 200ms ease, color 200ms ease; }
+.room-pill:hover { border-color: rgba(255,255,249,.55); }
+.room-pill:disabled { cursor: wait; opacity: .7; }
+.room-kbd { font-family: var(--font-mono); font-size: 10px; color: var(--color-mist); border: 1px solid rgba(255,255,249,.25); border-radius: 4px; padding: 1px 6px; }
+.room-dot { width: 8px; height: 8px; border-radius: 50%; border: 1px solid var(--color-mist); transition: background-color 200ms ease, border-color 200ms ease; }
+.room-dot[data-on] { background: var(--color-signal); border-color: var(--color-signal); }
+.room-hint { max-width: 46ch; font-size: .75rem; line-height: 1.6; color: var(--color-fog); }
+.room-coarse { display: none; }
+@media (pointer: coarse) {
+  .room-fine, .room-kbd { display: none; }
+  .room-coarse { display: inline; }
+}
+.room-label { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; width: max-content; padding-bottom: 12px; text-align: center; transform: translate(-200vw, 0); will-change: transform; }
+.room-state { height: 16px; font-size: 10px; color: var(--color-mist); opacity: 0; transition: opacity 300ms ease; }
+.room-state[data-on] { opacity: 1; }
+.room-state[data-locked] { color: var(--color-signal); }
+.room-name { pointer-events: auto; margin-top: 2px; padding: 0 4px; border-radius: 6px; }
+.room-name b { display: block; font-family: var(--font-display); font-weight: 500; font-size: 1.125rem; line-height: 1; letter-spacing: -.02em; color: var(--color-paper); transition: color 300ms ease; }
+.room-name[aria-pressed=true] b { color: var(--color-signal); }
+.room-name span { display: block; margin-top: 6px; font-size: .75rem; line-height: 1.25; color: var(--color-mist); }
+.room-meter { display: block; width: 56px; height: 2px; margin-top: 10px; overflow: hidden; border-radius: 2px; background: rgba(255,255,249,.14); }
+.room-meter span { display: block; height: 100%; background: var(--color-paper); transform: scaleX(0); transform-origin: left; transition: background-color 300ms ease; }
+.room-meter[data-on] span { background: var(--color-signal); }
+.room-ask { display: none; pointer-events: auto; margin-top: 12px; min-height: 36px; padding: 0 14px; font-size: .8125rem; color: var(--color-mist); }
+.room-ask:hover { color: var(--color-paper); }
+.room-asks { display: flex; }
+.room-recap { pointer-events: auto; width: 100%; max-width: 400px; padding: 20px; border: 1px solid rgba(255,255,249,.14); border-radius: var(--radius-card); background: rgba(11,11,12,.86); backdrop-filter: blur(12px); }
+@media (min-width: 1024px) {
+  .room-hint { text-align: right; }
+  .room-label { padding-bottom: 16px; }
+  .room-name b { font-size: 1.375rem; }
+  .room-name span { font-size: .8125rem; }
+  .room-meter { width: 64px; margin-top: 12px; }
+  .room-ask { display: inline-flex; }
+  .room-asks { display: none; }
+  [data-compact] .room-ask { display: none; }
+  [data-compact] .room-asks { display: flex; }
+}
 
 /* A portrait at its natural scale, beside an editorial narrative. */
 .clench-scene { position: relative; height: 100svh; min-height: 650px; overflow: hidden; background: var(--color-ink); }

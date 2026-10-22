@@ -16,23 +16,6 @@ function typing(t: EventTarget | null) {
   return t instanceof HTMLElement && (t.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(t.tagName));
 }
 
-/** How much of a voice you hear: -30 dB and below reads as empty. */
-function Meter({ db, label }: { db: number; label: string }) {
-  const shown = Number.isFinite(db) ? Math.max(-40, Math.min(0, db)) : -40;
-  return (
-    <div
-      role="meter"
-      aria-label={label}
-      aria-valuemin={-40}
-      aria-valuemax={0}
-      aria-valuenow={shown}
-      className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-slate"
-    >
-      <div className="h-full rounded-full bg-paper transition-[width] duration-150" style={{ width: `${Math.max(0, (shown + 30) / 30) * 100}%` }} />
-    </div>
-  );
-}
-
 /**
  * Focus: three voices around you; the one you face comes forward. Steer with
  * the camera, the phone, or keys and pointer; clench (J) to lock; ask what
@@ -140,38 +123,6 @@ export function FocusPanel() {
             <Button onClick={() => headTracker.recenter()}>{m.focus.recenter}</Button>
           ) : null}
         </div>
-
-        <ul className="rise rise-3 space-y-2">
-          {FOCUS_SPEAKERS.map((s, i) => {
-            const forward = v.attended === i;
-            return (
-              <li
-                key={s.sourceId}
-                className={`flex items-center gap-3 rounded-[12px] border px-4 py-3 transition-colors duration-300 ${
-                  forward ? "border-signal/60 bg-well-2" : "border-[var(--hairline)] bg-well"
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => focus.face(i)}
-                  disabled={t.source !== "pointer"}
-                  className="min-w-0 flex-1 text-left disabled:cursor-default"
-                >
-                  <span className="flex items-center gap-2 font-medium">
-                    {forward ? <span className="h-2 w-2 rounded-full bg-signal" aria-hidden="true" /> : null}
-                    {s.name[lang]}
-                    {v.locked === i ? <span className="t-label text-signal">{m.focus.locked}</span> : null}
-                  </span>
-                  <span className="block truncate text-[0.85rem] text-mist">{s.topic[lang]}</span>
-                </button>
-                <Meter db={v.gainsDb[i] ?? -Infinity} label={f(m.focus.level, { name: s.name[lang], n: v.gainsDb[i] ?? -40 })} />
-                <Button disabled={!playing} onClick={() => void focus.recap(i)} className="shrink-0 px-4">
-                  {m.focus.whatDidTheySay}
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
 
         <div className="space-y-2.5">
           <Button

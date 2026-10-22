@@ -4,11 +4,11 @@
 
 | Metric | Target | Where it is enforced |
 |---|---|---|
-| LCP | < 2.0s | hero poster is 43KB and is the LCP candidate; the video is not render blocking |
-| CLS | < 0.05 | every image and video carries explicit width/height or an aspect-ratio box |
-| Total JS | < 180KB gz | see the dependency decision below |
-| Hero video | < 4MB, poster < 120KB | 823KB H.264 / 284KB VP9, poster 43KB |
-| Lighthouse perf | > 90 mobile | video disabled entirely under 600px |
+| LCP | < 2.0s | the hero headline is the LCP candidate; the room behind it is client side only and never render blocking |
+| CLS | < 0.05 | every image and video carries explicit width/height or an aspect-ratio box; the room's slot is sized before the room loads |
+| Total JS | < 180KB gz | 179.6KB measured, see below |
+| Hero media | no video, no poster | the room's figures are computed; its voices (about 820KB) load only when someone turns sound on |
+| Lighthouse perf | > 90 mobile | the room draws fewer points on small screens and stops drawing when off screen |
 
 ## The Framer Motion decision
 
@@ -34,10 +34,35 @@ already handle at zero cost.
 Component level transitions are done with CSS transitions driven by the tokens in
 `globals.css`. If Framer Motion is wanted later, the budget needs to move first.
 
+## Where the 180KB goes
+
+Measured on the home page: every script it loads, gzip level 9, after a scroll.
+
+```
+Next 15 + React 19 runtime, shared chunks, layout   101.9KB
+GSAP core, CSSPlugin and ScrollTrigger               44.4KB
+Lenis                                                 5.3KB
+page sections                                        10.0KB
+shared site code and copy                             9.3KB
+the Focus room                                        8.8KB
+                                                    --------
+                                                    179.6KB
+```
+
+That leaves less than half a kilobyte. Anything added to the page from here needs something
+taken out first, or the budget moved on purpose.
+
+The room fits because of three decisions. It is plain WebGL rather than three.js,
+which alone would have cost about 150KB. Its sound code (about 1.2KB) is fetched only
+when someone turns sound on. And the step 02 and 03 diagrams' CSS, which used to ship
+inside the page's JavaScript as a string, now lives in `globals.css` with the other
+sections' styles, which took 1.5KB off the page.
+
 ## Splitting
 
-- The audio engine is behind `next/dynamic(..., { ssr: false })` inside the Hero, so it
-  never blocks first paint.
+- The Focus room (its scene, its loop and its labels) is behind
+  `next/dynamic(..., { ssr: false })` inside the Hero, so it never blocks first paint,
+  and its sound is a further `import()` made when sound is turned on.
 - GSAP and ScrollTrigger are loaded with `await import()` inside effects, so they are not
   in the initial chunk.
 - Lenis is loaded the same way and is skipped entirely under reduced motion.

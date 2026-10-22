@@ -42,6 +42,8 @@ test("focus: the voice you face comes forward, a clench locks it, and you can as
   // forward and the others step back by 16 dB.
   for (let i = 0; i < 5; i++) await page.keyboard.press("ArrowLeft");
   await expect.poll(() => forward(page)).toBe(0);
+  // The levels glide, so wait for them to settle before reading them.
+  await expect.poll(async () => (await levels(page))[0]).toBeGreaterThan(-2);
   const [left, centre, right] = await levels(page);
   expect(left).toBeGreaterThan(-2);
   expect(centre).toBeLessThan(-12);
