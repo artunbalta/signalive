@@ -26,10 +26,11 @@ const SPEAKER_SCALE = 0.92;
 const EARS = [0, 0.2, 0];
 const FOV = 48;
 
-/** What every point shader shares: the matrices (uMV model-view, uP projection), size and colours. */
+/** What every point shader shares: the matrices (uMV model-view, uP projection), size, brightness and colours. */
 const HEAD = `uniform mat4 uMV;
 uniform mat4 uP;
 uniform float uPixel;
+uniform float uBright;
 uniform vec3 uPaper;
 uniform vec3 uAmber;
 varying float vAlpha;
@@ -67,7 +68,7 @@ float key=max(dot(n,normalize(vec3(-.4,.6,.65))),0.);
 float rim=pow(1.-max(facing,0.),2.2);
 float scan=.8+.2*smoothstep(.6,1.,sin(position.y*92.+uTime*.6));
 vColor=mix(uPaper,uAmber,uFocus*(.3+.7*rim));
-vAlpha=(.1+.75*key*key+.9*rim)*scan*(.42+.36*uFocus)*uDim*intro*smoothstep(-2.15,-.95,position.y)*mix(.05,1.,smoothstep(-.12,.35,facing));
+vAlpha=uBright*(.1+.75*key*key+.9*rim)*scan*(.42+.36*uFocus)*uDim*intro*smoothstep(-2.15,-.95,position.y)*mix(.05,1.,smoothstep(-.12,.35,facing));
 gl_PointSize=uPixel*(.95+.6*aSeed)*(6./-mv.z);
 }`;
 
@@ -82,7 +83,7 @@ float t=fract(aT+uFlow*aSpeed);
 vec3 p=mix(mix(uFrom,uBend,t),mix(uBend,uTo,t),t)+vec3(aJitter.x,aJitter.y,aJitter.x*.5)*sin(t*3.14159)*.32;
 vec4 mv=uMV*vec4(p,1.);
 gl_Position=uP*mv;
-vAlpha=smoothstep(0.,.12,t)*(1.-smoothstep(.82,1.,t))*(.06+.95*uLevel)*(.12+.88*uGain);
+vAlpha=uBright*smoothstep(0.,.12,t)*(1.-smoothstep(.82,1.,t))*(.06+.95*uLevel)*(.12+.88*uGain);
 vColor=mix(uPaper,uAmber,uFocus);
 gl_PointSize=uPixel*(.55+.55*aSpeed)*(6./-mv.z);
 }`;
@@ -198,6 +199,8 @@ export interface RoomCamera {
   proj: Mat4;
   /** Point size per CSS pixel of the frame's height. */
   pixel: number;
+  /** How much brighter each point is drawn: a small room has smaller points, which read faint. */
+  bright: number;
   /** The top of each speaker's head, CSS pixels on the canvas: where their label goes. */
   anchors: { x: number; y: number }[];
 }
@@ -261,6 +264,7 @@ export function frameRoom(azimuths: readonly number[], width: number, height: nu
     proj,
     // Never so small that the points fade to nothing on a phone.
     pixel: Math.max(1.3, (fh / 640) * 1.7),
+    bright: Math.min(3.4, Math.max(1, (700 / fh) ** 2)),
     anchors: speakers.map((sp) => {
       const [x, y] = project(viewProj, sp.top);
       return { x: (x * 0.5 + 0.5) * cssW, y: (-y * 0.5 + 0.5) * cssH };
@@ -339,7 +343,7 @@ export function createRoom(canvas: HTMLCanvasElement, azimuths: readonly number[
 
   // One cloud for every figure, filled in a few milliseconds a frame; the
   // speakers draw its first part, which is itself an even, sparser cloud.
-  const cloud = createHeadCloud(opts.small ? 9000 : 16000);
+  const cloud = createHeadCloud(opts.small ? 14000 : 16000);
   const speakerShare = Math.round(cloud.capacity * 0.55);
   const cloudData = [cloud.positions, cloud.normals, cloud.jaw, cloud.seed];
   const cloudSizes = [3, 3, 1, 1];
@@ -393,6 +397,7 @@ export function createRoom(canvas: HTMLCanvasElement, azimuths: readonly number[
     gl.uniform3fv(prog.u("uPaper"), PAPER);
     gl.uniform3fv(prog.u("uAmber"), AMBER);
     gl.uniform1f(prog.u("uPixel"), camera.pixel * dpr);
+    gl.uniform1f(prog.u("uBright"), camera.bright);
     gl.uniformMatrix4fv(prog.u("uP"), false, camera.proj);
     gl.uniformMatrix4fv(prog.u("uMV"), false, mv);
   };
