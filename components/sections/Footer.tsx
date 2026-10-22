@@ -30,7 +30,7 @@ const LINK_CLASS = [
   "hover:after:scale-x-100 focus-visible:after:scale-x-100",
 ].join(" ");
 
-export default function Footer({ base = "" }: { base?: string } = {}) {
+export default function Footer({ base = "", here = [] }: { base?: string; here?: readonly string[] } = {}) {
   return (
     <footer
       id="footer"
@@ -77,7 +77,7 @@ export default function Footer({ base = "" }: { base?: string } = {}) {
                 <ul className="mt-6 flex flex-col gap-3.5">
                   {column.links.map((link) => (
                     <li key={link.href}>
-                      <a href={anchored(link.href, base)} className={LINK_CLASS}>
+                      <a href={anchored(link.href, base, here)} className={LINK_CLASS}>
                         {link.label}
                       </a>
                     </li>

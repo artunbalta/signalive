@@ -17,7 +17,7 @@ import { anchored } from "@/lib/trial";
  * The overlay menu lives inside this header so that one focus trap covers both
  * the menu and the hamburger that closes it.
  */
-export default function Nav({ base = "" }: { base?: string } = {}) {
+export default function Nav({ base = "", here = [] }: { base?: string; here?: readonly string[] } = {}) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const reduced = useReducedMotion();
@@ -170,7 +170,7 @@ export default function Nav({ base = "" }: { base?: string } = {}) {
           {nav.links.map((link, i) => (
             <a
               key={link.href}
-              href={anchored(link.href, base)}
+              href={anchored(link.href, base, here)}
               onClick={close}
               className="t-h2 text-paper w-fit py-1 transition-opacity duration-[240ms] hover:opacity-60"
             >

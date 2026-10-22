@@ -7,7 +7,11 @@ export const TRIAL_URL: string | null =
   process.env.NEXT_PUBLIC_TRIAL_URL?.replace(/\/+$/, "") ||
   (process.env.NODE_ENV === "development" ? "http://localhost:3001" : null);
 
-/** In-page anchors written for the home page, made to work from any page. */
-export function anchored(href: string, base = ""): string {
-  return href.startsWith("#") ? `${base}${href}` : href;
+/**
+ * In-page anchors written for the home page, made to work from any page:
+ * prefixed with `base`, unless the target is also on this page (`here`).
+ */
+export function anchored(href: string, base = "", here: readonly string[] = []): string {
+  if (!href.startsWith("#") || here.includes(href.slice(1))) return href;
+  return `${base}${href}`;
 }

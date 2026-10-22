@@ -323,16 +323,20 @@ export const footer = {
  */
 export const features = {
   meta: {
-    title: `${BRAND} web trial. Try it with the earbuds you own.`,
+    title: `${BRAND} features. What it already does with the earbuds you own.`,
     description:
-      "Rewind, Focus, a voice assistant, notes and a whisper lab, running in a browser with any earbuds while the hardware is on its way.",
+      "Rewind, Focus, a voice assistant, notes and a whisper lab, already running in a browser with any earbuds while the hardware is on its way. Join the waitlist on the page.",
   },
   eyebrow: "The web trial",
-  headlineLines: ["Try it today,", "with the earbuds you own"],
-  lead: "The earbuds are not shipping yet. The software is. Open the trial in a browser, put in any pair of earbuds, and try the five things it already does.",
+  /** While the trial is not public: what it does, and the waitlist right here. */
+  headlineLines: ["Five things it does today,", "with the earbuds you own"],
+  lead: "The earbuds are not shipping yet. The software already runs in a browser, with any pair of earbuds. Here is what it does. Join the waitlist below and be first in line.",
+  /** Once the trial is public. */
+  headlineLinesOpen: ["Try it today,", "with the earbuds you own"],
+  leadOpen:
+    "The earbuds are not shipping yet. The software is. Open the trial in a browser, put in any pair of earbuds, and try the five things it already does.",
   openTrial: "Open the trial",
   joinWaitlist: "Join the waitlist",
-  trialClosed: "The trial opens to the waitlist first.",
   inTheTrial: "In the trial",
   tryPrefix: "Try",
   indexLabel: "On this page",

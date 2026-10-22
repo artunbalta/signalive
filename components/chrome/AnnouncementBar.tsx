@@ -17,7 +17,7 @@ const KEY = "signalive:announcement";
  * because the sentence wraps to two lines on narrow screens, where a hard 44px
  * would clip it.
  */
-export default function AnnouncementBar({ base = "" }: { base?: string } = {}) {
+export default function AnnouncementBar({ base = "", here = [] }: { base?: string; here?: readonly string[] } = {}) {
   const barRef = useRef<HTMLDivElement>(null);
 
   // Rendered on the server and on the first client paint, then removed if this
@@ -89,7 +89,7 @@ export default function AnnouncementBar({ base = "" }: { base?: string } = {}) {
         <span>{announcement.text}</span>
 
         <a
-          href={anchored("#waitlist", base)}
+          href={anchored("#waitlist", base, here)}
           className={`px-1 underline underline-offset-[3px] transition-opacity duration-[240ms] hover:opacity-70 focus-visible:no-underline ${focusChip}`}
         >
           {announcement.cta}

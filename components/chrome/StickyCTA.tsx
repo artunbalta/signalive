@@ -17,20 +17,20 @@ import { useReducedMotion } from "@/lib/useReducedMotion";
  * This is the sole element on the site allowed a drop shadow, because it
  * floats over content rather than sitting on a surface.
  */
-export default function StickyCTA() {
+export default function StickyCTA({ heroId = "hero" }: { heroId?: string } = {}) {
   const [heroOut, setHeroOut] = useState(false);
   const [waitlistIn, setWaitlistIn] = useState(false);
   const reduced = useReducedMotion();
 
   useEffect(() => {
-    const hero = document.getElementById("hero");
+    const hero = document.getElementById(heroId);
     const waitlist = document.getElementById("waitlist");
     if (!hero && !waitlist) return;
 
     const io = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.target.id === "hero") setHeroOut(!entry.isIntersecting);
+          if (entry.target.id === heroId) setHeroOut(!entry.isIntersecting);
           else setWaitlistIn(entry.isIntersecting);
         });
       },
@@ -41,7 +41,7 @@ export default function StickyCTA() {
     if (hero) io.observe(hero);
     if (waitlist) io.observe(waitlist);
     return () => io.disconnect();
-  }, []);
+  }, [heroId]);
 
   const visible = heroOut && !waitlistIn;
 

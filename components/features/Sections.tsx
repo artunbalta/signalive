@@ -2,7 +2,8 @@ import type { ReactNode } from "react";
 import CTAButton from "@/components/ui/CTAButton";
 import MaskHeadline from "@/components/ui/MaskHeadline";
 import Reveal from "@/components/ui/Reveal";
-import { features } from "@/lib/copy";
+import WaitlistForm from "@/components/ui/WaitlistForm";
+import { features, waitlist } from "@/lib/copy";
 import { TRIAL_URL } from "@/lib/trial";
 import { AssistantGlyph, FocusFigure, LabGlyph, NotesGlyph, RewindFigure } from "./figures";
 
@@ -15,10 +16,6 @@ import { AssistantGlyph, FocusFigure, LabGlyph, NotesGlyph, RewindFigure } from 
 
 const INK = "bg-ink text-paper";
 const PAPER = "surface-paper bg-paper text-ink";
-
-/** Underlined text action, for secondary links on either surface. */
-const TEXT_LINK =
-  "text-body underline underline-offset-[5px] decoration-[1px] transition-opacity duration-[240ms] hover:opacity-60";
 
 /**
  * The way into the trial for one feature. Paper on ink is the site's primary
@@ -41,6 +38,7 @@ function TryIt({ label, path, paper }: { label: string; path: string; paper: boo
 
 export function FeaturesHero() {
   const all = [...features.channels, ...features.more];
+  const open = !!TRIAL_URL;
   return (
     <section
       id="features-hero"
@@ -51,28 +49,29 @@ export function FeaturesHero() {
         <Reveal>
           <p className="t-mono text-fog">{features.eyebrow}</p>
         </Reveal>
-        <MaskHeadline as="h1" id="features-heading" lines={features.headlineLines} className="t-h1 mt-6" />
+        <MaskHeadline
+          as="h1"
+          id="features-heading"
+          lines={open ? features.headlineLinesOpen : features.headlineLines}
+          className="t-h1 mt-6"
+        />
         <Reveal className="mt-8 max-w-[46ch]">
-          <p className="t-lead text-mist">{features.lead}</p>
+          <p className="t-lead text-mist">{open ? features.leadOpen : features.lead}</p>
         </Reveal>
-        <Reveal className="mt-12 flex flex-wrap items-center gap-x-8 gap-y-5" delay={120}>
-          {TRIAL_URL ? (
-            <>
-              <CTAButton href={TRIAL_URL} magnetic>
-                {features.openTrial}
-              </CTAButton>
-              <a href="/#waitlist" className={TEXT_LINK}>
-                {features.joinWaitlist}
-              </a>
-            </>
-          ) : (
-            <>
-              <CTAButton href="/#waitlist" magnetic>
-                {features.joinWaitlist}
-              </CTAButton>
-              <p className="text-body text-mist">{features.trialClosed}</p>
-            </>
-          )}
+        {open && TRIAL_URL ? (
+          <Reveal className="mt-12" delay={120}>
+            <CTAButton href={TRIAL_URL} magnetic>
+              {features.openTrial}
+            </CTAButton>
+          </Reveal>
+        ) : null}
+        {/* The waitlist, right here in the first screen: nobody has to leave
+            the page, or even scroll, to join. The full section ends the page. */}
+        <Reveal className="mt-12 max-w-[64rem]" delay={open ? 200 : 120}>
+          <WaitlistForm compact idPrefix="features-join" />
+        </Reveal>
+        <Reveal delay={open ? 260 : 180}>
+          <p className="t-mono mt-4 text-fog">{waitlist.footnote}</p>
         </Reveal>
 
         <nav aria-label={features.indexLabel} className="mt-[var(--rhythm)] border-t border-hairline pt-8">
@@ -207,24 +206,15 @@ export function Privacy({ paper }: { paper: boolean }) {
   );
 }
 
+/** "You can start today" is only true once the trial is public; until then the waitlist closes the page. */
 export function Closing({ paper }: { paper: boolean }) {
+  if (!TRIAL_URL) return null;
   return (
     <section aria-labelledby="closing-heading" className={`section ${paper ? PAPER : INK}`}>
       <div className="shell">
         <MaskHeadline id="closing-heading" lines={features.closingLines} className="t-h1" />
-        <Reveal className="mt-12 flex flex-wrap items-center gap-x-8 gap-y-5" delay={120}>
-          {TRIAL_URL ? (
-            <>
-              <TryIt label={features.openTrial} path="" paper={paper} />
-              <a href="/#waitlist" className={TEXT_LINK}>
-                {features.joinWaitlist}
-              </a>
-            </>
-          ) : (
-            <a href="/#waitlist" className={TEXT_LINK}>
-              {features.joinWaitlist}
-            </a>
-          )}
+        <Reveal className="mt-12" delay={120}>
+          <TryIt label={features.openTrial} path="" paper={paper} />
         </Reveal>
       </div>
     </section>
