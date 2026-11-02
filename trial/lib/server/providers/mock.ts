@@ -4,6 +4,8 @@ import { guessLanguage } from "@/lib/shared/lang-detect";
 import { searchFold } from "@/lib/shared/notes";
 import { EMBEDDING_DIMS, type Lang } from "@/lib/shared/types";
 import type {
+  AgentReplyParams,
+  AgentToolResult,
   AssistantReplyParams,
   AudioInput,
   EmbeddingProvider,
@@ -152,6 +154,10 @@ export class MockLlm implements LlmProvider {
     yield { type: "done", stopReason: "end_turn", inputTokens: null, outputTokens: null };
   }
 
+  /**
+   * A note or a moment from the transcript in the user message, whichever
+   * the schema asks for. A moment is in the language its prompt asks for.
+   */
   async extractStructured<T>(params: ExtractParams<T>): Promise<T | null> {
     await sleep(80, params.signal);
     const text = params.user.replace(/^[\s\S]*?<transcript>/, "").replace(/<\/transcript>[\s\S]*$/, "");
@@ -160,24 +166,101 @@ export class MockLlm implements LlmProvider {
     const lang = guessLanguage(all);
     const sentences = all.split(/(?<=[.!?])\s+/).filter(Boolean);
     const words = all.split(/\s+/).filter(Boolean);
-    const candidate = {
+    const actions = sentences.filter((s) => /(need to|should|must|remind|lazım|gerek|hatırlat)/i.test(s));
+    const topics = [...new Set(words.filter((w) => w.length > 6).map((w) => w.replace(/[^\p{L}]/gu, "")))].slice(0, 3);
+    const people = [
+      ...new Set(
+        words
+          .slice(1)
+          .filter((w) => /^\p{Lu}\p{Ll}+$/u.test(w.replace(/[^\p{L}]/gu, "")))
+          .map((w) => w.replace(/[^\p{L}]/gu, "")),
+      ),
+    ].slice(0, 5);
+    const note = {
       title: words.slice(0, 6).join(" ") || (lang === "tr" ? "Boş kayıt" : "Empty recording"),
       summary: sentences.slice(0, 2).join(" ") || (lang === "tr" ? "Konuşma yok." : "No speech."),
-      action_items: sentences.filter((s) => /(need to|should|must|remind|lazım|gerek|hatırlat)/i.test(s)).slice(0, 5),
-      topics: [...new Set(words.filter((w) => w.length > 6).map((w) => w.replace(/[^\p{L}]/gu, "")))].slice(0, 3),
-      people_mentioned: [
-        ...new Set(
-          words
-            .slice(1)
-            .filter((w) => /^\p{Lu}\p{Ll}+$/u.test(w.replace(/[^\p{L}]/gu, "")))
-            .map((w) => w.replace(/[^\p{L}]/gu, "")),
-        ),
-      ].slice(0, 5),
+      action_items: actions.slice(0, 5),
+      topics,
+      people_mentioned: people,
       language: lang,
     };
-    const parsed = params.schema.safeParse(candidate);
-    return parsed.success ? parsed.data : null;
+    const asked = /Write every text field in (Turkish|English)/.exec(params.system)?.[1];
+    const momentLang: Lang = asked === "Turkish" ? "tr" : asked === "English" ? "en" : lang;
+    const moment = {
+      title: words.slice(0, 6).join(" ").replace(/[.!?…,;:]+$/u, "") || (momentLang === "tr" ? "Boş kayıt" : "Empty recording"),
+      summary: `${momentLang === "tr" ? "Deneme özeti." : "Mock summary."} ${sentences.slice(0, 2).join(" ")}`.trim(),
+      keyPoints: sentences.slice(0, 3),
+      actionItems: actions.slice(0, 3).map((s) => ({ text: s, due: null })),
+      people,
+      topics,
+      language: momentLang,
+    };
+    if (params.outcome) params.outcome.model = this.model;
+    for (const candidate of [note, moment]) {
+      const parsed = params.schema.safeParse(candidate);
+      if (parsed.success) return parsed.data;
+    }
+    return null;
   }
+
+  /**
+   * A deterministic agent turn: it searches the moments for the question,
+   * proposes one reminder about the best match (the newest moment when
+   * nothing matches) and cites it, then says so. Tool input goes through the
+   * tools' own schemas, as a real model's does.
+   */
+  async *streamAgentReply(params: AgentReplyParams): AsyncIterable<LlmEvent> {
+    // The agent prompt names the reply language (prompts.ts).
+    const lang: Lang = params.system.includes("- Reply in Turkish.") ? "tr" : "en";
+    const call = async function* (name: string, input: unknown): AsyncGenerator<LlmEvent, AgentToolResult> {
+      const tool = params.tools.find((t) => t.name === name);
+      if (!tool) return { content: "unknown tool", isError: true };
+      yield { type: "tool_start", name };
+      const parsed = tool.input.safeParse(input);
+      const result = parsed.success ? await tool.run(parsed.data) : { content: "invalid input", isError: true };
+      yield { type: "tool_end", name, ok: !result.isError };
+      return result;
+    };
+
+    await sleep(100, params.signal);
+    const found = yield* call("find_moments", { query: params.user });
+    const target = firstMatch(found.content) ?? newestInPrompt(params.system);
+    let proposed = false;
+    if (target) {
+      const text = lang === "tr" ? `Takip et: ${target.title}` : `Follow up: ${target.title}`;
+      proposed = !(yield* call("create_reminder", { text, due: null, momentId: target.id })).isError;
+      yield* call("cite_moments", { ids: [target.id] });
+    }
+    const reply =
+      target && proposed
+        ? lang === "tr"
+          ? `Bu bir deneme yanıtı. Anlarınıza baktım ve "${target.title}" için bir hatırlatıcı önerdim. Gerçek bir dil modeline bağlı değilim.`
+          : `This is a mock agent reply. I looked through your moments and proposed a reminder about "${target.title}". No language model was called.`
+        : lang === "tr"
+          ? "Bu bir deneme yanıtı. Üzerinde işlem yapılacak bir an bulamadım. Gerçek bir dil modeline bağlı değilim."
+          : "This is a mock agent reply. I could not find a moment to act on. No language model was called.";
+    for (const word of reply.split(/(?<=\s)/)) {
+      yield { type: "text", delta: word };
+      await sleep(8, params.signal);
+    }
+    yield { type: "done", stopReason: "end_turn", inputTokens: null, outputTokens: null, model: this.model };
+  }
+}
+
+/** The best find_moments match. */
+function firstMatch(result: string): { id: string; title: string } | null {
+  try {
+    const m = (JSON.parse(result) as { matches?: { id: string; title: string }[] }).matches?.[0];
+    return m ? { id: m.id, title: m.title } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The first, so newest, moment in the agent's prompt. */
+function newestInPrompt(system: string): { id: string; title: string } | null {
+  const m = /<moment id=("(?:[^"\\]|\\.)*")>\n[^\n]*\nTitle: ([^\n]*)/.exec(system);
+  return m ? { id: JSON.parse(m[1]!) as string, title: m[2]! } : null;
 }
 
 /* ----------------------------------------------------------------------------

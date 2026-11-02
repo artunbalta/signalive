@@ -13,7 +13,9 @@ import { VoyageEmbeddings } from "./voyage";
 /**
  * The only place that knows which concrete provider sits behind each
  * adapter. Instances are created lazily and reused across requests in the
- * same server process.
+ * same server process. A dev server that was running when a provider's
+ * class changed can go on answering with an instance of the old class; a
+ * restart clears it.
  */
 
 const stt = new Map<SttProviderId, SttProvider>();

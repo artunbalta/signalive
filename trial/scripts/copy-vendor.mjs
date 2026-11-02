@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
  * Copies the browser runtime assets that must be served as plain static files
- * into public/vendor. They are loaded by URL at runtime (WASM binaries and an
- * AudioWorklet module), so the bundler must not touch them.
+ * into public/vendor. They are loaded by URL at runtime (WASM binaries, an
+ * AudioWorklet module and the attention decoder's weights), so the bundler
+ * must not touch them.
  *
  * Runs before every `next dev` and `next build` (predev / prebuild), which is
  * also what happens on Vercel. public/vendor is gitignored.
@@ -32,7 +33,23 @@ const files = [
   ["@mediapipe/tasks-vision/wasm/vision_wasm_nosimd_internal.wasm", "mediapipe/vision_wasm_nosimd_internal.wasm"],
 ];
 
+// The learned attention decoder the earbuds use (research/aad/deep_export.py),
+// from the repo root, where the research page serves it too. Loaded only when
+// earbuds that send the voices' envelopes connect.
+const shared = [["../public/research/neural.json", "attention/neural.json"]];
+
 let copied = 0;
+for (const [from, to] of shared) {
+  const src = join(root, from);
+  const dest = join(root, "public", "vendor", to);
+  if (!existsSync(src)) {
+    console.error(`[copy-vendor] missing ${from}. Run research/aad/deep_export.py, or check out the whole repo.`);
+    process.exit(1);
+  }
+  mkdirSync(dirname(dest), { recursive: true });
+  copyFileSync(src, dest);
+  copied++;
+}
 for (const [from, to] of files) {
   const src = join(nm, from);
   const dest = join(root, "public", "vendor", to);

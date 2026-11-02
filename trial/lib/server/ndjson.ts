@@ -1,14 +1,13 @@
 import "server-only";
-import type { AssistantEvent } from "@/lib/server/assistant-pipeline";
 
 /**
  * Streams pipeline events to the browser as newline delimited JSON. Reading
  * the response drives the pipeline; a browser that goes away aborts it.
  */
-export function ndjsonResponse(
-  events: AsyncGenerator<AssistantEvent>,
+export function ndjsonResponse<E extends { t: string }>(
+  events: AsyncGenerator<E>,
   controller: AbortController,
-  onEvent?: (e: AssistantEvent) => void,
+  onEvent?: (e: E) => void,
 ): Response {
   const encoder = new TextEncoder();
   const body = new ReadableStream<Uint8Array>({

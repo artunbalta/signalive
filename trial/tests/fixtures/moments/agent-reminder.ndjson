@@ -1,0 +1,9 @@
+{"t":"tool","name":"moments","state":"start"}
+{"t":"tool","name":"moments","state":"end"}
+{"t":"text","delta":"Ayşe will send you the launch deck by Friday at 15:00, "}
+{"t":"text","delta":"and you said you would call the venue tomorrow morning about the projector."}
+{"t":"sentence","i":0,"text":"Ayşe will send you the launch deck by Friday at 15:00, and you said you would call the venue tomorrow morning about the projector."}
+{"t":"audio","i":0,"sr":24000,"pcm":"__AUDIO__"}
+{"t":"cite","momentIds":["__MOMENT__"]}
+{"t":"action","action":{"kind":"reminder","text":"Call the venue about the projector","due":"2026-11-03T09:30:00+03:00"},"momentId":"__MOMENT__"}
+{"t":"done","reply":"Ayşe will send you the launch deck by Friday at 15:00, and you said you would call the venue tomorrow morning about the projector.","model":"claude-sonnet-5-5","totalMs":2380}

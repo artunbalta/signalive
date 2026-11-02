@@ -26,7 +26,7 @@ export function StartButton() {
 
   const go = () => {
     if (!returning) return router.push("/consent");
-    router.push(getPrefs().setupDone ? "/assistant" : "/setup");
+    router.push(getPrefs().setupDone ? "/moments" : "/setup");
   };
 
   return (

@@ -19,6 +19,9 @@ const LIMITS = {
   lab: { max: 60, windowMs: 60_000 },
   notes: { max: 20, windowMs: 60_000 },
   search: { max: 60, windowMs: 60_000 },
+  moments: { max: 20, windowMs: 60_000 },
+  agent: { max: 20, windowMs: 60_000 },
+  speak: { max: 30, windowMs: 60_000 },
 } as const;
 
 export function rateLimit(userId: string, kind: keyof typeof LIMITS) {

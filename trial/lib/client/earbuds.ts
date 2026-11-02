@@ -1,5 +1,6 @@
 "use client";
 
+import type { AnyDecoderModel } from "@sense/decoders";
 import type { ClenchKind, DigitalTwin } from "@sense/twin";
 import { NullSensorProvider, type SensorProvider } from "@/lib/extensions/sensor-provider";
 import type {
@@ -43,6 +44,26 @@ const NONE = new NullSensorProvider();
 export const SIMULATED_TURNS = [30, 0, -30, 0] as const;
 
 type ProviderModule = typeof import("@/lib/extensions/signalive-provider");
+
+/** Where scripts/copy-vendor.mjs puts the learned attention decoder (research/aad/deep_export.py). */
+const ATTENTION_MODEL_URL = "/vendor/attention/neural.json";
+
+let attentionModel: Promise<AnyDecoderModel | null> | null = null;
+
+/**
+ * The learned decoder, fetched once and only for real earbuds (about half a
+ * megabyte). Null when it cannot be had; the next connect tries again.
+ */
+function loadAttentionModel(): Promise<AnyDecoderModel | null> {
+  attentionModel ??= fetch(ATTENTION_MODEL_URL)
+    .then((r) => (r.ok ? (r.json() as Promise<AnyDecoderModel>) : null))
+    .catch(() => null)
+    .then((m) => {
+      if (!m) attentionModel = null;
+      return m;
+    });
+  return attentionModel;
+}
 
 class EarbudsController {
   readonly view = createStore<EarbudsView>(OFF);
@@ -110,6 +131,14 @@ class EarbudsController {
     } catch {
       // The provider's view already says why; keep that on screen and let the provider go.
       if (this.provider === p) this.drop();
+      return;
+    }
+    // Real earbuds send the voices' envelopes, so they get the attention
+    // decoder, fetched only now so the chooser above never waited for it.
+    if (transport === "bluetooth" && !opts.decoderModel) {
+      void loadAttentionModel().then((model) => {
+        if (model && this.provider === p) p.useDecoderModel(model);
+      });
     }
   }
 

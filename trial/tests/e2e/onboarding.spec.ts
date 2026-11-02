@@ -55,7 +55,7 @@ test("landing to a spoken reply, with every stage timed", async ({ page }) => {
   expect(stored.filter((e) => e.kind === "turn" && e.playbackStartMs !== null).length).toBeGreaterThan(0);
   expect(stored.some((e) => e.kind === "onboarding")).toBe(true);
 
-  await page.getByRole("button", { name: "Go to the assistant" }).click();
-  await page.waitForURL("**/assistant");
+  await page.getByRole("button", { name: "Go to Moments" }).click();
+  await page.waitForURL("**/moments");
   expect(errors).toEqual([]);
 });

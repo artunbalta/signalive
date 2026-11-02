@@ -1,3 +1,4 @@
+import type { MomentTrigger } from "@/lib/shared/moments";
 import type { MediaKeyAction } from "@/lib/shared/types";
 
 /**
@@ -7,9 +8,13 @@ import type { MediaKeyAction } from "@/lib/shared/types";
  * Earbud media keys and the keyboard produce gestures, and so do Signalive
  * earbuds connected in Settings: their SensorProvider publishes the jaw
  * gestures (lib/extensions/signalive-provider.ts), which the keyboard can
- * also simulate. Whisper detection is reserved for a SensorProvider.
- * triple_tap is included because earbuds commonly send "previous track" for
- * a triple tap; it is the one addition to the six gestures in the brief.
+ * also stand in for (J, K and H). Whisper detection is reserved for a
+ * SensorProvider. triple_tap is included because earbuds commonly send
+ * "previous track" for a triple tap.
+ *
+ * The jaw gestures carry the product: a clench keeps the last seconds as a
+ * moment, a double clench plays them again (Rewind), and a clench held for
+ * longer than 700 ms asks a question by voice.
  */
 export const GESTURE_TYPES = [
   "tap",
@@ -17,10 +22,14 @@ export const GESTURE_TYPES = [
   "triple_tap",
   "jaw_clench",
   "jaw_double_clench",
+  "jaw_hold",
   "whisper_start",
   "whisper_end",
 ] as const;
 export type GestureType = (typeof GESTURE_TYPES)[number];
+
+/** The gestures Signalive earbuds make themselves; the rest come from buttons and keys. */
+export const JAW_GESTURES: readonly GestureType[] = ["jaw_clench", "jaw_double_clench", "jaw_hold"];
 
 export type GestureSource = "media_key" | "keyboard" | "sensor";
 
@@ -40,12 +49,14 @@ export interface GestureEvent {
 
 export const COMMANDS = [
   "none",
+  "capture_moment",
+  "ask_agent",
+  "rewind",
   "toggle_listening",
   "mark_moment",
   "stop_recording",
   "toggle_recording",
   "stop_speaking",
-  "rewind",
   "lock_focus",
 ] as const;
 export type Command = (typeof COMMANDS)[number];
@@ -56,11 +67,17 @@ export const DEFAULT_BINDINGS: GestureBindings = {
   tap: "toggle_listening",
   double_tap: "mark_moment",
   triple_tap: "stop_recording",
-  jaw_clench: "rewind",
-  jaw_double_clench: "mark_moment",
+  jaw_clench: "capture_moment",
+  jaw_double_clench: "rewind",
+  jaw_hold: "ask_agent",
   whisper_start: "none",
   whisper_end: "none",
 };
+
+/** How a moment was asked for, from the gesture that asked: the earbuds' clench, a key, or an earbud button. */
+export function momentTrigger(source: GestureSource | undefined): MomentTrigger {
+  return source === "sensor" ? "clench" : source === "keyboard" ? "key" : "button";
+}
 
 /** How media session actions arrive as gestures. */
 export const MEDIA_ACTION_GESTURE: Record<MediaKeyAction, GestureType> = {

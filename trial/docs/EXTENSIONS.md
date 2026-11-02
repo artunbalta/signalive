@@ -61,29 +61,31 @@ the same one the site's research console runs.
    a touch on that earbud. Each is fed only while its own ears have signal, and one speaks
    for the earbuds, chosen by how much of the last two seconds each ear covered: both ears
    while both are there, otherwise the one that is, so a weak or dropped earbud leaves the
-   clench on the other. A single clench is published as `jaw_clench` and a double as
-   `jaw_double_clench` through `emitSensorGesture(type, "signalive", confidence)`, the
-   confidence being how far the clench cleared that detector's threshold
-   (`1 - k / strength`, clipped to 0..1). A hold (over 700 ms) is detected but not
-   published, since no gesture is defined for it yet; four clenches within 3 s are chewing
-   and are ignored for 2 s.
+   clench on the other. A single clench is published as `jaw_clench`, a double as
+   `jaw_double_clench` and a hold (over 700 ms) as `jaw_hold`, through
+   `emitSensorGesture(type, "signalive", confidence)`, the confidence being how far the
+   clench cleared that detector's threshold (`1 - k / strength`, clipped to 0..1); four
+   clenches within 3 s are chewing and are ignored for 2 s.
 4. **Head.** The IMU's quaternion gives the head's yaw (`yawDeg`), both earbuds averaged on
    the circle and forgotten half a second after their last motion frame.
    `provider.onYaw()` passes it on at every motion frame to the head tracker's `earbuds`
    source, which takes the first reading as straight ahead (the IMU has no compass) and
    steers like the camera.
-5. **Attention, optional.** Only when the earbuds send speech envelopes (AUDIO_ENV), a
-   trained model is passed as `decoderModel` (the JSON `research/aad` exports; the model in
-   `lib/sense/__fixtures__/e2e.json` is one), and the earbuds' electrodes are the model's
-   inputs in its order: the session places the envelopes on the same timeline as the EEG,
-   its `AttentionDecoder` decides over 10 s, and `fuseAttention` weighs that with facing
-   the talker. Once a second the provider reports the likeliest talker and, when it or its
+5. **Attention.** When the earbuds send speech envelopes (AUDIO_ENV), a model is there
+   and the earbuds' electrodes are the model's inputs in its order: the session places the
+   envelopes on the same timeline as the EEG, its decoder (the learned one, or a linear
+   one; `createDecoder` picks by the model's version) decides every 10 s, an
+   `AttentionBelief` adds those decisions up by what each is worth, and `fuseAttention`
+   weighs the belief with facing the talker. Once a second the provider reports the likeliest talker and, when it or its
    emphasis changes, writes the session's STEER to both earbuds (relative to the head, at
    most 9 dB). The talkers' places in the room come from the `azimuths` option (by default
    the simulated earbuds' own). `provider.attention` reports the talker as
    `earbuds:talker<i>`, the id a hear-through path would register those voices under in the
-   `SourceStage`. The trial ships no model, so this path is off; to try it, pass one:
-   `earbuds.connect("bluetooth", { decoderModel })`.
+   `SourceStage`. Real earbuds get the learned decoder: `lib/client/earbuds.ts` fetches
+   `/vendor/attention/neural.json` (copied from `public/research/neural.json` by
+   `scripts/copy-vendor.mjs`) once they are connected, and hands it over with
+   `provider.useDecoderModel()`, so the chooser never waits for half a megabyte. Any
+   model can also be passed up front: `earbuds.connect("bluetooth", { decoderModel })`.
 
 The provider's `view` store holds what Settings shows: the phase, each earbud's battery,
 wear and lead off (per electrode, once an earbud reports it), the frames received and lost,
@@ -91,7 +93,7 @@ the head yaw, whether the clench detector is listening and on which ears, and th
 attention decision.
 `stream()` yields every channel as it arrives (`left:L1` in microvolts, `left:yaw` in
 degrees) and ends at disconnect. `capabilities` lists the channels the earbuds announced in
-their HELLO (before that, what the transport is known to carry), the two jaw gestures, and
+their HELLO (before that, what the transport is known to carry), the three jaw gestures, and
 attention only where the decoder can run.
 
 `lib/client/earbuds.ts` holds the one provider for the page: Settings connects it from a

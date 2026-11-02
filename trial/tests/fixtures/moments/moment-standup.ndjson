@@ -1,0 +1,3 @@
+{"t":"transcript","text":"Mert says the budget review moves to Thursday, and Elif will share the numbers before lunch.","language":"en","provider":"openai","model":"gpt-transcribe","ms":640}
+{"t":"moment","content":{"title":"Budget review moves to Thursday","summary":"Mert moved the budget review to Thursday. Elif will share the numbers before lunch.","keyPoints":["The budget review is now on Thursday"],"actionItems":[{"text":"Elif shares the numbers","due":null}],"people":["Mert","Elif"],"topics":["budget"],"language":"en"},"model":"claude-sonnet-5-5"}
+{"t":"done","totalMs":2410}

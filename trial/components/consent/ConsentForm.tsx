@@ -70,7 +70,7 @@ export function ConsentForm({ reset = false }: { reset?: boolean }) {
       setPrefs({ speechLang: getPrefs().speechLang ?? locale });
       await ensureSession(locale);
       setPrefs({ consentVersion: config.consentVersion });
-      router.push(getPrefs().setupDone ? "/assistant" : "/setup");
+      router.push(getPrefs().setupDone ? "/moments" : "/setup");
     } catch (err) {
       setError(err instanceof AuthError || err instanceof ApiError ? err.code : "generic");
       setBusy(false);

@@ -121,6 +121,16 @@ class RewindController {
     this.setPhase("off", { buffered: 0 });
   }
 
+  /**
+   * The newest seconds kept (all of them if fewer), at the microphone's
+   * rate, as a copy: what a moment is made from. Null while nothing is kept.
+   */
+  latest(seconds: number): { samples: Float32Array<ArrayBuffer>; rate: number } | null {
+    const { phase } = this.view.get();
+    if (!this.buffer || phase === "off" || phase === "starting") return null;
+    return { samples: this.buffer.latest(seconds * this.sampleRate), rate: this.sampleRate };
+  }
+
   private attach(mic: MicInput) {
     this.detachSamples?.();
     const rate = mic.ctx.sampleRate;

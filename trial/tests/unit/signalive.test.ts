@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DecoderModel } from "@sense/decoder";
+import type { AnyDecoderModel } from "@sense/decoders";
 import { encodeCommand, type Side } from "@sense/protocol";
 import { manualClock } from "@sense/twin";
 import { earbuds } from "@/lib/client/earbuds";
@@ -48,16 +49,18 @@ describe("Signalive earbuds, simulated", () => {
     }
   });
 
-  it("stays silent on the background alone, and a hold is not published", async () => {
+  it("stays silent on the background alone, and publishes a held clench as jaw_hold", async () => {
     const p = simulated();
     const { seen, off } = gestures();
     await p.connect();
     p.twin!.tick(20_000);
+    expect(seen).toEqual([]);
     p.twin!.clench("hold");
     p.twin!.tick(3000);
     off();
     await p.disconnect();
-    expect(seen).toEqual([]);
+    expect(seen.map((e) => e.type)).toEqual(["jaw_hold"]);
+    expect(seen[0]).toMatchObject({ source: "sensor", detail: { sensorId: "signalive" } });
   });
 
   it("lines up the two earbuds when frames arrive late by varying amounts, as over a radio", async () => {
@@ -216,7 +219,7 @@ describe("Signalive earbuds, simulated", () => {
 
   it("describes what each transport really carries", () => {
     const sim = simulated().capabilities;
-    expect(sim).toMatchObject({ transport: "simulated", gestures: ["jaw_clench", "jaw_double_clench"], attention: false });
+    expect(sim).toMatchObject({ transport: "simulated", gestures: ["jaw_clench", "jaw_double_clench", "jaw_hold"], attention: false });
     expect(sim.channels.filter((c) => c.kind === "eeg").map((c) => [c.id, c.rateHz, c.unit])).toEqual([
       ["left:L1", 500, "uV"],
       ["left:L2", 500, "uV"],
@@ -263,6 +266,30 @@ describe("Signalive earbuds, simulated", () => {
     expect(p.attention.currentAttendedSource()).toEqual({ sourceId: `earbuds:talker${a.talker}`, confidence: a.confidence });
     for (const side of ["left", "right"] as const) expect(p.twin!.steering(side)?.azimuthDeg).toBe(a.azimuthDeg);
     await p.disconnect();
+  });
+
+  it("takes the learned decoder after connecting, and only where envelopes can come", async () => {
+    const model = JSON.parse(readFileSync(fileURLToPath(new URL("../../../public/research/neural.json", import.meta.url)), "utf8")) as AnyDecoderModel;
+    const recording = { ...syntheticBackground(1, 30), labels: model.inputs };
+    const envelopes = [0, 1].map((k) => Float32Array.from({ length: 30 * 64 }, (_, i) => 1 + Math.sin(i / (5 + k))));
+    const audio = { azimuths: [-30, 40], data: envelopes };
+    const p = new SignaliveSensorProvider({ transport: "simulated", clock: manualClock, twin: { recording, audio } });
+    expect(p.capabilities.attention).toBe(false);
+    await p.connect();
+    p.twin!.tick(3000);
+    p.useDecoderModel(model);
+    expect(p.capabilities.attention).toBe(true);
+    // Ten seconds of both from the moment it arrived, and 0.44 s for the networks to see ahead.
+    p.twin!.tick(9000);
+    expect(p.view.get().attention).toBeNull();
+    p.twin!.tick(3000);
+    expect(p.view.get().attention).not.toBeNull();
+    await p.disconnect();
+
+    // The board sends no envelopes: a model changes nothing there.
+    const board = new SignaliveSensorProvider({ transport: "cyton" });
+    board.useDecoderModel(model);
+    expect(board.capabilities.attention).toBe(false);
   });
 
   it("plays a background of 5 uV noise and a 10 Hz rhythm of 10 uV on eight electrodes", () => {

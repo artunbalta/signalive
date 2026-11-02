@@ -28,6 +28,14 @@ export interface Prefs {
   gestureBindings?: GestureBindings;
   setupDone?: boolean;
   labLanguage?: Lang;
+  /** Moments: look up and keep where each was made (off unless turned on). */
+  momentPlace?: boolean;
+  /** Moments: a short spoken line after each one (on unless turned off). */
+  momentSpeak?: boolean;
+  /** Moments: how many of the last seconds one is made from. */
+  momentSeconds?: number;
+  /** Ask: speak replies to typed questions too (voice questions always get one). */
+  askSpeakTyped?: boolean;
 }
 
 const KEY = "signalive.trial.v1";

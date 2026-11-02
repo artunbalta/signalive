@@ -1,5 +1,6 @@
 import type { ClenchEvent } from "@sense/clench";
-import type { DecoderModel } from "@sense/decoder";
+import type { AnyDecoderModel } from "@sense/decoders";
+import { NativeBridgeTransport, inNativeShell } from "@sense/native-bridge";
 import { encodeCommand, type HostCommand, type Side } from "@sense/protocol";
 import { PhoneSession, type ClenchMode, type Ear, type EarbudInfo, type SessionSnapshot } from "@sense/session";
 import {
@@ -29,7 +30,9 @@ import {
  *
  * - simulated: the digital twin, a pair of emulated earbuds playing a
  *   synthetic background, which clench and turn their head on request;
- * - bluetooth: real earbuds over Web Bluetooth, one chooser pick per earbud;
+ * - bluetooth: real earbuds over Web Bluetooth, one chooser pick per earbud,
+ *   or, inside the Signalive app (mobile/), over the phone's own Bluetooth
+ *   through window.SignaliveNative, both earbuds from one scan;
  * - cyton: an OpenBCI Cyton board over Web Serial, both ears on one board.
  *
  * The provider keeps the transport and the connection; everything from the
@@ -37,24 +40,24 @@ import {
  * will ship. It decodes each earbud's frames, puts both ears on one timeline
  * on the phone's clock, and runs the clench detector on both ears, or on one
  * ear alone while the other is weak or gone. A single clench goes out as
- * jaw_clench and a double as jaw_double_clench, through the same gesture bus
- * as the J and K keys, so the bound commands run exactly as they do for
- * them. A hold is detected but not published: no gesture is defined for it
- * yet. The session's head yaw, from the IMU, is what the head tracker
- * follows.
+ * jaw_clench, a double as jaw_double_clench and a held one as jaw_hold,
+ * through the same gesture bus as the J, K and H keys, so the bound commands
+ * run exactly as they do for them. The session's head yaw, from the IMU, is
+ * what the head tracker follows.
  *
- * When the earbuds also send speech envelopes (AUDIO_ENV) and a trained
- * decoder model is passed in, the session's attention decoder runs as well,
- * weighed against where the head points, and the provider steers the
- * earbuds' own audio (STEER). The trial ships no model, so that path is off
- * unless one is given.
+ * When the earbuds also send speech envelopes (AUDIO_ENV) and a decoder
+ * model is there, the session's attention decoder runs as well, its running
+ * belief weighed against where the head points, and the provider steers the
+ * earbuds' own audio (STEER). Real earbuds get the learned decoder
+ * (lib/client/earbuds.ts fetches it as they connect, useDecoderModel hands
+ * it over); the simulation and the board send no envelopes.
  *
  * Everything stays in this tab: samples are processed as they arrive and
  * then dropped, and the view holds only counts and the latest state.
  */
 
 export type SignaliveTransport = "simulated" | "bluetooth" | "cyton";
-export type SignaliveError = "unsupported" | "cancelled" | "blocked" | "failed";
+export type SignaliveError = "unsupported" | "cancelled" | "blocked" | "not_found" | "failed";
 
 /**
  * What an earbud has said about itself, as the session keeps it: its
@@ -91,8 +94,8 @@ export interface SignaliveOptions {
   seed?: number;
   /** The phone's clock, ms. Default performance.now(); with a twin clock given, the twin's own time. */
   now?: () => number;
-  /** A trained attention decoder (exported by research/aad). Without one, attention is never decoded. */
-  decoderModel?: DecoderModel;
+  /** A trained attention decoder (exported by research/aad), linear or learned; one can also come later, by useDecoderModel. */
+  decoderModel?: AnyDecoderModel;
   /**
    * Where the talkers are in the room for the decoder, degrees, 0 ahead and
    * positive to the right. Default: the simulated earbuds' own, else the
@@ -186,6 +189,8 @@ export function syntheticBackground(seed = 1, seconds = SIM_SECONDS): TwinRecord
 type Subscriber = { push(s: SensorSample): void; end(): void };
 
 function errorCode(err: unknown): SignaliveError {
+  // The app's own scan found nothing: not a chooser the person closed.
+  if ((err as { code?: unknown } | null)?.code === "not_found") return "not_found";
   const name = (err as { name?: unknown } | null)?.name;
   if (name === "NotFoundError" || name === "AbortError") return "cancelled";
   if (name === "SecurityError" || name === "NotAllowedError") return "blocked";
@@ -214,8 +219,9 @@ export class SignaliveSensorProvider implements SensorProvider {
 
   private readonly transport: Transport;
   private readonly now: () => number;
-  private readonly model: DecoderModel | null;
-  private readonly decodes: boolean;
+  private model: AnyDecoderModel | null;
+  /** Envelopes can come: the earbuds' microphones send them, the board has none, the twin only when given some. */
+  private readonly envelopes: boolean;
   /** The EEG rate the session starts at; the earbuds' HELLO wins. */
   private readonly rate: number;
   private readonly azimuths: number[] | undefined;
@@ -250,13 +256,14 @@ export class SignaliveSensorProvider implements SensorProvider {
       this.twin = null;
       this.transport =
         opts.transport === "bluetooth"
-          ? new WebBluetoothTransport({ bluetooth: opts.bluetooth })
+          ? !opts.bluetooth && inNativeShell()
+            ? new NativeBridgeTransport()
+            : new WebBluetoothTransport({ bluetooth: opts.bluetooth })
           : new CytonSerialTransport({ serial: opts.serial, labels: CYTON_LABELS });
     }
     const twin = this.twin;
     this.now = opts.now ?? (opts.clock && twin ? () => twin.time : () => performance.now());
-    // Envelopes come from the earbuds' microphones: the board has none, and the twin only plays them when given some.
-    this.decodes = this.model !== null && opts.transport !== "cyton" && (opts.transport !== "simulated" || Boolean(opts.twin?.audio));
+    this.envelopes = opts.transport !== "cyton" && (opts.transport !== "simulated" || Boolean(opts.twin?.audio));
     this.rate =
       opts.transport === "simulated"
         ? Math.round(opts.twin?.eegRate ?? opts.twin?.recording?.fs ?? SIM_RATE)
@@ -283,7 +290,7 @@ export class SignaliveSensorProvider implements SensorProvider {
     }
     return {
       channels: channels.length ? channels : this.expectedChannels(),
-      gestures: ["jaw_clench", "jaw_double_clench"],
+      gestures: ["jaw_clench", "jaw_double_clench", "jaw_hold"],
       attention: this.decodes,
       transport: TRANSPORT[this.kind],
     };
@@ -320,11 +327,27 @@ export class SignaliveSensorProvider implements SensorProvider {
     else this.view.set({ phase: "connected" });
   }
 
+  /** Attention is decoded: a model is there and envelopes can come. */
+  private get decodes(): boolean {
+    return this.model !== null && this.envelopes;
+  }
+
+  /**
+   * A decoder model that arrived after connecting (the learned one is
+   * fetched while the earbuds connect, so the chooser never waits for it).
+   * The session's decoder starts on the next tick.
+   */
+  useDecoderModel(model: AnyDecoderModel | null): void {
+    this.model = model;
+    this.session.setModel(this.decodes ? model : null);
+  }
+
   /** Bluetooth: each earbud is its own device, so the second one needs a second pick, from another tap. */
   async addEarbud(): Promise<void> {
-    if (!(this.transport instanceof WebBluetoothTransport) || this.view.get().phase !== "connected") return;
+    const t = this.transport;
+    if (!(t instanceof WebBluetoothTransport || t instanceof NativeBridgeTransport) || this.view.get().phase !== "connected") return;
     try {
-      await this.transport.addDevice();
+      await t.addDevice();
       this.view.set({ error: null });
     } catch (err) {
       this.view.set({ error: errorCode(err) });
@@ -418,9 +441,8 @@ export class SignaliveSensorProvider implements SensorProvider {
    * beyond.
    */
   private gesture(e: ClenchEvent, k: number) {
-    if (e.kind === "hold") return;
     const confidence = Math.max(0, Math.min(1, 1 - k / e.strength));
-    emitSensorGesture(e.kind === "single" ? "jaw_clench" : "jaw_double_clench", this.id, Math.round(confidence * 100) / 100);
+    emitSensorGesture(e.kind === "single" ? "jaw_clench" : e.kind === "double" ? "jaw_double_clench" : "jaw_hold", this.id, Math.round(confidence * 100) / 100);
   }
 
   /** An earbud that streams without having said hello is asked again, at most once a second. */

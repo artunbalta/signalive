@@ -16,6 +16,7 @@ export function SimulatedEarbuds() {
     <div className="flex flex-wrap gap-3">
       <Button onClick={() => earbuds.clench("single")}>{m.earbuds.clenchOnce}</Button>
       <Button onClick={() => earbuds.clench("double")}>{m.earbuds.clenchTwice}</Button>
+      <Button onClick={() => earbuds.clench("hold")}>{m.earbuds.holdClench}</Button>
       <Button icon="arrow" onClick={() => earbuds.turnHead()}>
         {m.earbuds.turnHead}
       </Button>

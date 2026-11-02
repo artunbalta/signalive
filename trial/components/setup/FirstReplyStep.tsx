@@ -30,7 +30,7 @@ export function FirstReplyStep({ onBack }: { onBack: () => void }) {
 
   const finish = () => {
     setPrefs({ setupDone: true });
-    router.push("/assistant");
+    router.push("/moments");
   };
 
   return (

@@ -1,0 +1,6 @@
+{"t":"transcript","text":"Ayşe, can you send me the launch deck by Friday at three? And remind me to call the venue tomorrow morning about the projector.","language":"en","provider":"openai","model":"gpt-transcribe","ms":812}
+{"t":"moment","content":{"title":"Launch deck and the venue call","summary":"Ayşe will send the launch deck by Friday at 15:00. You said you would call the venue tomorrow morning about the projector.","keyPoints":["The launch deck is due Friday at 15:00","The venue still has to confirm the projector"],"actionItems":[{"text":"Ayşe sends the launch deck","due":"2026-11-06T15:00:00+03:00"},{"text":"Call the venue about the projector","due":"2026-11-03T09:30:00+03:00"}],"people":["Ayşe"],"topics":["launch","venue"],"language":"en"},"model":"claude-sonnet-5-5"}
+{"t":"text","delta":"Kept: the launch deck and the venue call."}
+{"t":"sentence","i":0,"text":"Kept: the launch deck and the venue call."}
+{"t":"audio","i":0,"sr":24000,"pcm":"__AUDIO__"}
+{"t":"done","totalMs":3120}

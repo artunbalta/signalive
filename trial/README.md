@@ -204,12 +204,13 @@ will ship: each earbud's frames are decoded on their own, lost samples kept as g
 clock mapped onto the phone's, and both ears read out on one fixed grid on the phone's
 clock, never by count: the earbuds start at different moments and their crystals drift
 apart. The clench detector listens to both ears, or to one alone while the other is weak or
-gone; a single clench is published as `jaw_clench` and a double as `jaw_double_clench` on
-the gesture bus, so the bound command runs exactly as for the J and K keys (a hold is
-detected but not mapped yet). The IMU's yaw feeds the head tracker's earbuds source. With a
-trained decoder model and speech envelopes from the earbuds (AUDIO_ENV) the attention
-decoder runs too and steers the earbuds' own audio; the trial ships no model, so that path
-is off. One provider lives with
+gone; a single clench is published as `jaw_clench`, a double as `jaw_double_clench` and a
+held one as `jaw_hold` on the gesture bus, so the bound command runs exactly as for the J,
+K and H keys. The IMU's yaw feeds the head tracker's earbuds source. With speech envelopes
+from the earbuds (AUDIO_ENV) the attention decoder runs too, its running belief steering
+the earbuds' own audio: real earbuds get the learned decoder, fetched once they are
+connected. Inside the Signalive app (`mobile/` at the repo root) the same Bluetooth
+earbuds connect through the phone's own Bluetooth instead of the browser's. One provider lives with
 the page (`lib/client/earbuds.ts`), so the earbuds keep working on every screen until
 Disconnect. Samples are processed in the tab and dropped; only counts reach the screen.
 
@@ -224,6 +225,16 @@ the app is checked against the declarations that project writes to `.sense-types
 (title, summary, action items, topics, people, language), validated against a strict
 schema with one retry, and embedded at 1024 dimensions. Search folds case and Turkish
 letters (so "toplanti" finds "toplantıda") and matches prefixes.
+
+**Moments.** A clench keeps the last seconds as a moment, kept on the device. They go to
+`POST /api/moments` once, as a 16 kHz WAV: recognition, then Claude writes the moment in the
+wearer's language with structured output (title, summary, key points, action items with
+times resolved to ISO 8601 in the wearer's zone, people, topics), held to the contract in
+`lib/shared/moments.ts`, then an optional spoken "Saved: ...". `POST /api/agent` answers a
+question about the few moments the device sends along, with tools to search them and to
+propose a reminder, an event or a draft that the wearer accepts on the device; `POST
+/api/speak` reads text aloud. All three stream like the assistant, store nothing, and log
+counts and timings only. Details, events and measured timings: `docs/MOMENTS.md`.
 
 **Lab.** One raw take per phrase, captured alongside a browser processed take where the
 browser allows two captures at once, becomes four 16 kHz files:
@@ -266,7 +277,8 @@ npm test                 # unit: normalization, WER, statistics, DSP, VAD state 
                          # pipeline, notes retry, stores, CSV, i18n, extension points,
                          # the earbuds provider on the digital twin (clench to gesture,
                          # yaw to head tracker, late, weak and flapping earbuds, radio
-                         # jitter, attention)
+                         # jitter, attention), moments and the agent (routes, guards,
+                         # the Claude tool loop, and that no content reaches a log)
 npm run test:db          # the real migration on a local Postgres with pgvector: RLS on
                          # every table, cross user isolation, search, delete_my_data
 npm run test:audio-fixtures   # macOS: speech fixtures from the system voices
@@ -398,7 +410,7 @@ then recorded as an error for the take, never as a silent result.
 app/                     pages (route group (app) holds everything after consent) and API routes
 components/              UI: shell, setup, assistant, notes, lab, charts, ui
 lib/shared/              isomorphic: types, text normalization, WER, statistics, phrases, CSV
-lib/server/              env, adapters (providers/), stores (store/), assistant pipeline, notes
+lib/server/              env, adapters (providers/), stores (store/), assistant, moments and agent pipelines, notes
 lib/audio/               engine, mic capture, resampler, FFT, analysis, VAD, chains, player
 lib/client/              assistant, recorder, lab, Focus and earbuds controllers, auth, sessions, preferences
 lib/gestures/            GestureEvent bus, media keys, keyboard
@@ -411,6 +423,7 @@ public/models/           Silero VAD v6 (MIT, github.com/snakers4/silero-vad)
 scripts/                 vendor copy, bundle secret check, test audio fixtures
 tests/                   unit, db, e2e, integration
 docs/EXTENSIONS.md       sensors, gestures, attention, relay, new providers
+docs/MOMENTS.md          the moments, agent and speak routes, their streams, privacy
 ```
 
 The copy rules of the marketing site apply here too: no em or en dashes, no health or

@@ -3,28 +3,31 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SpeechLanguagePicker } from "@/components/assistant/AssistantControls";
-import { EarbudsCard } from "@/components/earbuds/EarbudsCard";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { MomentsSettings } from "@/components/moments/MomentsSettings";
 import { RawAudioToggle } from "@/components/notes/RawAudioToggle";
 import { ErrorCallout } from "@/components/ErrorCallout";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Callout, Card, SectionTitle } from "@/components/ui/Card";
-import { Field, Select } from "@/components/ui/Controls";
+import { Field } from "@/components/ui/Controls";
 import { ReadoutRows } from "@/components/ui/Readout";
+import { InstallCard } from "@/components/pwa/InstallCard";
 import { useConfig, useI18n } from "@/components/providers/AppProviders";
 import { api, ApiError } from "@/lib/client/api";
 import { assistant } from "@/lib/client/assistant";
 import { currentEmail, forgetIdentity, linkEmail } from "@/lib/client/auth";
 import { download } from "@/lib/client/download";
+import { agent } from "@/lib/client/agent";
+import { earbuds } from "@/lib/client/earbuds";
 import { live } from "@/lib/client/live";
 import { micManager } from "@/lib/client/mic-manager";
+import { momentsStore } from "@/lib/client/moments-store";
 import { PROVIDER_NAMES } from "@/lib/client/platform";
-import { setPrefs, usePrefs } from "@/lib/client/prefs";
+import { usePrefs } from "@/lib/client/prefs";
 import { recorder } from "@/lib/client/recorder";
 import { rewind } from "@/lib/client/rewind";
 import { forgetSession } from "@/lib/client/session";
 import { useStore } from "@/lib/client/store";
-import { COMMANDS, DEFAULT_BINDINGS, GESTURE_TYPES, type Command } from "@/lib/gestures/types";
 import type { ConsentKind, ConsentRecord, DeleteReport } from "@/lib/shared/types";
 
 export default function SettingsPage() {
@@ -33,6 +36,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const prefs = usePrefs();
   const status = useStore(live);
+  const buds = useStore(earbuds.view);
   const [consents, setConsents] = useState<Partial<Record<ConsentKind, ConsentRecord>>>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -46,7 +50,6 @@ export default function SettingsPage() {
     void currentEmail().then(setLinked);
   }, []);
 
-  const bindings = { ...DEFAULT_BINDINGS, ...(prefs.gestureBindings ?? {}) };
   const name = (id: string) => PROVIDER_NAMES[id] ?? id;
 
   async function run(key: string, fn: () => Promise<void>) {
@@ -65,9 +68,13 @@ export default function SettingsPage() {
     await run("delete", async () => {
       await recorder.stop();
       rewind.disable();
+      agent.cancelVoice();
       assistant.deactivate();
       micManager.close();
       await api<DeleteReport>("/api/delete-all", { method: "POST", json: { confirm: "delete-everything" } });
+      // Moments live on this device only; everything means them too.
+      await momentsStore.clear();
+      agent.clear();
       assistant.clear();
       forgetSession();
       await forgetIdentity();
@@ -89,6 +96,22 @@ export default function SettingsPage() {
         </div>
       </Card>
 
+      <MomentsSettings />
+
+      <Card>
+        <SectionTitle title={m.settings.earbudsTitle} />
+        <p className="text-[0.92rem] leading-relaxed text-mist">
+          {buds.phase === "connected" && buds.transport
+            ? f(m.settings.earbudsConnected, { name: m.earbuds.transports[buds.transport] })
+            : m.settings.earbudsBody}
+        </p>
+        <div className="mt-4">
+          <ButtonLink href="/earbuds" icon="earbud" iconRight="arrow">
+            {m.settings.earbudsOpen}
+          </ButtonLink>
+        </div>
+      </Card>
+
       <Card>
         <SectionTitle title={m.settings.devices} />
         <ReadoutRows
@@ -104,24 +127,7 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      <EarbudsCard />
-
-      <Card>
-        <SectionTitle title={m.gestures.bindingsTitle} />
-        <div className="grid gap-4 sm:grid-cols-2">
-          {GESTURE_TYPES.map((g) => (
-            <Field key={g} label={m.gestures.gestureNames[g]}>
-              <Select
-                label={m.gestures.gestureNames[g]}
-                value={bindings[g]}
-                onChange={(v) => setPrefs({ gestureBindings: { ...bindings, [g]: v as Command } })}
-                options={COMMANDS.map((c) => ({ value: c, label: m.gestures.commands[c] }))}
-              />
-            </Field>
-          ))}
-        </div>
-        <p className="mt-4 text-[0.85rem] text-fog">{m.gestures.future}</p>
-      </Card>
+      <InstallCard />
 
       <Card>
         <SectionTitle title={m.settings.data} />

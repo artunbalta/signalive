@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Inter_Tight, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/AppProviders";
+import { PwaRegister } from "@/components/pwa/PwaRegister";
 import { publicConfig } from "@/lib/server/config";
 import { getRequestMessages } from "@/lib/i18n/server";
 
@@ -33,6 +34,9 @@ export async function generateMetadata(): Promise<Metadata> {
     description: messages.meta.description,
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
     robots: { index: false, follow: false },
+    applicationName: "Signalive",
+    // Installed on iOS from Safari's Share menu: full screen, ink under the status bar.
+    appleWebApp: { capable: true, title: "Signalive", statusBarStyle: "black-translucent" },
   };
 }
 
@@ -51,6 +55,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <AppProviders locale={locale} messages={messages} config={publicConfig()}>
           {children}
         </AppProviders>
+        <PwaRegister />
       </body>
     </html>
   );

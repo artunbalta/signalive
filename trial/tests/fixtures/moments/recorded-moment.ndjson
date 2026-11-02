@@ -1,0 +1,7 @@
+{"t":"transcript","text":"Okay, quick recap before we go. Aisha will send you the launch deck by Friday at three, you said you would call the venue tomorrow morning about the projector, and Mert is booking the meeting room for Thursday afternoon.","language":"en","provider":"openai","model":"gpt-transcribe","ms":1123}
+{"t":"moment","content":{"title":"Launch prep recap","summary":"Someone recapped who is doing what before leaving. Aisha will send the launch deck, the wearer will call the venue about the projector, and Mert is booking the meeting room for Thursday afternoon.","keyPoints":["Launch deck due from Aisha by Friday at three","Wearer to call the venue about the projector tomorrow morning","Mert booking meeting room for Thursday afternoon"],"actionItems":[{"text":"Aisha will send the launch deck.","due":"2026-11-06T15:00:00+03:00"},{"text":"Wearer will call the venue about the projector.","due":"2026-11-03"},{"text":"Mert will book the meeting room.","due":"2026-11-05"}],"people":["Aisha","Mert"],"topics":["launch","venue","meeting room"],"language":"en"},"model":"claude-sonnet-5-5"}
+{"t":"sentence","i":0,"text":"Saved: Launch prep recap."}
+{"t":"sentence","i":1,"text":"To do: Aisha will send the launch deck."}
+{"t":"audio","i":0,"sr":24000,"pcm":"__AUDIO__"}
+{"t":"audio","i":1,"sr":24000,"pcm":"__AUDIO__"}
+{"t":"done","totalMs":5645}

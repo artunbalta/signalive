@@ -4,30 +4,36 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useConfig, useI18n } from "@/components/providers/AppProviders";
 import { Callout } from "@/components/ui/Card";
+import { agent } from "@/lib/client/agent";
 import { api, onConsentLost } from "@/lib/client/api";
 import { assistant } from "@/lib/client/assistant";
 import { currentToken } from "@/lib/client/auth";
 import { startCommandRouting } from "@/lib/client/commands";
 import { micManager } from "@/lib/client/mic-manager";
+import { momentsStore } from "@/lib/client/moments-store";
 // Registers the recorder's controls for the banner and earbud gestures.
 import "@/lib/client/recorder";
 import { recorderControls } from "@/lib/client/recorder-controls";
 import { rewind } from "@/lib/client/rewind";
 import { getPrefs, setPrefs } from "@/lib/client/prefs";
 import { ensureSession, forgetSession } from "@/lib/client/session";
+import { claimGesture } from "@/lib/gestures/claims";
 import { startKeyboardGestures } from "@/lib/gestures/keyboard";
 import type { ConsentKind, ConsentRecord } from "@/lib/shared/types";
 import { AudioResume } from "./AudioResume";
 import { BottomNav } from "./BottomNav";
 import { RecordingBanner } from "./RecordingBanner";
+import { ShellNotices } from "./ShellNotices";
 import { StatusStrip } from "./StatusStrip";
 
 /**
  * Frame for every screen after consent. Sends visitors without a current
  * consent back to the consent screen (checked with the server, not only the
  * browser), makes sure this visit has a session, and hosts the parts that
- * must survive navigation: the status strip, the recording banner, and the
- * keyboard gesture source.
+ * must survive navigation: the status strip, the recording banner, the
+ * notices of what a clench did, and the keyboard gesture source. Moments are
+ * read from the device as the frame opens, so a clench on any screen can
+ * keep one.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { m, locale } = useI18n();
@@ -43,6 +49,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const consentLost = useCallback(() => {
     recorderControls.stop();
     rewind.disable();
+    agent.cancelVoice();
+    agent.stop();
     assistant.deactivate();
     micManager.close();
     assistant.clear();
@@ -90,6 +98,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => startKeyboardGestures(), []);
   useEffect(() => startCommandRouting(), []);
   useEffect(() => assistant.configure(config), [config]);
+  useEffect(() => agent.configure(config), [config]);
+  useEffect(() => {
+    void momentsStore.load();
+  }, []);
+  // A clench keeps a moment by default, but the Rewind screen is about
+  // rewinding: while it is open the clench rewinds, as the screen says (and
+  // as Focus takes it over to lock a voice).
+  useEffect(() => (path === "/rewind" ? claimGesture("jaw_clench", "rewind") : undefined), [path]);
 
   const inSetup = path.startsWith("/setup");
 
@@ -118,6 +134,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : null}
         {ready ? children : null}
       </main>
+      {inSetup ? null : <ShellNotices />}
       {inSetup ? null : <BottomNav />}
     </>
   );

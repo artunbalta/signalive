@@ -114,11 +114,68 @@ export interface AssistantReplyParams {
   signal?: AbortSignal;
 }
 
+/** What a tool hands back to the model. */
+export interface AgentToolResult {
+  content: string;
+  isError?: boolean;
+}
+
+/**
+ * A tool the agent may call, described independently of any provider: the
+ * provider turns it into its own tool definition and runs the loop.
+ */
+export interface AgentTool {
+  readonly name: string;
+  /** What it does and when to call it, for the model. */
+  readonly description: string;
+  /**
+   * The input: sent to the model as JSON Schema, and checked before run.
+   * Tool input is streamed, so the API does not validate it.
+   */
+  readonly input: z.ZodType;
+  /**
+   * A response whose calls are all to tools like this, and which has already
+   * said something, ends the turn once they ran: the model has answered, and
+   * asked again it repeats itself (a citation after the answer, say).
+   */
+  readonly endsTurn?: boolean;
+  /**
+   * Likewise, but only once the answer itself was said (answeredChars of
+   * text before the calls): a proposal the answer has just announced.
+   */
+  readonly endsTurnAfterAnswer?: boolean;
+  /** Called with input that passed the schema. */
+  run(input: unknown): Promise<AgentToolResult>;
+}
+
+export interface AgentReplyParams {
+  system: string;
+  history: ChatTurn[];
+  user: string;
+  tools: AgentTool[];
+  /** Rounds of tool calls that run; after them the model is told to answer with what it has. */
+  maxToolRounds: number;
+  maxTokens: number;
+  /**
+   * Text at least this long before a round's tool calls was the answer, and
+   * the wearer heard it: the tool results tell the model not to say it again.
+   */
+  answeredChars?: number;
+  signal?: AbortSignal;
+}
+
 export type LlmEvent =
   | { type: "text"; delta: string }
   | { type: "tool_start"; name: string }
   | { type: "tool_end"; name: string; ok: boolean }
-  | { type: "done"; stopReason: string; inputTokens: number | null; outputTokens: number | null }
+  | {
+      type: "done";
+      stopReason: string;
+      inputTokens: number | null;
+      outputTokens: number | null;
+      /** The model that answered, when the provider knows it (a fallback model after a refusal). */
+      model?: string;
+    }
   | { type: "refusal" };
 
 export interface ExtractParams<T> {
@@ -127,6 +184,8 @@ export interface ExtractParams<T> {
   schema: z.ZodType<T>;
   maxTokens?: number;
   signal?: AbortSignal;
+  /** Filled in with the model that wrote the output, which a server side fallback can change. */
+  outcome?: { model: string };
 }
 
 export interface LlmProvider {
@@ -138,6 +197,14 @@ export interface LlmProvider {
    * against the schema; the caller decides whether to retry.
    */
   extractStructured<T>(params: ExtractParams<T>): Promise<T | null>;
+  /**
+   * An agent turn: the reply streamed as text while the model calls the
+   * given tools. tool_start comes as soon as the model begins a call (its
+   * input is still being written), tool_end once the call ran or was
+   * refused. Both providers implement it; it is optional so the test
+   * doubles of the voice path need not.
+   */
+  streamAgentReply?(params: AgentReplyParams): AsyncIterable<LlmEvent>;
 }
 
 /* ----------------------------------------------------------------------------

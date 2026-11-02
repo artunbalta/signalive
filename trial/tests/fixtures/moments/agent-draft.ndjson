@@ -1,0 +1,5 @@
+{"t":"text","delta":"Here is a short note you could send Ayşe."}
+{"t":"cite","momentIds":["__MOMENT__"]}
+{"t":"action","action":{"kind":"draft","channel":"message","to":"Ayşe","subject":null,"body":"Hi Ayşe, thanks for taking the launch deck. Friday at 15:00 works for me."},"momentId":"__MOMENT__"}
+{"t":"action","action":{"kind":"event","title":"Launch deck review","start":"2026-11-06T15:00:00+03:00","end":null,"location":"Moda"},"momentId":"__MOMENT__"}
+{"t":"done","reply":"Here is a short note you could send Ayşe.","model":"claude-sonnet-5-5","totalMs":1900}

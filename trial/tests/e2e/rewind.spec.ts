@@ -24,7 +24,7 @@ const captureRewind = () => {
   };
 };
 
-const BANNER = "Rewind is on: the last 30 seconds stay in this device's memory only.";
+const BANNER = "Listening: the last 30 seconds stay in this device's memory only.";
 
 test("rewind: keep the last seconds, clench, hear them again, then what was said", async ({ page }) => {
   const errors: string[] = [];

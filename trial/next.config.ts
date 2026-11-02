@@ -4,8 +4,9 @@ import type { NextConfig } from "next";
 /**
  * Microphone access is the whole product, so Permissions-Policy grants it to
  * this origin only; the camera too, for head tracking on the Focus screen
- * (frames stay in the browser), and Bluetooth and serial for the earbuds and
- * the OpenBCI dev kit connected in Settings. Nothing here enables cross-origin
+ * (frames stay in the browser), Bluetooth and serial for the earbuds and
+ * the OpenBCI dev kit connected in Settings, and the location for a moment's
+ * place, only once the wearer turns that on. Nothing here enables cross-origin
  * isolation: the VAD runs single threaded, which keeps third-party scripts and
  * embeds unaffected.
  */
@@ -15,7 +16,7 @@ const securityHeaders = [
   { key: "X-Frame-Options", value: "DENY" },
   {
     key: "Permissions-Policy",
-    value: "microphone=(self), camera=(self), geolocation=(), bluetooth=(self), serial=(self), hid=(self)",
+    value: "microphone=(self), camera=(self), geolocation=(self), bluetooth=(self), serial=(self), hid=(self)",
   },
 ];
 

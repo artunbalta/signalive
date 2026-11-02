@@ -4,16 +4,18 @@ import { gestureBus } from "./bus";
 import type { GestureType } from "./types";
 
 /**
- * Keyboard as a gesture source: T, D and R stand in for earbud taps, J and K
- * for the jaw gestures a future sensor will produce. Ignored while typing.
- * (The space bar is push to talk and handled by the assistant itself.)
+ * Keyboard as a gesture source: T, D and R stand in for earbud taps, J, K
+ * and H for the jaw gestures Signalive earbuds make (a clench, a double
+ * clench, a held clench). Ignored while typing. (The space bar is push to
+ * talk, handled by the screens that offer it.)
  */
-const KEYS: Record<string, GestureType> = {
+export const KEY_GESTURES: Readonly<Record<string, GestureType>> = {
   t: "tap",
   d: "double_tap",
   r: "triple_tap",
   j: "jaw_clench",
   k: "jaw_double_clench",
+  h: "jaw_hold",
 };
 
 function typing(target: EventTarget | null): boolean {
@@ -24,7 +26,7 @@ function typing(target: EventTarget | null): boolean {
 export function startKeyboardGestures(): () => void {
   const onKey = (e: KeyboardEvent) => {
     if (e.repeat || e.metaKey || e.ctrlKey || e.altKey || typing(e.target)) return;
-    const type = KEYS[e.key.toLowerCase()];
+    const type = KEY_GESTURES[e.key.toLowerCase()];
     if (!type) return;
     gestureBus.emit({ type, source: "keyboard", at: performance.now(), detail: { key: e.key } });
   };

@@ -26,7 +26,8 @@ test("record, mark, make notes, search, export, then delete everything", async (
   await expect(page.getByText("Made on request").first()).toBeVisible({ timeout: 30_000 });
 
   // The banner follows the user to other screens, with a one tap pause.
-  await page.getByRole("link", { name: "Notes" }).click();
+  await page.getByRole("button", { name: "More" }).click();
+  await page.getByRole("link", { name: /^Notes/ }).click();
   await page.waitForURL("**/notes");
   await expect(banner).toBeVisible();
   await banner.getByRole("button", { name: "Pause" }).click();

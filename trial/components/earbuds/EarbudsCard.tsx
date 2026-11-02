@@ -5,6 +5,7 @@ import { useI18n } from "@/components/providers/AppProviders";
 import { Button } from "@/components/ui/Button";
 import { Callout, Card, SectionTitle } from "@/components/ui/Card";
 import { ReadoutRows } from "@/components/ui/Readout";
+import { NATIVE_GLOBAL, NATIVE_USER_AGENT_TOKEN } from "@sense/native-protocol";
 import { earbuds } from "@/lib/client/earbuds";
 import { getPrefs } from "@/lib/client/prefs";
 import { rewind } from "@/lib/client/rewind";
@@ -33,7 +34,9 @@ export function EarbudsCard() {
 
   useEffect(() => {
     const nav = navigator as Navigator & { bluetooth?: unknown; serial?: unknown };
-    setSupport({ simulated: true, bluetooth: Boolean(nav.bluetooth), cyton: Boolean(nav.serial) });
+    // Inside the Signalive app (mobile/), its own Bluetooth stands in for the browser's.
+    const app = NATIVE_GLOBAL in window || navigator.userAgent.includes(`${NATIVE_USER_AGENT_TOKEN}/`);
+    setSupport({ simulated: true, bluetooth: Boolean(nav.bluetooth) || app, cyton: Boolean(nav.serial) });
     // Fetched now, so a device chooser opens within the tap that asks for it.
     earbuds.preload().catch(() => undefined);
   }, []);
