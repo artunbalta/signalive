@@ -75,6 +75,7 @@ export default function Replay({ people }: { people: Person[] }) {
     frame: Float64Array;
     lastTick: number;
     lastView: number;
+    carry: number;
     nextJudge: number;
     nextCount: number;
     right: number;
@@ -178,7 +179,11 @@ export default function Replay({ people }: { people: Person[] }) {
       const C = meta.channels.length;
       const dt = Math.min(0.1, (now - st.lastTick) / 1000);
       st.lastTick = now;
-      const target = Math.min(meta.samples, st.cursor + Math.round(dt * speedRef.current * meta.fsRaw));
+      // Whole samples only, with the fraction carried over, so 1x is real time on any display rate.
+      st.carry += dt * speedRef.current * meta.fsRaw;
+      const advance = Math.floor(st.carry);
+      st.carry -= advance;
+      const target = Math.min(meta.samples, st.cursor + advance);
       const fs = st.decoder.fs;
       const lead = Math.round((meta.leadSamples * fs) / meta.fsRaw);
       for (let k = st.cursor; k < target; k++) {
@@ -244,6 +249,7 @@ export default function Replay({ people }: { people: Person[] }) {
           frame: new Float64Array(data.meta.channels.length),
           lastTick: performance.now(),
           lastView: 0,
+          carry: 0,
           nextJudge: lead + WINDOW_S * fs,
           nextCount: lead + WINDOW_S * fs,
           right: 0,

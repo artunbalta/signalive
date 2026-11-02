@@ -702,7 +702,7 @@ export const research = {
     eegVerdict: "EEG, last 10 seconds",
     eegPending: "Gathering 10 seconds",
     steering: "Sent back to the earbuds",
-    steerValue: "Bring forward {n} degrees, {m} dB",
+    steerValue: "Bring forward the voice {n} degrees from straight ahead, {m} dB",
     steerNone: "Nothing yet",
     heard: "Clenches detected",
     none: "Nothing yet",

@@ -1,12 +1,21 @@
 /**
  * The phone side of a pair of earbuds, from bytes to decisions. Feed it what
  * a Transport delivers (SSP bytes, tagged with the earbud they came from) and
- * it decodes the frames, keeps the two ears lined up sample for sample even
- * when frames are lost on the air, runs the clench detector and, when the
- * earbuds send the voices' envelopes and a decoder model is given, the
- * attention decoder; it fuses that with the head direction from the motion
- * sensors and writes the STEER command that tells the earbuds which voice to
- * bring forward.
+ * it decodes the frames, places every sample on one timeline, runs the
+ * clench detector and, when the earbuds send the voices' envelopes and a
+ * decoder model is given, the attention decoder; it fuses that with the head
+ * direction from the motion sensors and writes the STEER command that tells
+ * the earbuds which voice to bring forward.
+ *
+ * One timeline, on the phone's clock. Each earbud's samples are mapped there
+ * through that earbud's ClockSync, and read out on a fixed grid at the EEG
+ * rate: tick k is time t0 + k / fs, and takes from each ear the sample
+ * nearest to it, or NaN. The voices' envelopes go onto the same timeline at
+ * their own rate. So the decoder's sample k is always the same moment for EEG
+ * and envelopes, whatever the radio does: an earbud that joins late, stalls
+ * and then delivers a backlog, drops out, restarts its clock, or both earbuds
+ * sending envelopes at once. A late sample for a moment already read out is
+ * simply too late, and is dropped.
  *
  * It does not care where the bytes come from: the digital twin, an OpenBCI
  * board and the earbuds themselves all produce SSP, which is the point.
@@ -14,20 +23,23 @@
 import { ClenchDetector, type ClenchEvent } from "./clench";
 import { AttentionDecoder, type DecoderModel } from "./decoder";
 import { fuseAttention } from "./fusion";
-import { ClockSync, EarAligner, EegStream, EventCode, Flag, QUAT_ONE, SspDecoder, encodeCommand, yawDeg, type EegFrame, type Side, type SspFrame } from "./protocol";
+import { ClockSync, ClockUnwrap, EegStream, EventCode, Flag, QUAT_ONE, SspDecoder, encodeCommand, yawDeg, type EegFrame, type Side, type SspFrame } from "./protocol";
 
 export type Ear = "left" | "right";
 
+/** Which ears the clench detector is listening to. */
+export type ClenchMode = "both" | "left" | "right";
+
 export interface SessionOptions {
-  /** The electrode sample rate the earbuds stream at, Hz. */
+  /** The electrode sample rate the earbuds stream at, Hz. A HELLO that says otherwise before any EEG wins. */
   fs: number;
   /** Electrodes per earbud, in the order each earbud sends them. */
   perEar: number;
-  /** An attention decoder; it needs the earbuds' AUDIO_ENV frames as well. */
+  /** An attention decoder; it needs the earbuds' AUDIO_ENV frames as well, and EEG at its fsRaw. */
   model?: DecoderModel;
-  /** Where the voices are, degrees, 0 ahead and positive to the right. */
+  /** Where the voices are in the room, degrees, 0 ahead and positive to the right. */
   azimuths?: number[];
-  /** Milliseconds, for rates and clock drift. Default performance.now. */
+  /** Milliseconds, the phone's clock. Default performance.now. */
   now?: () => number;
 }
 
@@ -36,7 +48,7 @@ export interface EarStats {
   lost: number;
   /** EEG samples a second over the last two seconds. */
   rate: number;
-  /** The earbud's clock against the phone's, parts per million; null until two seconds have passed. */
+  /** The earbud's clock against the phone's, parts per million; null until the fit has enough time. */
   driftPpm: number | null;
   battery: number | null;
   /** Bit i set while electrode i has lost contact. */
@@ -45,39 +57,107 @@ export interface EarStats {
 
 export interface SessionSnapshot {
   ears: Record<Ear, EarStats>;
-  /** Head yaw from the motion sensors, degrees, positive to the right. */
+  /** Head yaw from the motion sensors, degrees, positive to the right; null when none has reported lately. */
   yaw: number | null;
   /** The decoder's verdict over the last 10 seconds, when there is one. */
   eeg: { talker: number; margin: number } | null;
   /** Probability per voice that it is the attended one, head and EEG together. */
   posterior: number[];
-  /** Which ears clench detection uses now; null before any ear has signal. */
+  /** Which ears clench detection uses now; null before it has decided. */
   clench: ClenchMode | null;
+  /** Something the session cannot do with what the earbuds sent, in words; null when all is well. */
+  warning: string | null;
 }
 
 /** Seconds of EEG and envelope behind each attention verdict. */
 const DECIDE_S = 10;
-/** An ear missing this long hands the clench over to the other ear alone. */
-const ONE_EAR_AFTER_S = 2;
+/** An ear with no sample for a moment is waited for this long before the other goes on alone. */
+const WAIT_MS = 500;
+/** Coverage is judged over this much of the timeline. */
+const COVERAGE_S = 2;
+/** An ear with signal on at least this share of the recent timeline is present... */
+const PRESENT = 0.5;
+/** ...and with at most this share, gone: the clench is handed to the other ear alone. */
+const GONE = 0.1;
+/** A run of missing samples longer than this pauses the clench detector rather than teaching it a flat floor. */
+const BRIDGE_S = 0.25;
 /** One ear alone needs more margin: no other side can veto a touch on that earbud. */
 const ONE_EAR_K = 5;
-
-/** Which ears the clench detector is listening to. */
-export type ClenchMode = "both" | "left" | "right";
+/** Yaw older than this is from an earbud that has gone. */
+const YAW_STALE_MS = 500;
+/** How far the envelope timeline may be padded in one go; past it, the decoder starts over. */
+const MAX_PAD_S = 60;
 const RATE_WINDOW_MS = 2000;
 
+/** One ear's samples on the phone's clock, waiting to be read out on the grid. */
+class EarQueue {
+  private times: number[] = [];
+  private values: Float32Array[] = [];
+  /** Index of the first sample still waiting; the arrays are compacted now and then, not per sample. */
+  private start = 0;
+  get length() {
+    return this.times.length - this.start;
+  }
+  time(i: number) {
+    return this.times[this.start + i];
+  }
+  value(i: number) {
+    return this.values[this.start + i];
+  }
+  push(t: number, v: Float32Array) {
+    this.times.push(t);
+    this.values.push(v);
+  }
+  shift(n: number) {
+    this.start += n;
+    if (this.start > 4096 && this.start * 2 > this.times.length) {
+      this.times = this.times.slice(this.start);
+      this.values = this.values.slice(this.start);
+      this.start = 0;
+    }
+  }
+}
+
+/** A sliding share of recent ticks on which an ear had signal. */
+class Coverage {
+  private readonly ring: Uint8Array;
+  private pos = 0;
+  private filled = 0;
+  private sum = 0;
+  /** Consecutive ticks without signal, up to now. */
+  missingRun = 0;
+  constructor(size: number) {
+    this.ring = new Uint8Array(size);
+  }
+  push(live: boolean) {
+    const v = live ? 1 : 0;
+    if (this.filled === this.ring.length) this.sum -= this.ring[this.pos];
+    else this.filled++;
+    this.ring[this.pos] = v;
+    this.sum += v;
+    this.pos = (this.pos + 1) % this.ring.length;
+    this.missingRun = live ? 0 : this.missingRun + 1;
+  }
+  get share(): number {
+    return this.filled ? this.sum / this.filled : 0;
+  }
+  /** Has the window seen enough to judge? */
+  get judged(): boolean {
+    return this.filled >= this.ring.length / 4;
+  }
+}
+
 export class PhoneSession {
-  readonly fs: number;
   readonly perEar: number;
   readonly azimuths: number[];
-  readonly decoder: AttentionDecoder | null;
-  /** Both ears' detector: the usual one. */
-  readonly clench: ClenchDetector;
-  /** One per mode; a one eared detector sees that ear's electrodes on both of its sides. */
-  private readonly detectors: Record<ClenchMode, ClenchDetector>;
+
+  private rate: number;
+  private readonly model: DecoderModel | null;
+  private dec: AttentionDecoder | null;
+  private detectors!: Record<ClenchMode, ClenchDetector>;
   private mode: ClenchMode | null = null;
-  /** The last paired instant each ear had signal, in paired samples. */
-  private readonly lastLive: Record<Ear, number> = { left: -Infinity, right: -Infinity };
+  private coverage!: Record<Ear, Coverage>;
+  private warn: string | null = null;
 
   private readonly now: () => number;
   private readonly ssp: Record<Ear, SspDecoder> = { left: new SspDecoder(), right: new SspDecoder() };
@@ -86,37 +166,76 @@ export class PhoneSession {
   private readonly hello = new Map<Side, { fs: number; channels: number; nv: number }>();
   /** Each earbud's clock mapped onto the phone's (one for a dev kit carrying both ears). */
   private readonly sync = new Map<Side, ClockSync>();
-  /** Pairs the ears by time on the phone's clock, not by sample count: the earbuds connect at different moments and their clocks drift. */
-  private readonly aligner: EarAligner;
-  private envPrev: { device: number; samples: number } | null = null;
+  /** Each earbud's AUDIO_ENV timestamps, unwrapped like its EEG. */
+  private readonly envClock = new Map<Side, ClockUnwrap>();
+
+  // The grid.
+  private readonly queue: Record<Ear, EarQueue> = { left: new EarQueue(), right: new EarQueue() };
+  /** Phone time of tick 0; null until the first sample. */
+  private t0: number | null = null;
+  /** The next tick to read out. */
+  private tick = 0;
+  /** The newest sample time seen from either ear. */
+  private latest = -Infinity;
+
   private readonly arrivals: Record<Ear, number[]> = { left: [], right: [] };
   private readonly battery: Record<Ear, number | null> = { left: null, right: null };
   private readonly leadOff: Record<Ear, number> = { left: 0, right: 0 };
-  private readonly head: Partial<Record<Ear, number>> = {};
+  private readonly head: Partial<Record<Ear, { yaw: number; at: number }>> = {};
   private readonly frame: Float64Array;
   private readonly listeners = new Set<(e: ClenchEvent, info: { latencyMs: number }) => void>();
   /** Frames the current clench detector has seen: its own timeline. */
   private fed = 0;
   private readonly tapListeners = new Set<(ear: Ear, uv: number[]) => void>();
-  /** Paired samples processed so far. */
+  /** Ticks read out so far: the decoder's and the detector's shared clock, at fs. */
   processed = 0;
 
   constructor(opts: SessionOptions) {
-    this.fs = opts.fs;
+    this.rate = opts.fs;
     this.perEar = opts.perEar;
     this.azimuths = opts.azimuths ?? [-90, 90];
     this.now = opts.now ?? (() => performance.now());
     this.frame = new Float64Array(2 * opts.perEar);
-    this.aligner = new EarAligner(opts.fs, [opts.perEar, opts.perEar]);
-    this.decoder = opts.model ? new AttentionDecoder(opts.model, this.azimuths.length, { historySeconds: 30 }) : null;
-    const left = Array.from({ length: opts.perEar }, (_, i) => i);
-    const right = Array.from({ length: opts.perEar }, (_, i) => opts.perEar + i);
-    this.clench = new ClenchDetector({ fs: opts.fs, left, right });
+    this.model = opts.model ?? null;
+    this.dec = null;
+    this.configure(opts.fs);
+  }
+
+  /** The EEG rate everything runs at, Hz. */
+  get fs(): number {
+    return this.rate;
+  }
+
+  /** The attention decoder, when a model was given and the earbuds' rate matches it. */
+  get decoder(): AttentionDecoder | null {
+    return this.dec;
+  }
+
+  /** Both ears' detector: the usual one. */
+  get clench(): ClenchDetector {
+    return this.detectors.both;
+  }
+
+  /** Everything that depends on the EEG rate. */
+  private configure(fs: number) {
+    this.rate = fs;
+    this.warn = null;
+    const p = this.perEar;
+    const left = Array.from({ length: p }, (_, i) => i);
+    const right = Array.from({ length: p }, (_, i) => p + i);
     this.detectors = {
-      both: this.clench,
-      left: new ClenchDetector({ fs: opts.fs, left, right: left, k: ONE_EAR_K }),
-      right: new ClenchDetector({ fs: opts.fs, left: right, right, k: ONE_EAR_K }),
+      both: new ClenchDetector({ fs, left, right }),
+      // A one eared detector sees that ear's electrodes on both of its sides.
+      left: new ClenchDetector({ fs, left, right: left, k: ONE_EAR_K }),
+      right: new ClenchDetector({ fs, left: right, right, k: ONE_EAR_K }),
     };
+    const size = Math.round(COVERAGE_S * fs);
+    this.coverage = { left: new Coverage(size), right: new Coverage(size) };
+    this.dec = null;
+    if (this.model) {
+      if (this.model.fsRaw === fs) this.dec = new AttentionDecoder(this.model, this.azimuths.length, { historySeconds: 30 });
+      else this.warn = `the decoder model expects EEG at ${this.model.fsRaw} Hz, the earbuds send ${fs} Hz`;
+    }
   }
 
   /**
@@ -138,34 +257,43 @@ export class PhoneSession {
   bytes(bytes: Uint8Array, side: Side): void {
     const ear: Ear = side === "right" ? "right" : "left";
     for (const f of this.ssp[ear].push(bytes)) this.frameIn(f, side);
-    this.pair();
+    this.readOut();
   }
 
   private frameIn(f: SspFrame, side: Side) {
     const ear: Ear = side === "right" ? "right" : "left";
     switch (f.type) {
-      case "hello":
-        this.hello.set(side, { fs: f.eegRate || this.fs, channels: f.labels.length, nv: f.nvPerLsb });
+      case "hello": {
+        const fs = f.eegRate || this.rate;
+        this.hello.set(side, { fs, channels: f.labels.length, nv: f.nvPerLsb });
+        if (fs !== this.rate) {
+          // The earbuds decide their rate. Before any EEG everything is
+          // rebuilt for it; after, two rates cannot share one timeline.
+          if (this.t0 === null) this.configure(fs);
+          else this.warn = `an earbud switched to ${fs} Hz while the session runs at ${this.rate} Hz`;
+        }
         // Only a HELLO that opens a new stream starts the series afresh. One
         // asked for on a reconnect does not, so the outage before it is still
         // filled and every later sample keeps its place.
         if (f.flags & Flag.streamStart) {
           this.streams.delete(side);
           this.sync.delete(side);
+          this.envClock.delete(side);
         }
         if (f.battery <= 100) this.battery[ear] = f.battery;
         break;
+      }
       case "eeg":
         this.eegIn(side, f);
         break;
       case "imu": {
         const v = f.values;
         const o = (f.samples - 1) * 10;
-        this.head[ear] = yawDeg(v[o + 6] / QUAT_ONE, v[o + 7] / QUAT_ONE, v[o + 8] / QUAT_ONE, v[o + 9] / QUAT_ONE);
+        this.head[ear] = { yaw: yawDeg(v[o + 6] / QUAT_ONE, v[o + 7] / QUAT_ONE, v[o + 8] / QUAT_ONE, v[o + 9] / QUAT_ONE), at: this.now() };
         break;
       }
       case "audioEnv":
-        this.envIn(f.timestamp, f.samples, f.talkers, f.envelopes);
+        this.envIn(side, f.timestamp, f.samples, f.talkers, f.envelopes);
         break;
       case "event":
         if (f.code === EventCode.battery && f.value <= 100) this.battery[ear] = f.value;
@@ -178,33 +306,42 @@ export class PhoneSession {
 
   /**
    * Into the side's series, where frames lost on the air become NaN for
-   * exactly the samples lost (the decoder and the detector bridge them), then
-   * onto the phone's clock, where the aligner pairs left with right by time.
+   * exactly the samples lost, then onto the phone's clock and into the ear's
+   * queue for the grid.
    */
   private eegIn(side: Side, f: EegFrame) {
     let stream = this.streams.get(side);
     if (!stream) {
-      const h = this.hello.get(side) ?? { fs: this.fs, channels: f.channels, nv: 22.35 };
+      const h = this.hello.get(side) ?? { fs: this.rate, channels: f.channels, nv: 22.35 };
       stream = new EegStream(h.fs, h.channels, h.nv);
       this.streams.set(side, stream);
     }
     const chunk = stream.push(f);
     if (!chunk) return;
-    let sync = this.sync.get(side);
+    // A series that restarts (its clock stepped back without a HELLO) needs a fresh clock map.
+    let sync = chunk.restart ? undefined : this.sync.get(side);
     if (!sync) {
       sync = new ClockSync();
       this.sync.set(side, sync);
     }
     const n = chunk.data[0]?.length ?? 0;
-    sync.observe(chunk.time + ((n - 1) * 1e6) / stream.fs, this.now());
-    const host = sync.toHost(chunk.time);
+    const period = 1e6 / stream.fs;
+    sync.observe(chunk.time + (n - 1) * period, this.now());
     const ears: [Ear, number][] = side === "single" ? [["left", 0], ["right", this.perEar]] : [[side === "right" ? "right" : "left", 0]];
     for (const [ear, offset] of ears) {
-      const data = chunk.data.slice(offset, offset + this.perEar);
-      this.aligner.push(ear, host, data);
+      const q = this.queue[ear];
       const sample = new Array<number>(this.perEar);
       for (let s = 0; s < n; s++) {
-        for (let c = 0; c < this.perEar; c++) sample[c] = data[c]?.[s] ?? NaN;
+        const t = sync.toHost(chunk.time + s * period);
+        const values = new Float32Array(this.perEar);
+        for (let c = 0; c < this.perEar; c++) {
+          const v = chunk.data[offset + c]?.[s] ?? NaN;
+          values[c] = v;
+          sample[c] = v;
+        }
+        q.push(t, values);
+        if (t > this.latest) this.latest = t;
+        if (this.t0 === null) this.t0 = t;
         for (const cb of this.tapListeners) cb(ear, sample);
       }
       this.arrivals[ear].push(this.now(), f.samples);
@@ -212,71 +349,139 @@ export class PhoneSession {
     }
   }
 
-  private envIn(timestamp: number, samples: number, talkers: number, values: Uint16Array) {
-    const d = this.decoder;
-    if (!d) return;
-    // The same rule for the voices' envelopes, at 64 Hz on the sending earbud's clock.
-    if (this.envPrev) {
-      const elapsed = (timestamp - this.envPrev.device + 2 ** 32) % 2 ** 32;
-      const missing = Math.round((elapsed * d.fs) / 1e6) - this.envPrev.samples;
-      if (missing > 1) for (let i = 0; i < missing; i++) for (let t = 0; t < d.talkers; t++) d.pushEnvelope(t, NaN);
+  /**
+   * The voices' envelopes onto the timeline: each sample's device time,
+   * through the sending earbud's clock map, gives its place at the decoder's
+   * rate. A place already filled (a duplicate, or the other earbud sending
+   * the same moment) is skipped; a hole is NaN, which the decoder bridges.
+   */
+  private envIn(side: Side, timestamp: number, samples: number, talkers: number, values: Uint16Array) {
+    const d = this.dec;
+    const sync = this.sync.get(side);
+    if (!d || !sync || this.t0 === null) return;
+    let clock = this.envClock.get(side);
+    if (!clock) {
+      clock = new ClockUnwrap();
+      this.envClock.set(side, clock);
     }
-    this.envPrev = { device: timestamp, samples };
+    const start = clock.push(timestamp);
+    const period = 1e6 / d.fs;
     for (let s = 0; s < samples; s++) {
-      for (let t = 0; t < Math.min(d.talkers, talkers); t++) d.pushEnvelope(t, values[s * talkers + t]);
+      const place = Math.round(((sync.toHost(start + s * period) - this.t0) * d.fs) / 1000);
+      const have = d.envelopeCount(0);
+      if (place < have) continue;
+      if (place - have > MAX_PAD_S * d.fs) {
+        // Far ahead of anything the decoder holds: start the decoder over on the current timeline.
+        this.restartDecoder();
+        return;
+      }
+      for (let i = have; i < place; i++) for (let k = 0; k < d.talkers; k++) d.pushEnvelope(k, NaN);
+      for (let k = 0; k < d.talkers; k++) d.pushEnvelope(k, k < talkers ? values[s * talkers + k] : NaN);
+    }
+  }
+
+  /** A fresh decoder whose sample 0 is the next tick, for EEG and envelopes alike. */
+  private restartDecoder() {
+    if (!this.dec || !this.model || this.t0 === null) return;
+    this.dec = new AttentionDecoder(this.model, this.azimuths.length, { historySeconds: 30 });
+    this.t0 += (this.tick * 1000) / this.rate;
+    this.tick = 0;
+    this.processed = 0;
+  }
+
+  /**
+   * Reads the grid out up to where both ears have spoken, or where the
+   * quieter one has been waited for long enough. Each tick takes from each
+   * ear the sample within half a period of it; older samples are too late.
+   */
+  private readOut() {
+    if (this.t0 === null) return;
+    const period = 1000 / this.rate;
+    const half = period / 2;
+    const p = this.perEar;
+    const L = this.queue.left;
+    const R = this.queue.right;
+    for (;;) {
+      const t = this.t0 + this.tick * period;
+      // Drop what is too late for this tick.
+      let dl = 0;
+      while (dl < L.length && L.time(dl) < t - half) dl++;
+      if (dl) L.shift(dl);
+      let dr = 0;
+      while (dr < R.length && R.time(dr) < t - half) dr++;
+      if (dr) R.shift(dr);
+      // Ready when each ear has something at or past this tick, or has been waited for long enough.
+      const lReady = L.length > 0 || this.latest - t >= WAIT_MS;
+      const rReady = R.length > 0 || this.latest - t >= WAIT_MS;
+      if (!lReady || !rReady || this.latest < t) break;
+      const lHit = L.length > 0 && L.time(0) <= t + half;
+      const rHit = R.length > 0 && R.time(0) <= t + half;
+      const lv = lHit ? L.value(0) : null;
+      const rv = rHit ? R.value(0) : null;
+      for (let c = 0; c < p; c++) {
+        this.frame[c] = lv ? lv[c] : NaN;
+        this.frame[p + c] = rv ? rv[c] : NaN;
+      }
+      if (lHit) L.shift(1);
+      if (rHit) R.shift(1);
+      this.tick++;
+      this.step();
     }
   }
 
   /**
-   * Every instant the aligner can pair goes through the decoder, which
-   * bridges an ear that has nothing there and keeps its timeline.
+   * One tick through the decoder, which bridges an ear that has nothing
+   * there, and through the clench detector.
    *
-   * The clench detector only sees instants where the ears it listens to have
-   * signal: an ear that is missing would teach it a flat noise floor, and the
-   * next real signal would read as a clench that never ends. With both ears
-   * it needs both to agree. When one ear has been gone for two seconds (one
-   * earbud in, or the other out of range), a detector on the remaining ear
-   * alone takes over, at a stricter threshold; when both are back, the usual
-   * one does again. Each starts by learning the background afresh.
+   * The detector needs both ears to agree, and bridges a short gap itself.
+   * An ear missing for longer than BRIDGE_S pauses it: a flat line would
+   * teach it a floor of nothing, and the next real signal would read as a
+   * clench that never ends. When one ear has mostly gone (one earbud in, or
+   * the other out of range), a detector on the remaining ear alone takes
+   * over, at a stricter threshold; when both are present again, the usual
+   * one does. Each starts by learning the background afresh.
    */
-  private pair() {
+  private step() {
+    this.dec?.pushRaw(this.frame);
+    this.processed++;
     const p = this.perEar;
-    const live = (from: number) => {
+    const has = (from: number) => {
       for (let c = from; c < from + p; c++) if (Number.isFinite(this.frame[c])) return true;
       return false;
     };
-    const gone = ONE_EAR_AFTER_S * this.fs;
-    for (const sample of this.aligner.pull()) {
-      for (let c = 0; c < this.frame.length; c++) this.frame[c] = sample.values[c] ?? NaN;
-      this.decoder?.pushRaw(this.frame);
-      this.processed++;
-      const l = live(0);
-      const r = live(p);
-      if (l) this.lastLive.left = this.processed;
-      if (r) this.lastLive.right = this.processed;
-      const mode: ClenchMode | null =
-        l && r ? "both" : l && this.processed - this.lastLive.right > gone ? "left" : r && this.processed - this.lastLive.left > gone ? "right" : null;
-      if (!mode) continue;
-      if (mode !== this.mode) {
-        this.detectors[mode].reset();
-        this.mode = mode;
-        this.fed = 0;
-      }
-      const e = this.detectors[mode].push(this.frame);
-      this.fed++;
-      if (!e) continue;
-      const latencyMs = Math.round((this.fed / this.fs - e.time) * 1000);
-      for (const cb of this.listeners) cb(e, { latencyMs });
+    const cl = this.coverage.left;
+    const cr = this.coverage.right;
+    cl.push(has(0));
+    cr.push(has(p));
+    if (!cl.judged || !cr.judged) return;
+    const lp = cl.share >= PRESENT;
+    const rp = cr.share >= PRESENT;
+    const next: ClenchMode | null =
+      lp && rp ? "both" : lp && cr.share <= GONE ? "left" : rp && cl.share <= GONE ? "right" : this.mode;
+    if (!next) return;
+    if (next !== this.mode) {
+      this.detectors[next].reset();
+      this.mode = next;
+      this.fed = 0;
     }
+    const bridge = BRIDGE_S * this.rate;
+    const blocked = next === "both" ? cl.missingRun > bridge || cr.missingRun > bridge : (next === "left" ? cl : cr).missingRun > bridge;
+    if (blocked) return;
+    const e = this.detectors[next].push(this.frame);
+    this.fed++;
+    if (!e) return;
+    const latencyMs = Math.round((this.fed / this.rate - e.time) * 1000);
+    for (const cb of this.listeners) cb(e, { latencyMs });
   }
 
   /**
-   * Head yaw from whichever motion sensors report, averaged on the circle:
-   * left at 179 degrees and right at -179 is the head turned all the way
-   * round, not straight ahead.
+   * Head yaw from whichever motion sensors reported lately, averaged on the
+   * circle: left at 179 degrees and right at -179 is the head turned all the
+   * way round, not straight ahead.
    */
   get yaw(): number | null {
-    const ys = [this.head.left, this.head.right].filter((y): y is number => y !== undefined);
+    const now = this.now();
+    const ys = [this.head.left, this.head.right].filter((h): h is { yaw: number; at: number } => !!h && now - h.at <= YAW_STALE_MS).map((h) => h.yaw);
     if (!ys.length) return null;
     const r = Math.PI / 180;
     const x = ys.reduce((a, y) => a + Math.cos(y * r), 0);
@@ -299,24 +504,28 @@ export class PhoneSession {
       const driftPpm = !sync || sync.driftPpm === 0 ? null : sync.driftPpm;
       return { frames: st.frames, lost: st.lost, rate: Math.round((n * 1000) / RATE_WINDOW_MS), driftPpm, battery: this.battery[e], leadOff: this.leadOff[e] };
     };
-    const d = this.decoder?.decide(DECIDE_S) ?? null;
+    const d = this.dec?.decide(DECIDE_S) ?? null;
     const eeg = d ? { talker: d.talker, margin: d.margin } : null;
     const yaw = this.yaw;
     const posterior = fuseAttention({ azimuthsDeg: this.azimuths, yawDeg: yaw ?? undefined, eeg });
-    return { ears: { left: ear("left"), right: ear("right") }, yaw, eeg, posterior, clench: this.mode };
+    return { ears: { left: ear("left"), right: ear("right") }, yaw, eeg, posterior, clench: this.mode, warning: this.warn };
   }
 
   /**
    * The STEER command for a posterior: bring the likeliest voice forward, by
-   * up to maxGainDb as the posterior grows from even to certain. Written to
-   * every earbud ("single" in the header).
+   * up to maxGainDb as the posterior grows from even to certain. STEER is
+   * relative to the head, so the voice's place in the room is turned by the
+   * head's yaw. Written to every earbud ("single" in the header).
    */
   steer(posterior: number[], maxGainDb = 9): Uint8Array {
     let best = 0;
     for (let i = 1; i < posterior.length; i++) if (posterior[i] > posterior[best]) best = i;
     const even = 1 / posterior.length;
-    const confidence = Math.max(0, (posterior[best] - even) / (1 - even));
+    // With one voice there is nothing to bring forward over another.
+    const confidence = posterior.length > 1 ? Math.max(0, (posterior[best] - even) / (1 - even)) : 0;
     const gainDb = Math.round(confidence * maxGainDb * 10) / 10;
-    return encodeCommand({ op: "steer", azimuthDeg: this.azimuths[best], gainDb }, { side: "single" });
+    const yaw = this.yaw ?? 0;
+    const relative = ((((this.azimuths[best] ?? 0) - yaw + 180) % 360) + 360) % 360 - 180;
+    return encodeCommand({ op: "steer", azimuthDeg: Math.round(relative * 10) / 10, gainDb }, { side: "single" });
   }
 }

@@ -495,6 +495,10 @@ export class SignaliveSensorProvider implements SensorProvider {
     if (!prev || f.flags & Flag.streamStart || prev.eegRate !== f.eegRate || prev.labels.length !== f.labels.length) {
       ear.eeg = new EegStream(f.eegRate, f.labels.length, f.nvPerLsb);
       ear.next = NaN;
+      // A new stream may come with a new clock (the earbud rebooted): the
+      // old unwrap and clock map would place its samples far in the past.
+      ear.unwrap = new ClockUnwrap();
+      ear.sync = new ClockSync();
     }
     ear.state = {
       ...ear.state,

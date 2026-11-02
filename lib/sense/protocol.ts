@@ -900,6 +900,8 @@ export class EarAligner {
   private readonly t: [number[], number[]] = [[], []];
   private readonly v: [number[][], number[][]] = [[], []];
   private latest = -Infinity;
+  /** The last instant sent out; anything at or before it is too late to pair. */
+  private lastOut = -Infinity;
   private readonly period: number;
 
   constructor(
@@ -916,7 +918,12 @@ export class EarAligner {
     const e = ear === "left" ? 0 : 1;
     const n = data[0]?.length ?? 0;
     for (let s = 0; s < n; s++) {
-      this.t[e].push(hostMs + s * this.period);
+      const t = hostMs + s * this.period;
+      // A backlog arriving after its instants were sent out alone: sending
+      // it again would add instants that never happened and shift every
+      // later one, so it is dropped.
+      if (t <= this.lastOut + this.period / 2) continue;
+      this.t[e].push(t);
       this.v[e].push(Array.from({ length: this.channels[e] }, (_, c) => data[c]?.[s] ?? NaN));
     }
     this.latest = Math.max(this.latest, hostMs + (n - 1) * this.period);
@@ -954,6 +961,7 @@ export class EarAligner {
     this.v[0].splice(0, i);
     tr.splice(0, j);
     this.v[1].splice(0, j);
+    if (out.length) this.lastOut = Math.max(this.lastOut, out[out.length - 1].time);
     return out;
   }
 }
