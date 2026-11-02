@@ -187,6 +187,16 @@ describe("PhoneSession keeps the clench through a bad link", () => {
     expect(clenches((_b, side, t) => side !== "right" || t % 5000 < 2500).kinds).toEqual(["single", "double", "hold"]);
   });
 
+  it("with the link going on and off at any phase of the clench", () => {
+    // A handover between detectors can land anywhere in a gesture: slide the on and off pattern across it.
+    const missed: number[] = [];
+    for (let step = 0; step < 20; step++) {
+      const r = clenches((_b, side, t) => side !== "right" || (t + step * 250) % 5000 < 2500);
+      if (r.kinds.join() !== "single,double,hold") missed.push(step);
+    }
+    expect(missed).toEqual([]);
+  });
+
   it("with 97% of the right earbud's frames lost, on the left ear alone", () => {
     const r = clenches((_b, side) => side !== "right" || rand() > 0.97);
     expect(r.mode).toBe("left");

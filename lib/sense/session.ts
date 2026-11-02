@@ -23,7 +23,7 @@
 import { ClenchDetector, type ClenchEvent } from "./clench";
 import { AttentionDecoder, type DecoderModel } from "./decoder";
 import { fuseAttention } from "./fusion";
-import { ClockSync, EegStream, EventCode, Flag, QUAT_ONE, SspDecoder, encodeCommand, yawDeg, type EegFrame, type Side, type SspFrame } from "./protocol";
+import { ClockSync, EegStream, EventCode, Flag, QUAT_ONE, SspDecoder, encodeCommand, yawDeg, type EegFrame, type ImuFrame, type Side, type SspFrame } from "./protocol";
 
 export type Ear = "left" | "right";
 
@@ -53,6 +53,33 @@ export interface EarStats {
   battery: number | null;
   /** Bit i set while electrode i has lost contact. */
   leadOff: number;
+}
+
+/** What one earbud (or a dev kit carrying both ears) has said about itself. */
+export interface EarbudInfo {
+  /** Its electrodes' names, in the order it sends them. */
+  labels: string[];
+  /** Its EEG and motion sensor rates as its HELLO announced them, Hz; imuRate is 0 without a motion sensor. */
+  eegRate: number;
+  imuRate: number;
+  /** Its frames are made by an emulator, such as the digital twin, never by hardware. */
+  simulated: boolean;
+  /** Percent; null when not reported. */
+  battery: number | null;
+  /** In the ear, from its last wear EVENT; null until it sends one. */
+  worn: boolean | null;
+  /** Bit i set while its electrode i has lost contact; null until it reports lead off at all. */
+  leadOff: number | null;
+}
+
+/** What onClench says about a clench besides the clench itself. */
+export interface ClenchInfo {
+  /** How long after the jaw activity began it was reported. */
+  latencyMs: number;
+  /** Which ears the detector that found it listens to. */
+  ears: ClenchMode;
+  /** That detector's threshold, as a multiple of the background (ClenchDetector.k): higher for one ear alone. */
+  k: number;
 }
 
 export interface SessionSnapshot {
@@ -97,6 +124,8 @@ const ENV_FAILOVER_MS = 2000;
 const MIN_FS = 250;
 /** A clock that steps back further than this restarted; less is a frame delivered out of order. */
 const CLOCK_RESTART_US = 1e6;
+/** How far back each detector's frames keep their phone times: past the longest gesture. */
+const FEED_TIMES_S = 10;
 const RATE_WINDOW_MS = 2000;
 
 /** One ear's samples on the phone's clock, waiting to be read out on the grid. */
@@ -174,6 +203,10 @@ export class PhoneSession {
   private detectors!: Record<ClenchMode, ClenchDetector>;
   /** Frames each detector has seen: its own timeline. */
   private fed: Record<ClenchMode, number> = { both: 0, left: 0, right: 0 };
+  /** Phone time of each frame each detector has seen, recent ones: turns its timeline back into the phone's. */
+  private feedTimes!: Record<ClenchMode, Float64Array>;
+  /** When the last clench was reported, phone ms: a gesture that began before it is that same gesture, seen again. */
+  private lastReport = -Infinity;
   /** The detector that speaks for the earbuds now. */
   private mode: ClenchMode | null = null;
   private coverage!: Record<Ear, Coverage>;
@@ -211,9 +244,15 @@ export class PhoneSession {
   private readonly battery: Record<Ear, number | null> = { left: null, right: null };
   private readonly leadOff: Record<Ear, number> = { left: 0, right: 0 };
   private readonly head: Partial<Record<Ear, { yaw: number; at: number }>> = {};
+  /** What each earbud announced in its latest HELLO, by the side it named. */
+  private readonly devices = new Map<Side, { labels: string[]; eegRate: number; imuRate: number; simulated: boolean }>();
+  /** Each side's wear and lead off, as it last reported them. */
+  private readonly worn = new Map<Side, boolean>();
+  private readonly contact = new Map<Side, number>();
   private readonly frame: Float64Array;
-  private readonly listeners = new Set<(e: ClenchEvent, info: { latencyMs: number }) => void>();
-  private readonly tapListeners = new Set<(ear: Ear, uv: number[]) => void>();
+  private readonly listeners = new Set<(e: ClenchEvent, info: ClenchInfo) => void>();
+  private readonly tapListeners = new Set<(ear: Ear, uv: number[], t: number) => void>();
+  private readonly motionListeners = new Set<(ear: Ear, yaw: number[], t: number) => void>();
   /** Ticks read out so far: the decoder's and the detector's shared clock, at fs. */
   processed = 0;
 
@@ -255,6 +294,8 @@ export class PhoneSession {
       right: new ClenchDetector({ fs, left: right, right, k: ONE_EAR_K }),
     };
     this.fed = { both: 0, left: 0, right: 0 };
+    const keep = Math.round(FEED_TIMES_S * fs);
+    this.feedTimes = { both: new Float64Array(keep), left: new Float64Array(keep), right: new Float64Array(keep) };
     this.rate = fs;
     this.warn = null;
     const size = Math.round(COVERAGE_S * fs);
@@ -268,17 +309,32 @@ export class PhoneSession {
 
   /**
    * Clenches as the detector finds them in the raw signal, with how long after
-   * the jaw activity began it was reported, on the detector's own timeline.
+   * the jaw activity began it was reported, on the detector's own timeline,
+   * and which detector found it.
    */
-  onClench(cb: (e: ClenchEvent, info: { latencyMs: number }) => void): () => void {
+  onClench(cb: (e: ClenchEvent, info: ClenchInfo) => void): () => void {
     this.listeners.add(cb);
     return () => this.listeners.delete(cb);
   }
 
-  /** Every EEG sample as it arrives, per ear, in microvolts: for drawing. */
-  onSamples(cb: (ear: Ear, uv: number[]) => void): () => void {
+  /**
+   * Every EEG sample as it arrives, per ear, in microvolts, with its time on
+   * the phone's clock in ms: for drawing. The array is reused from one sample
+   * to the next, so copy what you keep.
+   */
+  onSamples(cb: (ear: Ear, uv: number[], t: number) => void): () => void {
     this.tapListeners.add(cb);
     return () => this.tapListeners.delete(cb);
+  }
+
+  /**
+   * Every motion sensor frame as it arrives, per ear: the head's yaw at each
+   * of its samples, degrees, positive to the right, and the phone time of the
+   * first in ms. yaw already includes it when this is called.
+   */
+  onMotion(cb: (ear: Ear, yaw: number[], t: number) => void): () => void {
+    this.motionListeners.add(cb);
+    return () => this.motionListeners.delete(cb);
   }
 
   /** Bytes from one earbud, any chunking. A dev kit carrying both ears ("single") is split down the middle. */
@@ -295,6 +351,7 @@ export class PhoneSession {
         const fs = f.eegRate || this.rate;
         this.hello.set(side, { fs, channels: f.labels.length, nv: f.nvPerLsb });
         this.announced.set(side, fs);
+        this.devices.set(side, { labels: [...f.labels], eegRate: fs, imuRate: f.imuRate, simulated: (f.flags & Flag.simulated) !== 0 });
         // The earbuds decide their rate. Before any EEG everything is rebuilt
         // for it, if both agree and the clench detector can work at it;
         // otherwise the session says so rather than guessing.
@@ -323,6 +380,7 @@ export class PhoneSession {
         const v = f.values;
         const o = (f.samples - 1) * 10;
         this.head[ear] = { yaw: yawDeg(v[o + 6] / QUAT_ONE, v[o + 7] / QUAT_ONE, v[o + 8] / QUAT_ONE, v[o + 9] / QUAT_ONE), at: this.now() };
+        if (this.motionListeners.size) this.motionIn(side, f);
         break;
       }
       case "audioEnv":
@@ -330,7 +388,11 @@ export class PhoneSession {
         break;
       case "event":
         if (f.code === EventCode.battery && f.value <= 100) this.battery[ear] = f.value;
-        if (f.code === EventCode.leadOff) this.leadOff[ear] = f.value;
+        if (f.code === EventCode.leadOff) {
+          this.leadOff[ear] = f.value;
+          this.contact.set(side, f.value);
+        }
+        if (f.code === EventCode.wear) this.worn.set(side, f.value === 1);
         break;
       default:
         break;
@@ -382,11 +444,26 @@ export class PhoneSession {
         if (t > this.latest) this.latest = t;
         if (t > this.heard[ear]) this.heard[ear] = t;
         if (this.t0 === null) this.t0 = t;
-        for (const cb of this.tapListeners) cb(ear, sample);
+        for (const cb of this.tapListeners) cb(ear, sample, t);
       }
       this.arrivals[ear].push(this.now(), f.samples);
       if (this.arrivals[ear].length > 600) this.arrivals[ear].splice(0, 200);
     }
+  }
+
+  /**
+   * A motion frame for whoever follows the head: each sample's yaw, timed on
+   * the phone's clock through that earbud's clock map once its EEG has given
+   * it one (unwrapped against its EEG, as envelopes are), else by arrival.
+   */
+  private motionIn(side: Side, f: ImuFrame) {
+    const ear: Ear = side === "right" ? "right" : "left";
+    const v = f.values;
+    const yaw = Array.from({ length: f.samples }, (_, i) => yawDeg(v[i * 10 + 6] / QUAT_ONE, v[i * 10 + 7] / QUAT_ONE, v[i * 10 + 8] / QUAT_ONE, v[i * 10 + 9] / QUAT_ONE));
+    const sync = this.sync.get(side);
+    const ref = this.eegDevice.get(side);
+    const t = sync && ref !== undefined ? sync.toHost(f.timestamp + Math.round((ref - f.timestamp) / 2 ** 32) * 2 ** 32) : this.now();
+    for (const cb of this.motionListeners) cb(ear, yaw, t);
   }
 
   /**
@@ -541,9 +618,13 @@ export class PhoneSession {
     const leftOk = !this.away.left;
     const rightOk = !this.away.right;
     const events: Partial<Record<ClenchMode, ClenchEvent>> = {};
+    const fedNow: Partial<Record<ClenchMode, boolean>> = {};
     const feed = (mode: ClenchMode) => {
+      const times = this.feedTimes[mode];
+      times[this.fed[mode] % times.length] = tickTime;
       const e = this.detectors[mode].push(this.frame);
       this.fed[mode]++;
+      fedNow[mode] = true;
       if (e) events[mode] = e;
     };
     if (leftOk && rightOk) feed("both");
@@ -553,13 +634,30 @@ export class PhoneSession {
     const lp = cl.judged && cl.share >= PRESENT && leftOk;
     const rp = cr.judged && cr.share >= PRESENT && rightOk;
     const d = this.detectors;
-    this.mode = lp && rp && d.both.ready ? "both" : lp && d.left.ready ? "left" : rp && d.right.ready ? "right" : null;
-    const e = this.mode ? events[this.mode] : undefined;
-    if (!e || !this.mode) return;
+    const next: ClenchMode | null = lp && rp && d.both.ready ? "both" : lp && d.left.ready ? "left" : rp && d.right.ready ? "right" : null;
+    // A gesture already under way finishes on the detector that heard it
+    // start, as long as that detector is still being fed: handing over in
+    // the middle would lose it, or split a double into two singles.
+    const finishing = this.mode !== null && next !== this.mode && fedNow[this.mode] && d[this.mode].busy;
+    // This tick's report comes from whoever spoke as it began, so a gesture
+    // that completes on the very tick of a handover is not lost.
+    const was = this.mode;
+    if (!finishing) this.mode = next;
+    const source = was && events[was] ? was : this.mode && events[this.mode] ? this.mode : null;
+    const e = source ? events[source] : undefined;
+    if (!e || !source) return;
+    // A detector that joined late may report the tail of a gesture another
+    // one already reported: if it began before that report, it is the same
+    // gesture, seen again.
+    const times = this.feedTimes[source];
+    const onsetIndex = Math.round(e.time * this.rate);
+    const onset = this.fed[source] - onsetIndex <= times.length ? times[onsetIndex % times.length] : -Infinity;
+    if (onset < this.lastReport) return;
+    this.lastReport = tickTime;
     // Reported on the detector's own timeline, plus how far the read out trails the phone's clock.
     const lag = Math.max(0, this.now() - tickTime);
-    const latencyMs = Math.round((this.fed[this.mode] / this.rate - e.time) * 1000 + lag);
-    for (const cb of this.listeners) cb(e, { latencyMs });
+    const latencyMs = Math.round((this.fed[source] / this.rate - e.time) * 1000 + lag);
+    for (const cb of this.listeners) cb(e, { latencyMs, ears: source, k: this.detectors[source].k });
   }
 
   /**
@@ -575,6 +673,25 @@ export class PhoneSession {
     const x = ys.reduce((a, y) => a + Math.cos(y * r), 0);
     const y = ys.reduce((a, d) => a + Math.sin(d * r), 0);
     return Math.atan2(y, x) / r;
+  }
+
+  /**
+   * Each earbud that has said hello, by the side it named ("single" for a
+   * dev kit carrying both ears): what its HELLO announced, and the battery,
+   * wear and lead off it last reported.
+   */
+  get earbuds(): Partial<Record<Side, EarbudInfo>> {
+    const out: Partial<Record<Side, EarbudInfo>> = {};
+    for (const [side, d] of this.devices) {
+      out[side] = {
+        ...d,
+        labels: [...d.labels],
+        battery: this.battery[side === "right" ? "right" : "left"],
+        worn: this.worn.get(side) ?? null,
+        leadOff: this.contact.get(side) ?? null,
+      };
+    }
+    return out;
   }
 
   snapshot(): SessionSnapshot {

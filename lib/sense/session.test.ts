@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { ClenchEvent } from "./clench";
-import { decodeCommand, encodeCommand } from "./protocol";
-import { PhoneSession } from "./session";
+import { EventCode, Flag, decodeCommand, encodeCommand, encodeFrame, type FrameBody, type Side, type SspFrame } from "./protocol";
+import { PhoneSession, type Ear } from "./session";
 import { DigitalTwin, manualClock, type TwinOptions, type TwinRecording } from "./twin";
 
 /**
@@ -142,5 +142,71 @@ describe("PhoneSession", () => {
     twin.clench("double");
     run(2000);
     expect(events.map((e) => e.kind)).toEqual(["single", "double"]);
+  });
+
+  it("says which ears found each clench, and at what threshold", () => {
+    const { twin, session, run } = setup();
+    const found: { kind: string; ears: string; k: number }[] = [];
+    session.onClench((e, { ears, k }) => found.push({ kind: e.kind, ears, k }));
+    run(3000);
+    twin.clench("single");
+    run(1500);
+    twin.command("right", encodeCommand({ op: "stop" }, { side: "right" }));
+    run(3000);
+    twin.clench("single");
+    run(1500);
+    expect(found).toEqual([
+      { kind: "single", ears: "both", k: 4 },
+      { kind: "single", ears: "left", k: 5 },
+    ]);
+  });
+
+  it("says what each earbud announced and reported about itself", () => {
+    const { session, run } = setup();
+    run(500);
+    expect(session.earbuds).toEqual({
+      left: { labels: ["L1", "L2", "L3", "L4"], eegRate: FS, imuRate: 100, simulated: true, battery: 88, worn: true, leadOff: null },
+      right: { labels: ["R1", "R2", "R3", "R4"], eegRate: FS, imuRate: 100, simulated: true, battery: 91, worn: true, leadOff: null },
+    });
+
+    // A dev kit is one device carrying both ears, listed once, as it named itself.
+    const kit = new PhoneSession({ fs: 250, perEar: 4, now: () => 0 });
+    const send = (seq: number, body: FrameBody, side: Side = "single") =>
+      kit.bytes(encodeFrame({ ...body, side, seq, timestamp: seq * 4000, flags: seq === 0 ? Flag.streamStart : 0 } as SspFrame), side);
+    const labels = ["L1", "L2", "L3", "L4", "R1", "R2", "R3", "R4"];
+    send(0, { type: "hello", firmware: [0, 0, 0], deviceId: "0011223344556677", labels, eegRate: 250, nvPerLsb: 22.35, imuRate: 0, battery: 255 });
+    expect(kit.earbuds).toEqual({ single: { labels, eegRate: 250, imuRate: 0, simulated: false, battery: null, worn: null, leadOff: null } });
+    send(1, { type: "event", code: EventCode.leadOff, value: 0b101 });
+    send(2, { type: "event", code: EventCode.wear, value: 0 });
+    send(3, { type: "event", code: EventCode.battery, value: 40 });
+    expect(kit.earbuds.single).toMatchObject({ battery: 40, worn: false, leadOff: 5 });
+  });
+
+  it("gives every sample and motion frame its time on the phone's clock", () => {
+    const { twin, session, run } = setup();
+    const times: Record<Ear, number[]> = { left: [], right: [] };
+    session.onSamples((ear, _uv, t) => times[ear].push(t));
+    const motion: { ear: Ear; yaw: number[]; t: number; fused: number | null }[] = [];
+    session.onMotion((ear, yaw, t) => motion.push({ ear, yaw, t, fused: session.yaw }));
+    run(1000);
+    twin.setYaw(30);
+    run(1000);
+    for (const ear of ["left", "right"] as const) {
+      const t = times[ear];
+      expect(t.length).toBeGreaterThan(950);
+      // One sample every 2 ms, the newest a frame or so behind the phone.
+      expect((t[t.length - 1] - t[0]) / (t.length - 1)).toBeCloseTo(2, 1);
+      expect(twin.time - t[t.length - 1]).toBeGreaterThanOrEqual(0);
+      expect(twin.time - t[t.length - 1]).toBeLessThan(40);
+    }
+    // Five samples a frame, 20 frames a second from each ear, timed at the frame's first sample.
+    expect(motion.filter((m) => m.ear === "right").length).toBeGreaterThan(35);
+    const last = motion[motion.length - 1];
+    expect(last.yaw).toHaveLength(5);
+    expect(twin.time - last.t).toBeGreaterThan(0);
+    expect(twin.time - last.t).toBeLessThan(100);
+    expect(last.yaw[4]).toBeCloseTo(30, 0);
+    // The session's yaw already includes the frame being handed over.
+    expect(last.fused).toBeCloseTo(30, 0);
   });
 });

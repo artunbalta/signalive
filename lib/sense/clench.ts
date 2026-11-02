@@ -193,6 +193,11 @@ export class ClenchDetector {
     return this.floorReady;
   }
 
+  /** True while a gesture is under way: a burst, or a single still waiting to rule out a double. */
+  get busy(): boolean {
+    return this.phase !== IDLE || this.pendingOnset >= 0 || this.queue.length > 0;
+  }
+
   /** Current RMS over the noise floor, left and right; zeros until ready. */
   get levels(): [number, number] {
     return this.floorReady ? [this.rmsL / this.floorL, this.rmsR / this.floorR] : [0, 0];
