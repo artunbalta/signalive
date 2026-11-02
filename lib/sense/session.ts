@@ -51,10 +51,19 @@ export interface SessionSnapshot {
   eeg: { talker: number; margin: number } | null;
   /** Probability per voice that it is the attended one, head and EEG together. */
   posterior: number[];
+  /** Which ears clench detection uses now; null before any ear has signal. */
+  clench: ClenchMode | null;
 }
 
 /** Seconds of EEG and envelope behind each attention verdict. */
 const DECIDE_S = 10;
+/** An ear missing this long hands the clench over to the other ear alone. */
+const ONE_EAR_AFTER_S = 2;
+/** One ear alone needs more margin: no other side can veto a touch on that earbud. */
+const ONE_EAR_K = 5;
+
+/** Which ears the clench detector is listening to. */
+export type ClenchMode = "both" | "left" | "right";
 const RATE_WINDOW_MS = 2000;
 
 export class PhoneSession {
@@ -62,7 +71,13 @@ export class PhoneSession {
   readonly perEar: number;
   readonly azimuths: number[];
   readonly decoder: AttentionDecoder | null;
+  /** Both ears' detector: the usual one. */
   readonly clench: ClenchDetector;
+  /** One per mode; a one eared detector sees that ear's electrodes on both of its sides. */
+  private readonly detectors: Record<ClenchMode, ClenchDetector>;
+  private mode: ClenchMode | null = null;
+  /** The last paired instant each ear had signal, in paired samples. */
+  private readonly lastLive: Record<Ear, number> = { left: -Infinity, right: -Infinity };
 
   private readonly now: () => number;
   private readonly ssp: Record<Ear, SspDecoder> = { left: new SspDecoder(), right: new SspDecoder() };
@@ -80,7 +95,7 @@ export class PhoneSession {
   private readonly head: Partial<Record<Ear, number>> = {};
   private readonly frame: Float64Array;
   private readonly listeners = new Set<(e: ClenchEvent, info: { latencyMs: number }) => void>();
-  /** Frames the clench detector has seen: its own timeline, which skips one eared instants. */
+  /** Frames the current clench detector has seen: its own timeline. */
   private fed = 0;
   private readonly tapListeners = new Set<(ear: Ear, uv: number[]) => void>();
   /** Paired samples processed so far. */
@@ -97,6 +112,11 @@ export class PhoneSession {
     const left = Array.from({ length: opts.perEar }, (_, i) => i);
     const right = Array.from({ length: opts.perEar }, (_, i) => opts.perEar + i);
     this.clench = new ClenchDetector({ fs: opts.fs, left, right });
+    this.detectors = {
+      both: this.clench,
+      left: new ClenchDetector({ fs: opts.fs, left, right: left, k: ONE_EAR_K }),
+      right: new ClenchDetector({ fs: opts.fs, left: right, right, k: ONE_EAR_K }),
+    };
   }
 
   /**
@@ -209,11 +229,15 @@ export class PhoneSession {
 
   /**
    * Every instant the aligner can pair goes through the decoder, which
-   * bridges an ear that has nothing there and keeps its timeline. The clench
-   * detector only sees instants where both ears have signal: a clench needs
-   * both anyway, and an ear that is missing (not yet connected, or out of
-   * range) would otherwise teach it a flat noise floor, and the next real
-   * signal would read as a clench that never ends.
+   * bridges an ear that has nothing there and keeps its timeline.
+   *
+   * The clench detector only sees instants where the ears it listens to have
+   * signal: an ear that is missing would teach it a flat noise floor, and the
+   * next real signal would read as a clench that never ends. With both ears
+   * it needs both to agree. When one ear has been gone for two seconds (one
+   * earbud in, or the other out of range), a detector on the remaining ear
+   * alone takes over, at a stricter threshold; when both are back, the usual
+   * one does again. Each starts by learning the background afresh.
    */
   private pair() {
     const p = this.perEar;
@@ -221,12 +245,24 @@ export class PhoneSession {
       for (let c = from; c < from + p; c++) if (Number.isFinite(this.frame[c])) return true;
       return false;
     };
+    const gone = ONE_EAR_AFTER_S * this.fs;
     for (const sample of this.aligner.pull()) {
       for (let c = 0; c < this.frame.length; c++) this.frame[c] = sample.values[c] ?? NaN;
       this.decoder?.pushRaw(this.frame);
       this.processed++;
-      if (!live(0) || !live(p)) continue;
-      const e = this.clench.push(this.frame);
+      const l = live(0);
+      const r = live(p);
+      if (l) this.lastLive.left = this.processed;
+      if (r) this.lastLive.right = this.processed;
+      const mode: ClenchMode | null =
+        l && r ? "both" : l && this.processed - this.lastLive.right > gone ? "left" : r && this.processed - this.lastLive.left > gone ? "right" : null;
+      if (!mode) continue;
+      if (mode !== this.mode) {
+        this.detectors[mode].reset();
+        this.mode = mode;
+        this.fed = 0;
+      }
+      const e = this.detectors[mode].push(this.frame);
       this.fed++;
       if (!e) continue;
       const latencyMs = Math.round((this.fed / this.fs - e.time) * 1000);
@@ -267,7 +303,7 @@ export class PhoneSession {
     const eeg = d ? { talker: d.talker, margin: d.margin } : null;
     const yaw = this.yaw;
     const posterior = fuseAttention({ azimuthsDeg: this.azimuths, yawDeg: yaw ?? undefined, eeg });
-    return { ears: { left: ear("left"), right: ear("right") }, yaw, eeg, posterior };
+    return { ears: { left: ear("left"), right: ear("right") }, yaw, eeg, posterior, clench: this.mode };
   }
 
   /**

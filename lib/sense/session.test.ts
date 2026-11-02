@@ -127,4 +127,20 @@ describe("PhoneSession", () => {
     run(2000);
     expect(Math.abs(Math.abs(session.yaw ?? 0) - 179)).toBeLessThan(2);
   });
+
+  it("hands the clench to one ear when the other earbud is out, and back", () => {
+    const { twin, session, events, run } = setup();
+    twin.command("right", encodeCommand({ op: "stop" }, { side: "right" }));
+    run(4000);
+    expect(session.snapshot().clench).toBe("left");
+    twin.clench("single");
+    run(1500);
+    expect(events.map((e) => e.kind)).toEqual(["single"]);
+    twin.command("right", encodeCommand({ op: "start" }, { side: "right" }));
+    run(3000);
+    expect(session.snapshot().clench).toBe("both");
+    twin.clench("double");
+    run(2000);
+    expect(events.map((e) => e.kind)).toEqual(["single", "double"]);
+  });
 });
