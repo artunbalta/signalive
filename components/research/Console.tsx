@@ -344,19 +344,35 @@ function paint(cv: HTMLCanvasElement | null, ring: Float32Array, written: number
   ctx.strokeStyle = "rgba(255,255,249,0.55)";
   ctx.lineWidth = 1;
   for (let ch = 0; ch < 4; ch++) {
+    // Samples lost on the air are NaN: left out of the scale, and a break in the line.
     let mean = 0;
-    for (let i = 0; i < have; i++) mean += at(i, ch);
-    mean /= have;
+    let count = 0;
+    for (let i = 0; i < have; i++) {
+      const v = at(i, ch);
+      if (Number.isFinite(v)) (mean += v), count++;
+    }
+    if (count < 2) continue;
+    mean /= count;
     let sd = 0;
-    for (let i = 0; i < have; i++) sd += (at(i, ch) - mean) ** 2;
-    sd = Math.sqrt(sd / have) || 1;
+    for (let i = 0; i < have; i++) {
+      const v = at(i, ch);
+      if (Number.isFinite(v)) sd += (v - mean) ** 2;
+    }
+    sd = Math.sqrt(sd / count) || 1;
     const mid = (h / 4) * (ch + 0.5);
     ctx.beginPath();
+    let pen = false;
     for (let i = 0; i < have; i++) {
+      const v = at(i, ch);
+      if (!Number.isFinite(v)) {
+        pen = false;
+        continue;
+      }
       const x = ((i + n - have) / (n - 1)) * w;
-      const y = mid - Math.max(-2.5, Math.min(2.5, (at(i, ch) - mean) / sd)) * (h / 12);
-      if (i) ctx.lineTo(x, y);
+      const y = mid - Math.max(-2.5, Math.min(2.5, (v - mean) / sd)) * (h / 12);
+      if (pen) ctx.lineTo(x, y);
       else ctx.moveTo(x, y);
+      pen = true;
     }
     ctx.stroke();
   }
