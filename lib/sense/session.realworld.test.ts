@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { ClenchEvent } from "./clench";
 import type { DecoderModel } from "./decoder";
-import { decodeCommand, encodeCommand, type Side } from "./protocol";
+import { decodeCommand, encodeCommand, encodeFrame, type Side } from "./protocol";
 import { PhoneSession } from "./session";
 import { DigitalTwin, manualClock, type TwinOptions } from "./twin";
 
@@ -130,6 +130,14 @@ describe("PhoneSession on a real recording, through a real radio", () => {
     expect(r.share(80_000)).toBeGreaterThan(baseline.share(80_000) - 0.08);
   });
 
+  it("picks the envelopes up again after they paused for 36.5 minutes", () => {
+    // AUDIO_ENV is optional: a quiet room can pause it while the EEG keeps
+    // streaming, longer than half the 32 bit microsecond clock.
+    const r = run({ seconds: 2400, link: (bytes, side, t) => (bytes[3] === 0x06 && t >= 60_000 && t < 2_250_000 ? [] : [{ bytes, side }]) });
+    expect(r.verdicts.filter((v) => v.t > 2_280_000).length).toBeGreaterThan(100);
+    expect(r.share(2_280_000)).toBeGreaterThan(0.6);
+  }, 120_000);
+
   it("comes back after the tab was hidden for a minute", () => {
     const r = run({ link: (bytes, side, t) => (t < 60_000 || t >= 120_000 ? [{ bytes, side }] : []) });
     expect(r.verdicts.filter((v) => v.t > 150_000).length).toBeGreaterThan(40);
@@ -167,6 +175,16 @@ describe("PhoneSession keeps the clench through a bad link", () => {
 
   it("with 30% of the right earbud's frames lost", () => {
     expect(clenches((_b, side) => side !== "right" || rand() > 0.3).kinds).toEqual(["single", "double", "hold"]);
+  });
+
+  it("with 70% of the right earbud's frames lost, on the left ear", () => {
+    const r = clenches((_b, side) => side !== "right" || rand() > 0.7);
+    expect(r.mode).toBe("left");
+    expect(r.kinds).toEqual(["single", "double", "hold"]);
+  });
+
+  it("with the right earbud's link going on and off every 2.5 s", () => {
+    expect(clenches((_b, side, t) => side !== "right" || t % 5000 < 2500).kinds).toEqual(["single", "double", "hold"]);
   });
 
   it("with 97% of the right earbud's frames lost, on the left ear alone", () => {
@@ -214,6 +232,19 @@ describe("PhoneSession edges", () => {
     twin.setYaw(60);
     for (let t = 0; t < 2000; t += 20) (twin.tick(20), (host = twin.time));
     expect(Math.abs((session.yaw ?? 0) - 60)).toBeLessThan(2);
+  });
+
+  it("says so, instead of guessing, when the earbuds' rates cannot work", () => {
+    const hello = (side: Side, eegRate: number) =>
+      encodeFrame({ type: "hello", side, seq: 0, timestamp: 0, flags: 1, firmware: [0, 1, 0], deviceId: "0011223344556677", labels: ["E1", "E2", "E3", "E4"], eegRate, nvPerLsb: 22.35, imuRate: 0, battery: 90 });
+    const mixed = new PhoneSession({ fs: 500, perEar: 4, now: () => 0 });
+    mixed.bytes(hello("left", 500), "left");
+    mixed.bytes(hello("right", 250), "right");
+    expect(mixed.snapshot().warning).toMatch(/different EEG rates/);
+    const slow = new PhoneSession({ fs: 500, perEar: 4, now: () => 0 });
+    expect(() => slow.bytes(hello("left", 50), "left")).not.toThrow();
+    expect(slow.fs).toBe(500);
+    expect(slow.snapshot().warning).toMatch(/too slow/);
   });
 
   it("runs at the rate the earbuds announce", () => {
