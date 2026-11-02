@@ -12,7 +12,8 @@
     "audit": "node scripts/audit-copy.mjs && node scripts/audit-design.mjs",
     "verify": "node scripts/verify.mjs",
     "typecheck": "tsc --noEmit",
-    "audit:balance": "node scripts/balance.mjs"
+    "audit:balance": "node scripts/balance.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "gsap": "^3.12.5",
@@ -29,6 +30,7 @@
     "ffmpeg-static": "^5.3.0",
     "playwright": "^1.62.1",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.6.0"
+    "typescript": "^5.6.0",
+    "vitest": "^5.0.5"
   }
 }
