@@ -32,18 +32,22 @@ function setup(opts: Partial<TwinOptions> = {}) {
   const twin = new DigitalTwin({ recording: recording(), sides: { left: [0, 1, 2, 3], right: [4, 5, 6, 7] }, clock: manualClock, seed: 3, ...opts });
   const session = new PhoneSession({ fs: FS, perEar: 4, now: () => twin.time });
   const events: ClenchEvent[] = [];
-  session.onClench((e) => events.push(e));
+  const latencies: number[] = [];
+  session.onClench((e, { latencyMs }) => {
+    events.push(e);
+    latencies.push(latencyMs);
+  });
   twin.start((bytes, side) => session.bytes(bytes, side));
   // Deliver in 20 ms steps, roughly a BLE connection interval.
   const run = (ms: number) => {
     for (let t = 0; t < ms; t += 20) twin.tick(20);
   };
-  return { twin, session, events, run };
+  return { twin, session, events, latencies, run };
 }
 
 describe("PhoneSession", () => {
   it("finds single, double and held clenches in the earbuds' frames", () => {
-    const { twin, events, run } = setup();
+    const { twin, events, latencies, run } = setup();
     run(3000);
     expect(events).toHaveLength(0);
     twin.clench("single");
@@ -53,6 +57,10 @@ describe("PhoneSession", () => {
     twin.clench("hold");
     run(2500);
     expect(events.map((e) => e.kind)).toEqual(["single", "double", "hold"]);
+    // Reported soon after the jaw activity began: a single waits out a possible double.
+    expect(latencies[0]).toBeGreaterThan(400);
+    expect(latencies[0]).toBeLessThan(800);
+    expect(latencies[2]).toBeLessThan(900);
   });
 
   it("reads the head from the motion sensors and leans the posterior that way", () => {

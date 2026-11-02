@@ -59,13 +59,12 @@ const EMPTY: Snapshot = {
 
 /**
  * The page's view of a PhoneSession: the last two seconds of each ear for
- * drawing, and clenches timed against the button that caused them.
+ * drawing, and the last few clenches with how soon each was caught.
  */
 class Phone {
   readonly session: PhoneSession;
   readonly trace: Record<Bud, Float32Array>;
   readonly traceAt: Record<Bud, number> = { left: 0, right: 0 };
-  presses: number[] = [];
   events: Snapshot["events"] = [];
   private eventId = 0;
 
@@ -81,10 +80,8 @@ class Phone {
       const t = this.trace[ear];
       for (const v of uv) t[this.traceAt[ear]++ % t.length] = v;
     });
-    this.session.onClench((e) => {
-      const at = (this.session.processed / this.fs) * 1000;
-      const press = this.presses.filter((p) => p <= at).pop();
-      this.events = [{ kind: e.kind, latency: Math.max(0, Math.round(at - (press ?? at))), id: this.eventId++ }, ...this.events].slice(0, 5);
+    this.session.onClench((e, { latencyMs }) => {
+      this.events = [{ kind: e.kind, latency: latencyMs, id: this.eventId++ }, ...this.events].slice(0, 5);
     });
   }
 
@@ -176,7 +173,6 @@ export default function Console() {
   function press(kind: "single" | "double" | "hold") {
     const r = run.current;
     if (!r) return;
-    r.phone.presses.push(r.twin.time);
     r.twin.clench(kind);
   }
 

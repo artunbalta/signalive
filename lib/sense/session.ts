@@ -79,7 +79,9 @@ export class PhoneSession {
   private readonly leadOff: Record<Ear, number> = { left: 0, right: 0 };
   private readonly head: Partial<Record<Ear, number>> = {};
   private readonly frame: Float64Array;
-  private readonly listeners = new Set<(e: ClenchEvent) => void>();
+  private readonly listeners = new Set<(e: ClenchEvent, info: { latencyMs: number }) => void>();
+  /** Frames the clench detector has seen: its own timeline, which skips one eared instants. */
+  private fed = 0;
   private readonly tapListeners = new Set<(ear: Ear, uv: number[]) => void>();
   /** Paired samples processed so far. */
   processed = 0;
@@ -97,8 +99,11 @@ export class PhoneSession {
     this.clench = new ClenchDetector({ fs: opts.fs, left, right });
   }
 
-  /** Clenches as the detector finds them in the raw signal. */
-  onClench(cb: (e: ClenchEvent) => void): () => void {
+  /**
+   * Clenches as the detector finds them in the raw signal, with how long after
+   * the jaw activity began it was reported, on the detector's own timeline.
+   */
+  onClench(cb: (e: ClenchEvent, info: { latencyMs: number }) => void): () => void {
     this.listeners.add(cb);
     return () => this.listeners.delete(cb);
   }
@@ -222,7 +227,10 @@ export class PhoneSession {
       this.processed++;
       if (!live(0) || !live(p)) continue;
       const e = this.clench.push(this.frame);
-      if (e) for (const cb of this.listeners) cb(e);
+      this.fed++;
+      if (!e) continue;
+      const latencyMs = Math.round((this.fed / this.fs - e.time) * 1000);
+      for (const cb of this.listeners) cb(e, { latencyMs });
     }
   }
 
