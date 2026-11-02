@@ -86,15 +86,20 @@ Share of decisions that name the followed story, mean over 36 people, generic
 decoders (no calibration). A coin flip scores 50%; for one person, 30 minutes
 of one minute decisions must reach 66.7% to differ from chance.
 
-| Configuration | 2 s | 10 s | 60 s | MESD (median) |
-|---|---|---|---|---|
-| 4 per ear, wireless | 54.2% | 58.0% | 68.1% | 120 s |
-| 4 per ear, wired | 54.2% | 57.8% | 69.6% | 126 s |
-| All 18, wired | 54.2% | 58.9% | 70.9% | 111 s |
-| All 18, wireless | 54.5% | 58.7% | 71.3% | 118 s |
-| 2 per ear, wireless | 53.8% | 57.6% | 68.0% | 141 s |
-| One earbud (right), 4 | 53.5% | 56.5% | 66.1% | 174 s |
-| One earbud (left), 4 | 52.5% | 55.6% | 59.3% | 284 s |
+| Configuration | 2 s | 10 s | 60 s | 5 min | MESD (median) |
+|---|---|---|---|---|---|
+| 4 per ear, wireless | 54.2% | 58.0% | 68.1% | 85.2% | 120 s |
+| 4 per ear, wired | 54.2% | 57.8% | 69.6% | 80.6% | 126 s |
+| All 18, wired | 54.2% | 58.9% | 70.9% | 85.2% | 111 s |
+| All 18, wireless | 54.5% | 58.7% | 71.3% | 85.6% | 118 s |
+| 2 per ear, wireless | 53.8% | 57.6% | 68.0% | 84.3% | 141 s |
+| One earbud (right), 4 | 53.5% | 56.5% | 66.1% | 79.2% | 174 s |
+| One earbud (left), 4 | 52.5% | 55.6% | 59.3% | 74.1% | 284 s |
+
+Five minute windows leave each person only six decisions, so they say
+little about any one person, but over 36 people they show where evidence
+gathered across a conversation lands: 85% with four electrodes per ear on
+two separate earbuds, 89% over ten minutes.
 
 Personal decoders trained on 20 minutes land within about a point of these
 (4 per ear, wireless: 69.3% at 60 s). Trained on fewer minutes they do worse
@@ -112,9 +117,9 @@ Electrodes, best first: left `L01 L04b L06 L04`, right `R02 R05 R08 R04`.
 - **Four electrodes per ear** leave margin: two per ear already reach 68%.
 - **No calibration step** is needed to start.
 - **EEG is the slow channel.** About two minutes to follow a switch, and two
-  second decisions barely beat a coin flip. Head orientation has to steer,
-  the clench is the explicit command, and the EEG says over minutes who a
-  person keeps coming back to.
+  second decisions barely beat a coin flip, but over five minutes it is right
+  85% of the time. Head orientation has to steer, the clench is the explicit
+  command, and the EEG says over minutes who a person keeps coming back to.
 
 ## Limits
 

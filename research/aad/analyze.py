@@ -49,7 +49,7 @@ warnings.filterwarnings("ignore", message=".*encountered in matmul")
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 PREP = os.path.join(ROOT, "data", "prep")
-WINDOWS = [1, 2, 5, 10, 20, 30, 60]
+WINDOWS = [1, 2, 5, 10, 20, 30, 60, 120, 300, 600]
 ALPHAS = [1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0]
 CALIB_MIN = [1, 2, 5, 10, 20]
 # The generic decoder counts as this many minutes of data when adapted.
@@ -413,9 +413,15 @@ def refresh_mesd(results):
 
 
 def chance_threshold(W, total_min=30, alpha=0.05):
-    """Accuracy one person needs before it differs from coin flipping, for 30 minutes cut into windows of W s."""
+    """
+    Accuracy one person needs before it differs from coin flipping, for 30
+    minutes cut into windows of W s. None past a minute: with a handful of
+    windows no single person's result can be told from chance.
+    """
     from scipy.stats import binom
 
+    if W > 60:
+        return None
     n = int(total_min * 60 // W)
     k = int(binom.ppf(1 - alpha, n, 0.5)) + 1
     return k / n
