@@ -198,15 +198,18 @@ repository's `lib/sense` (shared with the site's research page, not copied): SSP
 (`hardware/PROTOCOL.md` at the repository root) from one of three transports, the digital
 twin (two emulated earbuds on a synthetic background of 5 uV noise and a 10 Hz rhythm at
 500 Hz, which clench and turn their head on request), real earbuds over Web Bluetooth, or
-an OpenBCI Cyton board over Web Serial. Each earbud's frames are decoded on their own, lost
-samples kept as gaps, its clock mapped onto the phone's, and the two ears paired by time
-(`EarAligner`), never by count: the earbuds start at different moments and their crystals
-drift apart. The clench detector reads the paired frames; a single clench is published as
-`jaw_clench` and a double as `jaw_double_clench` on the gesture bus, so the bound command
-runs exactly as for the J and K keys (a hold is detected but not mapped yet). The IMU's
-yaw feeds the head tracker's earbuds source. With a trained decoder model and speech
-envelopes from the earbuds (AUDIO_ENV) the attention decoder runs too and steers the
-earbuds' own audio; the trial ships no model, so that path is off. One provider lives with
+an OpenBCI Cyton board over Web Serial. The provider keeps the transport and the
+connection; everything after the bytes is lib/sense's `PhoneSession`, the phone side as it
+will ship: each earbud's frames are decoded on their own, lost samples kept as gaps, its
+clock mapped onto the phone's, and both ears read out on one fixed grid on the phone's
+clock, never by count: the earbuds start at different moments and their crystals drift
+apart. The clench detector listens to both ears, or to one alone while the other is weak or
+gone; a single clench is published as `jaw_clench` and a double as `jaw_double_clench` on
+the gesture bus, so the bound command runs exactly as for the J and K keys (a hold is
+detected but not mapped yet). The IMU's yaw feeds the head tracker's earbuds source. With a
+trained decoder model and speech envelopes from the earbuds (AUDIO_ENV) the attention
+decoder runs too and steers the earbuds' own audio; the trial ships no model, so that path
+is off. One provider lives with
 the page (`lib/client/earbuds.ts`), so the earbuds keep working on every screen until
 Disconnect. Samples are processed in the tab and dropped; only counts reach the screen.
 
@@ -262,7 +265,8 @@ objects through the Storage API, then every row, then the auth user.
 npm test                 # unit: normalization, WER, statistics, DSP, VAD state machine,
                          # pipeline, notes retry, stores, CSV, i18n, extension points,
                          # the earbuds provider on the digital twin (clench to gesture,
-                         # yaw to head tracker, late earbud, radio jitter, attention)
+                         # yaw to head tracker, late, weak and flapping earbuds, radio
+                         # jitter, attention)
 npm run test:db          # the real migration on a local Postgres with pgvector: RLS on
                          # every table, cross user isolation, search, delete_my_data
 npm run test:audio-fixtures   # macOS: speech fixtures from the system voices

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import type { DecoderModel } from "@sense/decoder";
-import { encodeCommand } from "@sense/protocol";
+import { encodeCommand, type Side } from "@sense/protocol";
 import { manualClock } from "@sense/twin";
 import { earbuds } from "@/lib/client/earbuds";
 import { headTracker } from "@/lib/client/head-tracker";
@@ -86,25 +86,28 @@ describe("Signalive earbuds, simulated", () => {
     expect(seen.map((e) => e.type)).toEqual(["jaw_clench", "jaw_double_clench"]);
   });
 
-  it("waits for an earbud that joins late, as the second Bluetooth pick does, then hears clenches", async () => {
+  it("listens on one earbud until the other joins late, as the second Bluetooth pick does, then on both", async () => {
     const p = simulated();
     const { seen, off } = gestures();
     await p.connect();
     const twin = p.twin!;
-    // The right earbud stops at once and starts again three seconds later.
+    // The right earbud stops at once and starts again four and a half seconds later.
     twin.command("right", encodeCommand({ op: "stop" }, { side: "right" }));
     twin.tick(3000);
-    expect(p.view.get().listening).toBe(false);
+    expect(p.view.get()).toMatchObject({ listening: true, clench: "left" });
+    twin.clench("single");
+    twin.tick(1500);
+    expect(seen.map((e) => e.type)).toEqual(["jaw_clench"]);
     twin.command("right", encodeCommand({ op: "start" }, { side: "right" }));
     twin.tick(1500);
-    expect(p.view.get().listening).toBe(true);
+    expect(p.view.get()).toMatchObject({ listening: true, clench: "both" });
     twin.clench("single");
     twin.tick(1500);
     twin.clench("double");
     twin.tick(2000);
     off();
     await p.disconnect();
-    expect(seen.map((e) => e.type)).toEqual(["jaw_clench", "jaw_double_clench"]);
+    expect(seen.map((e) => e.type)).toEqual(["jaw_clench", "jaw_clench", "jaw_double_clench"]);
   });
 
   it("lines up the two earbuds even when the right one's frames are lost", async () => {
@@ -119,6 +122,56 @@ describe("Signalive earbuds, simulated", () => {
     await p.disconnect();
     expect(seen.map((e) => e.type)).toEqual(["jaw_clench"]);
     expect(v.lost).toBeGreaterThan(0);
+  });
+
+  /** The simulated earbuds behind a radio that delivers a frame only when keep(side, time) says so, fed in 20 ms steps. */
+  function behindRadio(keep: (side: Side, t: number) => boolean) {
+    const p = simulated();
+    const twin = p.twin!;
+    const start = twin.start.bind(twin);
+    twin.start = (onBytes) =>
+      start((bytes, side) => {
+        if (keep(side, twin.time)) onBytes(bytes, side);
+      });
+    const run = (ms: number) => {
+      for (let t = 0; t < ms; t += 20) twin.tick(20);
+    };
+    return { p, twin, run };
+  }
+
+  it("hears clenches on the left ear alone when the right earbud loses 70% of its frames", async () => {
+    let seed = 99;
+    const rand = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
+    const { p, twin, run } = behindRadio((side) => side !== "right" || rand() > 0.7);
+    const { seen, off } = gestures();
+    await p.connect();
+    run(5000);
+    twin.clench("single");
+    run(1500);
+    twin.clench("double");
+    run(2000);
+    off();
+    const v = p.view.get();
+    await p.disconnect();
+    expect(v).toMatchObject({ listening: true, clench: "left" });
+    expect(seen.map((e) => e.type)).toEqual(["jaw_clench", "jaw_double_clench"]);
+  });
+
+  it("hears every clench while the right earbud's link goes on and off every 2.5 s", async () => {
+    const { p, twin, run } = behindRadio((side, t) => side !== "right" || t % 5000 < 2500);
+    const { seen, off } = gestures();
+    await p.connect();
+    // As the link comes back, while it is up, and after it has dropped again.
+    run(5000);
+    twin.clench("single");
+    run(1500);
+    twin.clench("double");
+    run(2000);
+    twin.clench("single");
+    run(1500);
+    off();
+    await p.disconnect();
+    expect(seen.map((e) => e.type)).toEqual(["jaw_clench", "jaw_double_clench", "jaw_clench"]);
   });
 
   it("reports both earbuds, their battery, the counts and the head yaw, and forgets them at disconnect", async () => {
@@ -200,9 +253,9 @@ describe("Signalive earbuds, simulated", () => {
     expect(p.capabilities.attention).toBe(true);
     await p.connect();
     p.twin!.tick(4000);
-    // Five seconds of both are needed for a first decision.
+    // The session decides over ten seconds of both, so the first decision waits for them.
     expect(p.view.get().attention).toBeNull();
-    p.twin!.tick(5000);
+    p.twin!.tick(8000);
     const a = p.view.get().attention!;
     expect(a).not.toBeNull();
     expect(a.azimuthDeg).toBe(audio.azimuths[a.talker]);

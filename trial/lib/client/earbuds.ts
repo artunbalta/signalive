@@ -32,6 +32,7 @@ const OFF: EarbudsView = {
   lost: 0,
   yaw: null,
   listening: false,
+  clench: null,
   attention: null,
   error: null,
 };

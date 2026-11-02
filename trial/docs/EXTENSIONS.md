@@ -40,42 +40,55 @@ after the transport is the same whichever is connected:
 | `bluetooth` | `WebBluetoothTransport` | Real earbuds: one GATT service per earbud (`5a9a0001-...`), frames notified on one characteristic, commands written to another. Each earbud is its own device, so each needs its own pick in the browser's chooser (Settings offers "Add the other earbud"). A dropped earbud is reconnected. Chrome and Edge only. |
 | `cyton` | `CytonSerialTransport` | An OpenBCI Cyton dev kit over Web Serial (its USB dongle, 115200 baud), 8 channels at 250 Hz, re-encoded on the phone as SSP frames of one device. Wire inputs 1 to 4 to the left ear and 5 to 8 to the right. Chromium on computers only. |
 
-What the provider does with the frames:
+What happens to the frames: the provider keeps the transport and the connection, and hands
+every byte to one `PhoneSession` (`lib/sense/session.ts`), the phone side as it will ship and
+the same one the site's research console runs.
 
 1. **Decode.** One `SspDecoder` per earbud. A HELLO gives the electrodes' labels, the rates,
-   the ADC scale and the battery; nothing is read from an earbud before its HELLO (it is
-   asked for one). `EegStream` places EEG frames in a series with NaN for exactly the
-   samples lost on the air.
-2. **Align.** Each earbud's clock is mapped onto the phone's (`ClockSync`, from frame
-   arrivals), and `EarAligner` pairs the two ears by time, never by count: the earbuds start
-   at different moments (two chooser picks) and their crystals drift apart. Contiguous
-   samples keep their spacing until the map disagrees by more than 8 ms. An ear that is
-   silent for more than 250 ms is kept away from the clench detector, which learns the
-   background again once both ears are back. A single device carrying both ears is split
-   by its labels (L and R prefixes, else the first half and the second).
-3. **Clench.** `ClenchDetector` reads the paired frames: muscle band power on both ears at
-   once, four times their background. A single clench is published as `jaw_clench` and a
-   double as `jaw_double_clench` through `emitSensorGesture(type, "signalive", confidence)`,
-   the confidence being how far the clench cleared the threshold (`1 - k / strength`,
-   clipped to 0..1). A hold (over 700 ms) is detected but not published, since no gesture
-   is defined for it yet; four clenches within 3 s are chewing and are ignored for 2 s.
-4. **Head.** The IMU's quaternion gives the head's yaw (`yawDeg`), from one earbud at a time
-   (the other takes over if it goes quiet). `provider.onYaw()` feeds the head tracker's
-   `earbuds` source, which takes the first reading as straight ahead (the IMU has no
-   compass) and steers like the camera.
-5. **Attention, optional.** Only when the earbuds send speech envelopes (AUDIO_ENV) and a
+   the ADC scale and the battery; the rate the earbuds announce is adopted before any EEG
+   when both agree, and an earbud that streams without a HELLO is asked for one.
+   `EegStream` places EEG frames in a series with NaN for exactly the samples lost on the
+   air.
+2. **One timeline.** Each earbud's clock is mapped onto the phone's (`ClockSync`, from frame
+   arrivals), and both ears are read out on a fixed grid on the phone's clock, never by
+   count: tick k is t0 + k / fs and takes each ear's nearest sample, or NaN. The earbuds
+   start at different moments (two chooser picks) and their crystals drift apart; a stalled
+   earbud's backlog that arrives after its moments were read out is dropped. Four
+   electrodes are read from each ear, the protocol's design target, and a device carrying
+   both ears is split down the middle.
+3. **Clench.** Three `ClenchDetector`s run side by side: both ears at once, at four times
+   their background, and each ear alone, at five, since nothing on the other side can veto
+   a touch on that earbud. Each is fed only while its own ears have signal, and one speaks
+   for the earbuds, chosen by how much of the last two seconds each ear covered: both ears
+   while both are there, otherwise the one that is, so a weak or dropped earbud leaves the
+   clench on the other. A single clench is published as `jaw_clench` and a double as
+   `jaw_double_clench` through `emitSensorGesture(type, "signalive", confidence)`, the
+   confidence being how far the clench cleared that detector's threshold
+   (`1 - k / strength`, clipped to 0..1). A hold (over 700 ms) is detected but not
+   published, since no gesture is defined for it yet; four clenches within 3 s are chewing
+   and are ignored for 2 s.
+4. **Head.** The IMU's quaternion gives the head's yaw (`yawDeg`), both earbuds averaged on
+   the circle and forgotten half a second after their last motion frame.
+   `provider.onYaw()` passes it on at every motion frame to the head tracker's `earbuds`
+   source, which takes the first reading as straight ahead (the IMU has no compass) and
+   steers like the camera.
+5. **Attention, optional.** Only when the earbuds send speech envelopes (AUDIO_ENV), a
    trained model is passed as `decoderModel` (the JSON `research/aad` exports; the model in
-   `lib/sense/__fixtures__/e2e.json` is one): `AttentionDecoder` decides every second over
-   5 s, `fuseAttention` weighs that with facing the talker (talker azimuths are head
-   relative), `GainController` walks the emphasis up a step at a time (at most 9 dB), and a
-   STEER command goes to both earbuds when the direction or the gain changes.
-   `provider.attention` reports the talker as `earbuds:talker<i>`, the id a hear-through path
-   would register those voices under in the `SourceStage`. The trial ships no model, so
-   this path is off; to try it, pass one: `earbuds.connect("bluetooth", { decoderModel })`.
+   `lib/sense/__fixtures__/e2e.json` is one), and the earbuds' electrodes are the model's
+   inputs in its order: the session places the envelopes on the same timeline as the EEG,
+   its `AttentionDecoder` decides over 10 s, and `fuseAttention` weighs that with facing
+   the talker. Once a second the provider reports the likeliest talker and, when it or its
+   emphasis changes, writes the session's STEER to both earbuds (relative to the head, at
+   most 9 dB). The talkers' places in the room come from the `azimuths` option (by default
+   the simulated earbuds' own). `provider.attention` reports the talker as
+   `earbuds:talker<i>`, the id a hear-through path would register those voices under in the
+   `SourceStage`. The trial ships no model, so this path is off; to try it, pass one:
+   `earbuds.connect("bluetooth", { decoderModel })`.
 
 The provider's `view` store holds what Settings shows: the phase, each earbud's battery,
 wear and lead off (per electrode, once an earbud reports it), the frames received and lost,
-the head yaw, whether the clench detector is listening, and the last attention decision.
+the head yaw, whether the clench detector is listening and on which ears, and the last
+attention decision.
 `stream()` yields every channel as it arrives (`left:L1` in microvolts, `left:yaw` in
 degrees) and ends at disconnect. `capabilities` lists the channels the earbuds announced in
 their HELLO (before that, what the transport is known to carry), the two jaw gestures, and
