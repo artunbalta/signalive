@@ -119,4 +119,12 @@ describe("PhoneSession", () => {
     run(1500);
     expect(events.map((e) => e.kind)).toEqual(["single"]);
   });
+
+  it("averages the two ears' yaw on the circle", () => {
+    const { twin, session, run } = setup();
+    run(500);
+    twin.setYaw(179);
+    run(2000);
+    expect(Math.abs(Math.abs(session.yaw ?? 0) - 179)).toBeLessThan(2);
+  });
 });

@@ -234,10 +234,18 @@ export class PhoneSession {
     }
   }
 
-  /** Head yaw from whichever motion sensors report, averaged. */
+  /**
+   * Head yaw from whichever motion sensors report, averaged on the circle:
+   * left at 179 degrees and right at -179 is the head turned all the way
+   * round, not straight ahead.
+   */
   get yaw(): number | null {
     const ys = [this.head.left, this.head.right].filter((y): y is number => y !== undefined);
-    return ys.length ? ys.reduce((a, b) => a + b, 0) / ys.length : null;
+    if (!ys.length) return null;
+    const r = Math.PI / 180;
+    const x = ys.reduce((a, y) => a + Math.cos(y * r), 0);
+    const y = ys.reduce((a, d) => a + Math.sin(d * r), 0);
+    return Math.atan2(y, x) / r;
   }
 
   snapshot(): SessionSnapshot {
