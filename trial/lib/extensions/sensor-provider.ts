@@ -4,17 +4,21 @@ import type { GestureType } from "@/lib/gestures/types";
 /**
  * Extension point: earbud sensors.
  *
- * A later Signalive earbud carries sensors the web trial cannot reach today:
- * an IMU, a bone conduction pickup, EMG electrodes for jaw gestures, and in
- * ear EEG electrodes for attention. Each kind arrives through a
- * SensorProvider. The trial ships only NullSensorProvider, which connects to
- * nothing and emits nothing; no sensing of any kind happens in this version.
+ * A Signalive earbud carries sensors the web trial cannot reach through the
+ * operating system: an IMU, and in ear electrodes that pick up jaw muscle
+ * activity (for the clench) and EEG (for attention). Each kind arrives
+ * through a SensorProvider. NullSensorProvider is the default: it connects to
+ * nothing and emits nothing. SignaliveSensorProvider (signalive-provider.ts)
+ * reads the earbuds, their digital twin or an OpenBCI board, and connects
+ * only when the visitor taps Connect in Settings.
  *
- * How a real provider plugs in (see docs/EXTENSIONS.md):
+ * How a provider plugs in (see docs/EXTENSIONS.md):
  *  - Web Bluetooth: requestDevice({ filters: [{ services: [SERVICE_UUID] }] }),
  *    then startNotifications() on a characteristic and decode each
  *    notification's DataView into SensorSample frames. Chrome and Edge only;
  *    not available in Safari or Firefox.
+ *  - Web Serial: navigator.serial.requestPort() for a wired dev kit (the
+ *    OpenBCI Cyton's USB dongle). Chromium desktop only.
  *  - WebHID: navigator.hid.requestDevice({ filters: [{ vendorId }] }) and the
  *    device's "inputreport" events, for wired or dongle prototypes. Chromium
  *    desktop only.
@@ -42,7 +46,7 @@ export interface SensorCapabilities {
   gestures: GestureType[];
   /** The provider supplies the attention signal (see attention-provider.ts). */
   attention: boolean;
-  transport: "none" | "web-bluetooth" | "webhid" | "simulated";
+  transport: "none" | "web-bluetooth" | "web-serial" | "webhid" | "simulated";
 }
 
 export interface SensorSample {
@@ -62,7 +66,7 @@ export interface SensorProvider {
   disconnect(): Promise<void>;
 }
 
-/** The only provider in v0. */
+/** The default: nothing connected. */
 export class NullSensorProvider implements SensorProvider {
   readonly id = "none";
   readonly capabilities: SensorCapabilities = { channels: [], gestures: [], attention: false, transport: "none" };

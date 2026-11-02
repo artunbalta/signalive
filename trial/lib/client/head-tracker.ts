@@ -2,21 +2,26 @@
 
 import type { FaceLandmarker } from "@mediapipe/tasks-vision";
 import { headYaw, median, steering, STEER_MAX } from "@/lib/focus/head-pose";
+import { earbuds } from "./earbuds";
 import { createStore } from "./store";
 
 /**
  * Where the listener's head points, as a steering angle in degrees (right
- * positive), from one of three sources:
+ * positive), from one of four sources:
  *
+ * - earbuds: the motion sensor of Signalive earbuds (or their simulation)
+ *   connected in Settings, through SignaliveSensorProvider. Offered only
+ *   while they are connected.
  * - camera: MediaPipe face landmarks, computed in this tab. Frames never
  *   leave the browser and are not kept.
  * - motion: the phone's orientation (turn the phone, or yourself with it).
  * - pointer: drag, arrow keys or buttons; always available.
  *
- * Earbuds' own head tracking is not exposed to web pages, so these stand in.
+ * Ordinary earbuds do not expose their head tracking to web pages, so
+ * without Signalive earbuds the other three stand in.
  */
 
-export type TrackingSource = "pointer" | "camera" | "motion";
+export type TrackingSource = "pointer" | "camera" | "motion" | "earbuds";
 export type TrackingStatus = "idle" | "starting" | "tracking" | "no_face" | "denied" | "unavailable";
 
 export interface TrackerView {
@@ -25,6 +30,8 @@ export interface TrackerView {
 }
 
 const clamp = (d: number) => Math.max(-STEER_MAX, Math.min(STEER_MAX, d));
+/** A difference of two headings, into -180..180. */
+const wrap = (d: number) => ((((d + 180) % 360) + 360) % 360) - 180;
 /** Frames averaged when the user sets "straight ahead" themselves. */
 const STRAIGHT_FRAMES = 12;
 
@@ -44,7 +51,8 @@ class HeadTracker {
    */
   private straight: number | null = 0;
   private straightSamples: number[] = [];
-  private zeroMotion: () => void = () => {};
+  /** Sources whose zero is arbitrary (the phone, the earbuds) take the current heading as straight ahead. */
+  private zeroSource: () => void = () => {};
   private stopSource: (() => void) | null = null;
   private run = 0;
 
@@ -67,7 +75,7 @@ class HeadTracker {
   recenter() {
     this.straight = null;
     this.straightSamples = [];
-    this.zeroMotion();
+    this.zeroSource();
     if (this.view.get().source === "pointer") this.target = 0;
   }
 
@@ -78,6 +86,7 @@ class HeadTracker {
     this.view.set({ source, status: source === "pointer" ? "tracking" : "starting" });
     if (source === "camera") await this.startCamera(run);
     else if (source === "motion") await this.startMotion(run);
+    else if (source === "earbuds") this.startEarbuds();
   }
 
   stop() {
@@ -187,14 +196,41 @@ class HeadTracker {
       if (this.view.get().status !== "tracking") this.view.set({ status: "tracking" });
     };
     window.addEventListener("deviceorientation", onOrientation);
-    this.zeroMotion = () => (zero = null);
+    this.zeroSource = () => (zero = null);
     const silent = setTimeout(() => {
       if (run === this.run && this.view.get().status === "starting") this.view.set({ status: "unavailable" });
     }, 2500);
     this.stopSource = () => {
       clearTimeout(silent);
       window.removeEventListener("deviceorientation", onOrientation);
-      this.zeroMotion = () => {};
+      this.zeroSource = () => {};
+    };
+  }
+
+  /**
+   * The earbuds' IMU yaw has no fixed zero (no compass), so where the head
+   * points at the first reading is straight ahead. A head turn steers as
+   * much as it does with the camera, since the screen is still in view.
+   */
+  private startEarbuds() {
+    if (earbuds.view.get().phase !== "connected") {
+      this.view.set({ status: "unavailable" });
+      return;
+    }
+    let zero: number | null = null;
+    const offYaw = earbuds.onYaw((yaw) => {
+      zero ??= yaw;
+      this.target = steering(wrap(yaw - zero), 0);
+      if (this.view.get().status !== "tracking") this.view.set({ status: "tracking" });
+    });
+    const offView = earbuds.view.subscribe(() => {
+      if (earbuds.view.get().phase === "off") this.view.set({ status: "unavailable" });
+    });
+    this.zeroSource = () => (zero = null);
+    this.stopSource = () => {
+      offYaw();
+      offView();
+      this.zeroSource = () => {};
     };
   }
 }

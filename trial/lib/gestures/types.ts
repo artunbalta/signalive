@@ -4,9 +4,10 @@ import type { MediaKeyAction } from "@/lib/shared/types";
  * Gestures are what the wearer did physically; commands are what the app
  * does about it. The mapping between them is a user setting.
  *
- * Today only earbud media keys and the keyboard produce gestures. Jaw
- * gestures and whisper detection are reserved for a SensorProvider (see
- * lib/extensions/sensor-provider.ts) and can be simulated from the keyboard.
+ * Earbud media keys and the keyboard produce gestures, and so do Signalive
+ * earbuds connected in Settings: their SensorProvider publishes the jaw
+ * gestures (lib/extensions/signalive-provider.ts), which the keyboard can
+ * also simulate. Whisper detection is reserved for a SensorProvider.
  * triple_tap is included because earbuds commonly send "previous track" for
  * a triple tap; it is the one addition to the six gestures in the brief.
  */

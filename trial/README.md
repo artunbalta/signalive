@@ -18,13 +18,13 @@ the repository root. It deploys separately (its own Vercel project, root directo
 | Consent | `/consent` | Plain language: what is recorded, sent where, kept how long, deleted how. Nothing pre ticked. |
 | Setup wizard | `/setup` | Device choice, 5 s mic check (rates, levels, bandwidth, Bluetooth hands-free warnings), built-in mic comparison, 10 s wind test, first spoken reply |
 | Assistant | `/assistant` | Push to talk (button, space bar, earbud tap) and hands-free (Silero VAD), streaming STT, Claude, sentence by sentence TTS, barge-in, whisper mode, Turkish and English |
-| Focus | `/focus` | Three people talk at once around you, placed in space (HRTF). The voice your head faces comes forward through the attention extension point; head direction from the camera (MediaPipe face pose, on the device), the phone's orientation, or keys. A jaw clench locks the voice; "What did they say?" recaps anyone's last 15 s |
-| Rewind | `/rewind` | Keeps the last 30 s of the microphone in memory; a jaw clench (the button or J, standing in for the earbud's sensor) replays 10, 15 or 30 s in the earbuds, then the assistant says what was said. A three.js figure shows the clench and the rewind |
+| Focus | `/focus` | Three people talk at once around you, placed in space (HRTF). The voice your head faces comes forward through the attention extension point; head direction from connected Signalive earbuds (or their simulation), the camera (MediaPipe face pose, on the device), the phone's orientation, or keys. A jaw clench locks the voice; "What did they say?" recaps anyone's last 15 s |
+| Rewind | `/rewind` | Keeps the last 30 s of the microphone in memory; a jaw clench (from connected earbuds, or the button or J standing in for them) replays 10, 15 or 30 s in the earbuds, then the assistant says what was said. A three.js figure shows the clench and the rewind |
 | Recorder | `/recorder` | Continuous capture cut by VAD, transcripts, notes every few utterances, "mark this moment", opt-in raw audio with automatic expiry |
 | Notes | `/notes` | Word (prefix, Turkish aware), meaning (embeddings) and hybrid search |
 | Lab | `/lab`, `/lab/results` | Fixed phrases, four processing chains from one take, two or three recognizers, WER and CER with bootstrap intervals, CSV |
 | Timing | `/debug` | Last 20 exchanges, stage by stage, p50 and p95 |
-| Settings | `/settings` | Languages, devices, gesture bindings, export (JSON, Markdown), delete everything, email upgrade |
+| Settings | `/settings` | Languages, devices, Signalive earbuds (simulated, Bluetooth, or an OpenBCI board over USB), gesture bindings, export (JSON, Markdown), delete everything, email upgrade |
 
 ## Run it locally
 
@@ -107,7 +107,9 @@ rank) and `delete_my_data`, and the private `audio` bucket with per user folder 
 
 ## Deploy on Vercel
 
-1. New project from this repository, **root directory `trial`**. Framework: Next.js.
+1. New project from this repository, **root directory `trial`**. Framework: Next.js. Keep
+   "Include files outside the root directory in the Build Step" on (the default): the build
+   reads the earbud software in `../lib/sense`.
 2. Add the environment variables above (production and preview as you see fit).
 3. `vercel.json` registers the daily audio expiry cron (Hobby plans run crons at most once
    a day; the job may fire any time within its hour, so expiry can lag by up to a day).
@@ -161,8 +163,8 @@ playback (plus a "speak softly" instruction where the TTS model accepts one).
 
 **Rewind.** While it is on, every microphone chunk goes into a 30 second ring buffer in the
 tab's memory, overwritten as it goes and cleared when Rewind turns off. A jaw clench arrives
-like any other gesture (`jaw_clench`, bound to the `rewind` command; today the button and the
-J key produce it, later a SensorProvider). The chosen seconds are then played three ways:
+like any other gesture (`jaw_clench`, bound to the `rewind` command), from connected earbuds'
+clench detector or from the button and the J key standing in for it. The chosen seconds are then played three ways:
 the real audio reversed and sped up as the rewind sound, the clip itself at a level brought
 up to about -24 dBFS, and finally the recap. The same seconds go to `/api/rewind` once, at
 the moment of the clench, as a 16 kHz WAV: recognition, then Claude with a recap prompt (no
@@ -176,9 +178,11 @@ tagged so the clench moves and lights them. Without WebGL a still drawing stands
 are synthesized once per server instance by `/api/focus/voice`, each with its own voice,
 and loop in the browser. Each goes through an HRTF panner at -45, 0 or 45 degrees, 1.6 m
 away, into its own `SourceStage` source; the room's listener turns with the head. Head
-direction comes from MediaPipe's facial transformation matrix (yaw, zero when facing the
-camera, amplified 1.6 times so a comfortable turn reaches the side voices), from the
-phone's orientation, or from drag, arrow keys and buttons. The voice within 18 degrees of
+direction comes from connected earbuds' motion sensor (offered, and chosen, while they are
+connected; zero where the head pointed when they took over), from MediaPipe's facial
+transformation matrix (yaw, zero when facing the camera), both amplified 1.6 times so a
+comfortable turn reaches the side voices, from the phone's orientation, or from drag,
+arrow keys and buttons. The voice within 18 degrees of
 where the head points (or past the outermost one) is attended: it stays at full level and
 the others drop 16 dB; between two people all three sit at -4 dB. A jaw clench (J, claimed
 from Rewind while Focus plays) locks the voice you face. "What did they say?" takes that
@@ -187,6 +191,31 @@ Rewind, and lowers the room to -22 dB while the answer plays. The camera image n
 leaves the browser; the face model (`public/models/face_landmarker.task`, MediaPipe,
 Apache 2.0, SHA-256 `64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff`) and
 its WASM (copied into `public/vendor/mediapipe`) are served from this app.
+
+**Earbuds.** Settings connects Signalive earbuds through `SignaliveSensorProvider`
+(`lib/extensions/signalive-provider.ts`), which runs the phone side software in the
+repository's `lib/sense` (shared with the site's research page, not copied): SSP frames
+(`hardware/PROTOCOL.md` at the repository root) from one of three transports, the digital
+twin (two emulated earbuds on a synthetic background of 5 uV noise and a 10 Hz rhythm at
+500 Hz, which clench and turn their head on request), real earbuds over Web Bluetooth, or
+an OpenBCI Cyton board over Web Serial. Each earbud's frames are decoded on their own, lost
+samples kept as gaps, its clock mapped onto the phone's, and the two ears paired by time
+(`EarAligner`), never by count: the earbuds start at different moments and their crystals
+drift apart. The clench detector reads the paired frames; a single clench is published as
+`jaw_clench` and a double as `jaw_double_clench` on the gesture bus, so the bound command
+runs exactly as for the J and K keys (a hold is detected but not mapped yet). The IMU's
+yaw feeds the head tracker's earbuds source. With a trained decoder model and speech
+envelopes from the earbuds (AUDIO_ENV) the attention decoder runs too and steers the
+earbuds' own audio; the trial ships no model, so that path is off. One provider lives with
+the page (`lib/client/earbuds.ts`), so the earbuds keep working on every screen until
+Disconnect. Samples are processed in the tab and dropped; only counts reach the screen.
+
+How the import works: `next.config.ts` sets `turbopack.root` to the repository root, and
+`@sense/*` maps to `../lib/sense/*` in `tsconfig.json` and `vitest.config.mts`. `lib/sense`
+is written without `noUncheckedIndexedAccess`, which this app turns on, so it is type
+checked as its own project (`tsconfig.sense.json`, with the repository root's options) and
+the app is checked against the declarations that project writes to `.sense-types`;
+`npm run typecheck` and `npm run build` write them first.
 
 **Notes.** The recorder's utterances are summarized by Claude with structured output
 (title, summary, action items, topics, people, language), validated against a strict
@@ -231,7 +260,9 @@ objects through the Storage API, then every row, then the auth user.
 
 ```bash
 npm test                 # unit: normalization, WER, statistics, DSP, VAD state machine,
-                         # pipeline, notes retry, stores, CSV, i18n, extension points
+                         # pipeline, notes retry, stores, CSV, i18n, extension points,
+                         # the earbuds provider on the digital twin (clench to gesture,
+                         # yaw to head tracker, late earbud, radio jitter, attention)
 npm run test:db          # the real migration on a local Postgres with pgvector: RLS on
                          # every table, cross user isolation, search, delete_my_data
 npm run test:audio-fixtures   # macOS: speech fixtures from the system voices
@@ -241,10 +272,11 @@ npm run test:e2e         # Chromium with a fake microphone playing those fixture
                          # onboarding to a spoken reply, hands-free VAD, recorder to
                          # delete everything, a lab run to CSV, Rewind, Focus with keys,
                          # and Focus with the camera (one video per side: a right turn
-                         # must bring the right voice forward and never the left)
+                         # must bring the right voice forward and never the left), and
+                         # the simulated earbuds in Settings running the bound command
 npm run test:supabase    # optional, against a throwaway Supabase project
 npm run build && npm run check:bundle   # no secret in anything a browser can download
-npm run typecheck
+npm run typecheck        # lib/sense as its own project first, then the app
 ```
 
 `test:db` connects to `PGHOST` (default the Homebrew socket in `/tmp`) and creates and
@@ -317,17 +349,27 @@ back to uploads; `SttProvider.transcribeStream` is the server entry point a rela
 
 **Focus is a demonstration of the attention path, not of separation.** The three voices
 are separate recordings; separating mixed voices in a real room is not attempted here. The
-attention signal is head direction, a stand-in for an in-ear decoder. Earbuds' own head
-tracking is not available to web pages, so the camera, the phone or keys stand in. Turning
+attention signal is head direction, a stand-in for an in-ear decoder. Ordinary earbuds'
+head tracking is not available to web pages: Signalive earbuds connected in Settings (or
+their simulation) steer with their own motion sensor, and otherwise the camera, the phone
+or keys stand in. Turning
 on the camera needs camera permission; on phones, the orientation sensor asks on iOS.
 HRTF rendering is the browser's generic one, so how well the voices sit in space varies by
 listener. With ElevenLabs as the TTS provider all three voices use the configured voice.
 
 **Rewind keeps the microphone open.** For as long as it is on, Bluetooth earbuds stay in
 their hands-free profile, so music and calls sound narrower than usual; turn it off when
-you do not need it. The jaw clench is simulated by a button and the J key: no sensor is read
-in this trial. Speech a few meters away is recognized less reliably than your own, and the
+you do not need it. Without Signalive earbuds connected in Settings, a button and the J key
+stand in for the jaw clench. Speech a few meters away is recognized less reliably than your own, and the
 recap says so when parts were unclear.
+
+**Earbuds.** Signalive earbuds do not exist yet. The simulated pair runs the same software
+on a synthetic background, so it shows that the path works, not how well a clench is
+detected on a real ear. Web Bluetooth and Web Serial work in Chrome and Edge only (Web
+Serial on computers), and Settings says so elsewhere. A held clench is detected but not
+mapped to a command. The attention decoder needs a trained model and speech envelopes from
+the earbuds; none ships with the trial. Four clenches within three seconds read as chewing
+and are ignored for two seconds, on the simulation as on an ear.
 
 **Barge-in.** While the assistant talks, interrupting requires a confident detection, so
 its own voice leaking from earbuds does not cut it off. On a loudspeaker it still can;
@@ -354,9 +396,10 @@ components/              UI: shell, setup, assistant, notes, lab, charts, ui
 lib/shared/              isomorphic: types, text normalization, WER, statistics, phrases, CSV
 lib/server/              env, adapters (providers/), stores (store/), assistant pipeline, notes
 lib/audio/               engine, mic capture, resampler, FFT, analysis, VAD, chains, player
-lib/client/              assistant, recorder, lab controllers, auth, sessions, preferences
+lib/client/              assistant, recorder, lab, Focus and earbuds controllers, auth, sessions, preferences
 lib/gestures/            GestureEvent bus, media keys, keyboard
-lib/extensions/          SensorProvider and AttentionSignalProvider stubs
+lib/extensions/          SensorProvider (the null stub and the Signalive earbuds) and AttentionSignalProvider
+../lib/sense/            the earbud software, shared with the site and imported as @sense/*
 lib/i18n/                English and Turkish strings (Turkish must match English key for key)
 supabase/                migrations, CLI config, the SQL test shim
 public/worklets/         the capture AudioWorklet

@@ -3,10 +3,12 @@
  *
  * A later Signalive version decodes which sound source the wearer is
  * attending to (from in-ear or around-ear sensors) and boosts it. This
- * interface is where that decoder plugs in. The web trial decodes nothing:
- * the stub below never reports a source, and the Focus screen's provider
- * (lib/client/focus.ts) reports the voice the head is turned to, a stand-in
- * that exercises the same path.
+ * interface is where that decoder plugs in. The stub below never reports a
+ * source, and the Focus screen's provider (lib/client/focus.ts) reports the
+ * voice the head is turned to, a stand-in that exercises the same path.
+ * SignaliveSensorProvider.attention reports the earbuds' own decoder, which
+ * runs only with a trained model and the earbuds' speech envelopes; the
+ * trial ships no model.
  *
  * The audio graph already has the hook it would drive: every sound the app
  * plays goes through a per-source gain stage (lib/audio/source-stage.ts).

@@ -1,0 +1,24 @@
+{
+  // The earbud software in ../lib/sense, checked with the repo root's own
+  // compiler options (it is written without noUncheckedIndexedAccess, which
+  // this app turns on). The app imports it as @sense/* and is checked against
+  // the declarations this project writes to .sense-types, so each side keeps
+  // its own rules. `npm run typecheck` and `npm run build` write them first.
+  "compilerOptions": {
+    "composite": true,
+    "emitDeclarationOnly": true,
+    "rootDir": "../lib/sense",
+    "outDir": ".sense-types",
+    "tsBuildInfoFile": ".sense-types/sense.tsbuildinfo",
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "strict": true,
+    "skipLibCheck": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "isolatedModules": true,
+    "types": []
+  },
+  "include": ["../lib/sense/*.ts"],
+  "exclude": ["../lib/sense/*.test.ts"]
+}

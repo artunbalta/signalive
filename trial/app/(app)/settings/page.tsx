@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SpeechLanguagePicker } from "@/components/assistant/AssistantControls";
+import { EarbudsCard } from "@/components/earbuds/EarbudsCard";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { RawAudioToggle } from "@/components/notes/RawAudioToggle";
 import { ErrorCallout } from "@/components/ErrorCallout";
@@ -102,6 +103,8 @@ export default function SettingsPage() {
           </ButtonLink>
         </div>
       </Card>
+
+      <EarbudsCard />
 
       <Card>
         <SectionTitle title={m.gestures.bindingsTitle} />

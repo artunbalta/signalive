@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { SimulatedEarbuds } from "@/components/earbuds/SimulatedEarbuds";
 import { Button } from "@/components/ui/Button";
 import { Callout } from "@/components/ui/Card";
 import { Segmented } from "@/components/ui/Controls";
 import { ErrorCallout } from "@/components/ErrorCallout";
 import { useI18n } from "@/components/providers/AppProviders";
+import { earbuds } from "@/lib/client/earbuds";
 import { focus } from "@/lib/client/focus";
 import { headTracker, type TrackingSource } from "@/lib/client/head-tracker";
 import { useStore } from "@/lib/client/store";
@@ -18,13 +20,14 @@ function typing(t: EventTarget | null) {
 
 /**
  * Focus: three voices around you; the one you face comes forward. Steer with
- * the camera, the phone, or keys and pointer; clench (J) to lock; ask what
- * anyone said.
+ * connected earbuds, the camera, the phone, or keys and pointer; clench (J,
+ * or the earbuds) to lock; ask what anyone said.
  */
 export function FocusPanel() {
   const { m, f, locale } = useI18n();
   const v = useStore(focus.view);
   const t = useStore(headTracker.view);
+  const e = useStore(earbuds.view);
   const lang = locale === "tr" ? "tr" : "en";
   const playing = v.phase === "playing";
   const [touch, setTouch] = useState(false);
@@ -59,6 +62,14 @@ export function FocusPanel() {
     if (hasCamera === false && headTracker.view.get().source === "camera") void headTracker.use("pointer");
   }, [hasCamera]);
 
+  // Connected earbuds with a motion sensor take over from the stand-ins; when they go, the keys and the pointer steer.
+  const earbudsYaw = e.phase === "connected" && Object.values(e.earbuds).some((b) => (b?.imuRate ?? 0) > 0);
+  useEffect(() => {
+    const { source, status } = headTracker.view.get();
+    if (earbudsYaw && (source === "pointer" || (source === "earbuds" && status === "idle"))) void headTracker.use("earbuds");
+    else if (!earbudsYaw && source === "earbuds") void headTracker.use("pointer");
+  }, [earbudsYaw]);
+
   // The voices load while the screen is read, so Start plays at once.
   useEffect(() => {
     focus.preload(lang).catch(() => undefined);
@@ -79,11 +90,21 @@ export function FocusPanel() {
   }, []);
 
   const sources: { value: TrackingSource; label: string }[] = [
+    ...(earbudsYaw ? [{ value: "earbuds" as const, label: m.focus.sources.earbuds }] : []),
     ...(hasCamera === false ? [] : [{ value: "camera" as const, label: m.focus.sources.camera }]),
     ...(touch ? [{ value: "motion" as const, label: m.focus.sources.motion }] : []),
     { value: "pointer", label: m.focus.sources.pointer },
   ];
-  const note = t.source === "camera" ? m.focus.cameraNote : t.source === "motion" ? m.focus.motionNote : m.focus.pointerNote;
+  const note =
+    t.source === "earbuds"
+      ? m.focus.earbudsNote
+      : t.source === "camera"
+        ? m.focus.cameraNote
+        : t.source === "motion"
+          ? m.focus.motionNote
+          : m.focus.pointerNote;
+  const simulated = e.phase === "connected" && e.transport === "simulated";
+  const lockHint = simulated ? m.focus.lockHintSimulated : e.phase === "connected" ? m.focus.lockHintEarbuds : m.focus.lockHint;
   const ownError = v.error === "focus_nobody" || v.error === "rewind_empty" ? m.focus.errors[v.error] : null;
   const recapName = v.recap ? FOCUS_SPEAKERS[v.recap.speaker]!.name[lang] : "";
 
@@ -124,6 +145,13 @@ export function FocusPanel() {
           ) : null}
         </div>
 
+        {simulated ? (
+          <div className="space-y-2.5">
+            <p className="t-label">{m.earbuds.transports.simulated}</p>
+            <SimulatedEarbuds />
+          </div>
+        ) : null}
+
         <div className="space-y-2.5">
           <Button
             variant={v.locked !== null ? "primary" : "secondary"}
@@ -135,7 +163,7 @@ export function FocusPanel() {
             {v.locked !== null ? m.focus.unlock : m.focus.lock}
             <kbd className="t-mono ml-1 hidden rounded-[6px] border border-current/30 px-1.5 py-0.5 text-[0.72rem] opacity-70 sm:inline">J</kbd>
           </Button>
-          <p className="max-w-[52ch] text-[0.88rem] leading-relaxed text-fog">{m.focus.lockHint}</p>
+          <p className="max-w-[52ch] text-[0.88rem] leading-relaxed text-fog">{lockHint}</p>
         </div>
 
         {ownError ? <Callout kind="warn" title={ownError} /> : v.error ? <ErrorCallout code={v.error} /> : null}

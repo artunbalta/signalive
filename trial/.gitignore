@@ -7,6 +7,9 @@ out
 next-env.d.ts
 *.tsbuildinfo
 
+# declarations of ../lib/sense, written by tsc -b tsconfig.sense.json
+.sense-types
+
 # local secrets
 .env
 .env*.local

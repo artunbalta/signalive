@@ -6,10 +6,10 @@
   "scripts": {
     "predev": "node scripts/copy-vendor.mjs",
     "dev": "next dev",
-    "prebuild": "node scripts/copy-vendor.mjs",
+    "prebuild": "node scripts/copy-vendor.mjs && tsc -b tsconfig.sense.json",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc -b tsconfig.sense.json && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:db": "vitest run --config vitest.db.config.mts",

@@ -15,8 +15,9 @@
     "incremental": true,
     "noUncheckedIndexedAccess": true,
     "plugins": [{ "name": "next" }],
-    "paths": { "@/*": ["./*"] }
+    "paths": { "@/*": ["./*"], "@sense/*": ["../lib/sense/*"] }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
-  "exclude": ["node_modules", "public"]
+  "exclude": ["node_modules", "public", ".sense-types"],
+  "references": [{ "path": "./tsconfig.sense.json" }]
 }
