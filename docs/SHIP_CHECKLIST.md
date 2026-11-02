@@ -51,6 +51,9 @@ Amber means "this is what is being attended to". Nothing here is decorative.
 | `ThePoint` figure strokes (x8) | the active element in each gesture readout, including the hold bar handing amber to the reply as it returns |
 | `ThePoint` destination card border | the hovered or focused card |
 | `HowItWorks` filing figure | the item currently being captured and the slot receiving it |
+| `/research` replay, the followed story's trace, its key and its correlation bar | the story the person in the recording was attending to |
+| `/research` console, the leading voice's bar | the voice the phone currently judges attended, from head and EEG together |
+| `/research` console, the earbud dots | an earbud that is live and streaming |
 
 ## The balance check (rebalance patch, item 8)
 

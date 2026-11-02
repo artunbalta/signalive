@@ -285,6 +285,8 @@ export const science = {
     },
   ],
   figureCaption: "Two competing talkers, one attended stream, decoded inside a two second window.",
+  /** Leads to /research, where the decoder runs on public recordings. */
+  researchLink: "We ran our decoder on 36 people's ear EEG. Read research note 01",
 };
 
 export const waitlist = {
@@ -456,6 +458,292 @@ export const features = {
     },
   ],
   closingLines: ["The earbuds come later.", "You can start today."],
+};
+
+/**
+ * /research. The decoder run on public ear EEG from 36 people, what it can
+ * tell, how fast, and what that decides about the earbuds. Every number on the
+ * page comes from public/research/results.json, written by research/aad; the
+ * copy carries words only, and "{n}" marks where a number is filled in.
+ *
+ * These are published research recordings, so nothing here may read as a
+ * Signalive product measurement, and the limits section says so in plain words.
+ */
+export const research = {
+  meta: {
+    title: `${BRAND} research. 36 people, two stories, one question for the earbuds.`,
+    description:
+      "We ran our decoding pipeline on public EEG recorded around the ears of 36 people listening to two stories at once: what it can tell, how fast, with how many electrodes, and what that decides about the earbuds.",
+    ogAlt: "Research note 01: 68% of one minute decisions name the followed story, 1.6 points lost without a wire between the ears, no calibration.",
+  },
+  eyebrow: "Research note 01",
+  date: "November 2026",
+  headlineLines: ["We ran the decoder on", "36 people's ear EEG"],
+  lead: "The questions the earbuds depend on can be asked of real recordings before a single earbud exists. Electrodes around the ear, two stories at once, and the same code the earbuds will run.",
+  stats: {
+    accuracy: {
+      label: "of one minute decisions name the story a person was following",
+      sub: "Four electrodes per ear, two separate earbuds, no calibration. A coin flip scores 50%.",
+    },
+    wireless: {
+      label: "lost by cutting the wire between the ears",
+      sub: "Each earbud referenced to itself, against one reference shared across the head.",
+    },
+    calibration: {
+      label: "minutes of calibration needed",
+      sub: "A decoder trained on 35 other people matches one trained on 20 minutes of a person's own data.",
+    },
+    speed: {
+      label: "for the EEG alone to follow a switch of attention",
+      sub: "Median expected switch duration. Enough to confirm, too slow to steer. So the head steers.",
+    },
+  },
+  points: "points",
+  minutes: "min",
+
+  replay: {
+    eyebrow: "Live, in your browser",
+    headlineLines: ["Watch it decide"],
+    body: "A real recording: three minutes of EEG from electrodes around one person's ears while two stories played, one on each side. Your browser runs it through the earbud pipeline, filtering, resampling and decoding, with a decoder trained on the other 35 people that has never seen this one.",
+    pick: "Whose recording",
+    people: {
+      clearest: "Clearest of 36",
+      typical: "Typical",
+      hardest: "Hardest of 36",
+    },
+    personNote: "{n}% of one minute decisions right over all 30 minutes",
+    play: "Play",
+    pause: "Pause",
+    restart: "Start over",
+    speed: "Speed",
+    followed: "Story they followed",
+    other: "Other story",
+    recon: "Rebuilt from their EEG",
+    laneLeft: "Left",
+    laneRight: "Right",
+    eegLane: "EEG",
+    pending: "Waiting for 10 seconds of story",
+    verdictLabel: "Last 10 seconds point to",
+    truthLabel: "They were told to follow",
+    leftStory: "The left story",
+    rightStory: "The right story",
+    tally: "{n} of {m} verdicts right",
+    warming: "Settling the filters",
+    elapsed: "Recording time",
+    timelineLabel: "All 30 minutes of this person, one mark per minute",
+    timelineRight: "Right",
+    timelineWrong: "Wrong",
+    loading: "Loading the recording",
+    error: "The recording could not load. Reload to try again.",
+    noAudio: "No sound: the data set keeps how loud each story was from moment to moment, not the stories themselves.",
+    canvasLabel: "The two stories' loudness over time and the version rebuilt from EEG, scrolling as the recording plays.",
+  },
+
+  findingsEyebrow: "What the recordings say",
+  findings: {
+    window: {
+      index: "01",
+      headlineLines: ["Longer windows,", "clearer answers"],
+      body: "How often a decision names the followed story, by how much EEG it may use, from one second to ten minutes. Four electrodes per ear on two separate earbuds, against all eighteen around both ears on a wire, and one earbud alone. Over five minutes, the two earbuds get it right {n} of the time.",
+      chartLabel: "Share of decisions right by decision window, 36 people, decoders that never saw the person",
+      x: "Decision window, seconds",
+      series: {
+        wireless: "4 per ear, wireless",
+        wired: "All 18, wired",
+        one: "One earbud, 4",
+      },
+      chance: "Chance for one person",
+    },
+    electrodes: {
+      index: "02",
+      headlineLines: ["A few electrodes", "go most of the way"],
+      body: "One minute decisions on two separate earbuds, by electrodes per ear, each ear referenced to its own. Two per ear already reach {n}. Every electrode around both ears adds about {m} points, less than the spread between people.",
+      chartLabel: "Share of one minute decisions right by electrodes per ear, wireless, 36 people",
+      x: "Electrodes per ear",
+      all: "All",
+      mapLabel: "Where the four sit",
+      mapNote: "Positions on a cEEGrid, the arc of electrodes around each ear used in the recordings, seen from the side with the face toward the outer edge. Filled: the four per ear the decoder leaned on most.",
+      left: "Left ear",
+      right: "Right ear",
+    },
+    calibration: {
+      index: "03",
+      headlineLines: ["No calibration", "to start"],
+      body: "One minute decisions by how much of a person's own data trained the decoder. A few minutes of it does worse than a decoder trained on other people, which needs none, and 20 minutes only edges past it.",
+      chartLabel: "Share of one minute decisions right by minutes of the person's own data, 4 per ear, wireless",
+      x: "Minutes of the person's own data",
+      personal: "Trained on their data only",
+      generic: "Trained on 35 other people, none of theirs",
+    },
+    people: {
+      index: "04",
+      headlineLines: ["Most people,", "not everyone"],
+      body: "One dot per person, one minute decisions over 30 minutes, 4 per ear, wireless, no calibration. {n} of 36 clear the bar a single person needs to beat chance, and {m} sit at or below a coin flip.",
+      chartLabel: "Share of one minute decisions right per person",
+      bar: "Beats chance for one person",
+      ringed: "Ringed: the three recordings in the replay",
+    },
+  },
+  explorer: {
+    eyebrow: "Try a design",
+    headlineLines: ["Pick an earbud,", "see what the data says"],
+    body: "Every configuration here was run on the same 36 people and held out the same way. Choose how many electrodes each earbud carries, whether the two share a wire, and whether the decoder learns the wearer.",
+    electrodes: "Electrodes per ear",
+    all: "All",
+    form: "Form",
+    forms: {
+      wireless: "Two earbuds, no wire",
+      wired: "Two earbuds, wired",
+      right: "Right earbud only",
+      left: "Left earbud only",
+    },
+    decoder: "Decoder",
+    decoders: {
+      generic: "No calibration",
+      personal: "20 minutes of the wearer",
+    },
+    at: "Decisions right at {n} s",
+    switch: "To follow a switch",
+    switchValue: "{n} s",
+    people: "People who beat chance on their own",
+    peopleValue: "{n} of 36",
+    allOneEar: "All the electrodes are measured for two earbuds; one earbud alone tops out at 8 here.",
+  },
+  axisRight: "Decisions right",
+  tableToggle: "Show the numbers",
+
+  meaning: {
+    eyebrow: "What it decides about the earbuds",
+    headlineLines: ["The head steers.", "The EEG confirms."],
+    items: [
+      {
+        title: "True wireless works",
+        body: "Two earbuds share no electrical reference, so each has to measure against itself. That costs about a point and a half here. No neckband, no wire.",
+      },
+      {
+        title: "Four electrodes per ear",
+        body: "Two per ear reach most of what every electrode does, so four leave room for contact lost to movement and sweat. The ranking says where they should touch.",
+      },
+      {
+        title: "Wear it and go",
+        body: "A decoder trained on other people works from the start, and the earbud scales it to the wearer from two minutes of wear without asking anything.",
+      },
+      {
+        title: "EEG is the slow channel",
+        body: "Two second decisions are barely better than a coin flip; one minute decisions are right about two times in three, five minute ones {n} of the time. Turning toward someone steers in a fraction of a second, a clench is the explicit command, and the EEG tells, over minutes, who a person keeps coming back to.",
+      },
+    ],
+  },
+
+  built: {
+    eyebrow: "What is already built",
+    headlineLines: ["Everything but", "the hardware"],
+    lead: "The earbud's job is small on purpose: sample the electrodes, the motion sensor and the microphones, stamp the time, send frames. Everything after that is software, and it is written and tested.",
+    items: [
+      {
+        name: "Decoding pipeline",
+        path: "lib/sense",
+        body: "Filtering, resampling, the attention decoder, gain control, head and EEG fusion, clench detection. TypeScript, matched against the research code sample for sample.",
+      },
+      {
+        name: "Wire protocol",
+        path: "hardware/PROTOCOL.md",
+        body: "One frame per Bluetooth notification. A C encoder for the firmware writes the exact bytes the app reads, checked in both directions.",
+      },
+      {
+        name: "Digital twin",
+        path: "lib/sense/twin.ts",
+        body: "A pair of virtual earbuds streaming real recordings, head motion and jaw clenches as frames, so the whole app runs end to end today.",
+      },
+      {
+        name: "Dev kit bridge",
+        path: "lib/sense/transport.ts",
+        body: "An OpenBCI board over USB, or Signalive earbuds over Bluetooth, behind the same interface as the twin.",
+      },
+      {
+        name: "Hardware spec",
+        path: "hardware/SPEC.md",
+        body: "What the earbud must provide, each requirement with its reason and its test: electrodes, front end, referencing, radio, power.",
+      },
+      {
+        name: "Research code",
+        path: "research/aad",
+        body: "Everything on this page, rebuilt from the public data with three commands.",
+      },
+    ],
+    open: "Open on GitHub",
+  },
+
+  console: {
+    eyebrow: "The earbuds, emulated",
+    headlineLines: ["Plug in the hardware.", "Nothing else changes."],
+    body: "Two virtual earbuds stream the same recording as Bluetooth frames, each with its own clock and motion sensor, and the left one sends how loud each voice around it is. The phone side decodes the frames exactly as it will decode the real ones, weighs head and EEG, and sends the earbuds a direction to bring forward. Clench, and the detector has to find it in the raw signal.",
+    start: "Start the earbuds",
+    starting: "Loading the recording",
+    stop: "Stop",
+    error: "The recording could not load. Reload to try again.",
+    clench: "Clench",
+    double: "Clench twice",
+    hold: "Hold a clench",
+    turn: "Turn the head",
+    turnValue: "{n} degrees",
+    sides: { left: "Left earbud", right: "Right earbud" },
+    frames: "Frames",
+    lost: "Lost",
+    rate: "Samples a second",
+    drift: "Clock drift",
+    driftValue: "{n} ppm",
+    battery: "Battery",
+    phone: "On the phone",
+    attention: "Which voice, head and EEG together",
+    leftVoice: "Left voice",
+    rightVoice: "Right voice",
+    headYaw: "Head, from the motion sensor",
+    eegVerdict: "EEG, last 10 seconds",
+    eegPending: "Gathering 10 seconds",
+    steering: "Sent back to the earbuds",
+    steerValue: "Bring forward {n} degrees, {m} dB",
+    steerNone: "Nothing yet",
+    heard: "Clenches detected",
+    none: "Nothing yet",
+    kinds: { single: "Clench", double: "Double clench", hold: "Held clench" },
+    latency: "{n} ms after it began",
+    note: "Clenches here are synthetic jaw muscle activity added to the recording; on the earbuds they come from the same electrodes. The recording is the clearest one from the replay.",
+  },
+
+  method: {
+    eyebrow: "Method and limits",
+    items: [
+      {
+        label: "Data",
+        body: "Attended speaker paradigm (cEEGrid data), OpenNeuro ds004015, released under CC0 by Holtze, Rosenkranz, Jaeger, Debener and Mirkovic (Frontiers in Neuroscience, 2022). 36 people, electrode arcs around both ears, two audiobooks at once from left and right, each person told to follow one side. Three 10 minute blocks per person in which both stories were equally loud.",
+      },
+      {
+        label: "Pipeline",
+        body: "A causal band pass from 1 to 9 Hz, resampling to 64 Hz, and a linear decoder over half a second of EEG that rebuilds the followed story's loudness over time. A window's verdict is the story whose loudness matches the rebuilt one best.",
+      },
+      {
+        label: "Testing",
+        body: "Personal decoders were tested on a 10 minute block they never saw; generic ones on a person they never saw, scaled with that person's first two minutes and no labels. The electrode ranking was chosen on the whole group, which can flatter the per ear counts slightly.",
+      },
+      {
+        label: "Switch time",
+        body: "Minimal expected switch duration (Geirnaert, Francart and Bertrand): the attended voice held in the top 35% of the gain range 80% of the time, with at least five gain steps.",
+      },
+      {
+        label: "Limits",
+        body: "Electrode arcs around the ear are not earbuds. Attention here was instructed and held for whole blocks, never switched. A quiet room and people sitting still. These are published research recordings, not Signalive product measurements.",
+      },
+    ],
+    reproduce: "Reproduce it",
+    commands: [
+      "python3 research/aad/preprocess.py",
+      "python3 research/aad/analyze.py",
+      "python3 research/aad/export.py",
+    ],
+    sourceLabel: "The data set",
+    paperLabel: "The study",
+  },
 };
 
 export const stickyCta = {

@@ -28,3 +28,6 @@ tsconfig.tsbuildinfo
 
 # macOS
 .DS_Store
+
+# Local notes that never ship (application drafts and the like).
+private/

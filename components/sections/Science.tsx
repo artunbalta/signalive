@@ -224,6 +224,18 @@ export default function Science() {
               </li>
             ))}
           </Reveal>
+
+          {/* Our own measurements, on public ear EEG, have a page of their own. */}
+          <Reveal className="col-span-12 mt-16">
+            <a href="/research" className="group inline-flex items-baseline gap-3 text-body">
+              <span className="border-b border-hairline pb-1 transition-colors duration-[240ms] group-hover:border-current">
+                {science.researchLink}
+              </span>
+              <span aria-hidden="true" className="transition-transform duration-[240ms] group-hover:translate-x-1">
+                {"\u2192"}
+              </span>
+            </a>
+          </Reveal>
         </div>
       </div>
     </section>

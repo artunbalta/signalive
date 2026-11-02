@@ -69,6 +69,18 @@ sections' styles, which took 1.5KB off the page.
 - Sections themselves are NOT dynamically imported. The copy is the substance of this
   page and it should render without JavaScript.
 
+## /research
+
+The research page is outside the home page budget but keeps to its spirit:
+about 117 KB of first load JavaScript, the same shared chunks as every page,
+with its charts server rendered and only their hover layer as script. The
+live replay and the emulated earbuds are separate chunks loaded after the
+page (`components/research/Lazy.tsx`), and they fetch nothing until someone
+presses Play or Start: each demo recording is a 1.6 MB int16 file plus about
+450 KB of JSON (the decoder, the two stories' envelopes, the 30 minute
+timeline). The earbud pipeline runs about 4000 times faster than real time,
+so even 16x playback costs a few percent of one core.
+
 ## Fonts
 
 PP Neue Montreal is not licensable here, so the spec's own fallback applies: Inter Tight

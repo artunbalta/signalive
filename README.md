@@ -21,6 +21,11 @@ The web trial (earbud assistant, recorder and notes, whisper and noise lab, Rewi
 Focus) is a separate Next.js app in `trial/`, deployed as its own Vercel project. See
 `trial/README.md`.
 
+`/research` is research note 01: our decoding pipeline run on public EEG recorded
+around the ears of 36 people, a live replay of one recording through the earbud
+pipeline in the browser, what the numbers decide about the hardware, and the earbuds
+emulated as a byte stream. See "Research and the earbud software" below.
+
 `/features` presents what the trial does, gesture channel first, and says for each
 feature what in the trial stands in for the hardware. Its "Try" links point to
 `NEXT_PUBLIC_TRIAL_URL` (set it on this project once the trial is deployed). Without it,
@@ -33,12 +38,14 @@ trial's local server, `http://localhost:3001`.
 app/
   layout.tsx          fonts, metadata, the intro gate script
   page.tsx            section order
+  research/           research note 01
   globals.css         THE design tokens. Read this before styling anything.
   api/waitlist/       signup endpoint with a pluggable provider
 components/
   chrome/             announcement bar, nav, sticky CTA, page loader
   focus-room/         the room at the top of the page: its WebGL scene, its
                       sound and the engine that steers both
+  research/           /research: charts, the live replay, the earbud console
   sections/           one file per section of the page
                       OneClench is the pinned four beat scene after the hero
                       ThePoint is the largest section and the product's argument
@@ -48,6 +55,14 @@ lib/
   brand.ts            the brand name, in one place
 lib/
   clench.ts           the measured clench frame, used by the pinned scene
+  sense/              the earbud software, phone side: filters, resampling, the
+                      attention decoder, gain control, head and EEG fusion, clench
+                      detection, the wire protocol, a digital twin, transports,
+                      and PhoneSession, which ties them together from bytes in to
+                      decisions and STEER commands out
+hardware/             what the earbud must provide: spec, architecture, parts,
+                      the wire protocol and its C encoder for the firmware
+research/aad/         the analysis behind /research, in Python, from public data
 scripts/
   audit-copy.mjs      em dash, forbidden claims, the 83% qualifier
   audit-design.mjs    contrast table and the amber inventory
@@ -57,6 +72,36 @@ docs/
   PERFORMANCE.md      budget, the Framer Motion decision, a contrast correction
 .assetgen/            prompts and the generation scripts (not shipped)
 ```
+
+## Research and the earbud software
+
+The earbud's own job is deliberately small: sample its electrodes, motion sensor and
+microphones, timestamp, and send frames. Everything after the frames is software and
+lives here, so that only the hardware remains to be built.
+
+- `research/aad/` asks the questions the hardware depends on of a public data set
+  (OpenNeuro ds004015, CC0: EEG from electrode arcs around the ears of 36 people while
+  two stories played). Three commands rebuild every number on `/research`; its README
+  has the method, the results and the limits.
+- `lib/sense/` is the same signal chain in TypeScript, plus the clench detector, the
+  wire protocol (SSP), a digital twin of a pair of earbuds, and transports for the
+  twin, Web Bluetooth and an OpenBCI board. Its tests check it against the Python
+  reference, down to six seconds of a real recording end to end:
+
+  ```bash
+  npm test
+  ```
+
+- `hardware/` is the handoff: requirements with their reasons and tests, the system
+  architecture, reference parts, and the protocol with a C encoder whose bytes the
+  TypeScript decoder is tested against.
+
+What the recordings say, in short: two separate earbuds, four electrodes each and no
+calibration, name the story a person follows in about 68% of one minute decisions and
+85% of five minute ones (chance is 50%), a wire between the ears adds about a point and
+a half, and following a switch takes about two minutes. So the head steers, the clench
+commands, and the EEG confirms over minutes. These are published research recordings,
+not Signalive product measurements.
 
 ## Two rules that are not negotiable
 
