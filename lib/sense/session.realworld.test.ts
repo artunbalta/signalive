@@ -47,7 +47,7 @@ const audio = meta.envelopes.map((env) => {
 /** How each side's bytes reach the phone: what to deliver now (nothing drops them, more delivers a backlog). */
 type Link = (bytes: Uint8Array, side: Side, t: number) => { bytes: Uint8Array; side: Side }[];
 
-function run(opts: { twin?: Partial<TwinOptions>; link?: Link; seconds?: number; at?: (t: number, twin: DigitalTwin) => void }) {
+function run(opts: { twin?: Partial<TwinOptions>; link?: Link; seconds?: number; at?: (t: number, twin: DigitalTwin) => void; modelAt?: number }) {
   const twin = new DigitalTwin({
     recording: { fs: meta.fsRaw, labels: meta.channels, data },
     sides: { left: [0, 1, 2, 3], right: [4, 5, 6, 7] },
@@ -57,21 +57,25 @@ function run(opts: { twin?: Partial<TwinOptions>; link?: Link; seconds?: number;
     ...opts.twin,
   });
   let host = 0;
-  const session = new PhoneSession({ fs: meta.fsRaw, perEar: 4, model: meta.model, azimuths: [-90, 90], now: () => host });
+  const session = new PhoneSession({ fs: meta.fsRaw, perEar: 4, model: opts.modelAt === undefined ? meta.model : undefined, azimuths: [-90, 90], now: () => host });
   twin.start((bytes, side) => {
     for (const d of opts.link ? opts.link(bytes, side, twin.time) : [{ bytes, side }]) session.bytes(d.bytes, d.side);
   });
   const verdicts: { t: number; right: boolean }[] = [];
+  const beliefs: { t: number; p: number }[] = [];
   const seconds = opts.seconds ?? 200;
   let next = 1000;
   for (let t = 0; t < seconds * 1000; t += 20) {
     opts.at?.(t, twin);
+    if (t === opts.modelAt) session.setModel(meta.model);
     twin.tick(20);
     host = twin.time + 8;
     if (twin.time >= next) {
       next += 1000;
-      const e = session.snapshot().eeg;
+      const snap = session.snapshot();
+      const e = snap.eeg;
       if (e && twin.time >= 31_000) verdicts.push({ t: twin.time, right: e.talker === meta.attendedStory });
+      if (snap.belief) beliefs.push({ t: twin.time, p: snap.belief[meta.attendedStory] });
     }
   }
   const d = session.decoder!;
@@ -79,7 +83,7 @@ function run(opts: { twin?: Partial<TwinOptions>; link?: Link; seconds?: number;
     const v = verdicts.filter((x) => x.t >= from);
     return v.length ? v.filter((x) => x.right).length / v.length : 0;
   };
-  return { session, twin, d, verdicts, share, skew: d.featureCount - d.envelopeCount(0) };
+  return { session, twin, d, verdicts, beliefs, share, skew: d.featureCount - d.envelopeCount(0) };
 }
 
 const baseline = run({});
@@ -89,6 +93,26 @@ describe("PhoneSession on a real recording, through a real radio", () => {
     expect(baseline.verdicts.length).toBeGreaterThan(150);
     expect(baseline.share()).toBeGreaterThan(0.8);
     expect(Math.abs(baseline.skew)).toBeLessThan(40);
+  });
+
+  it("takes a model that arrives after the earbuds connected", () => {
+    const late = run({ modelAt: 15_000 });
+    expect(late.session.decoder).not.toBeNull();
+    expect(Math.abs(late.skew)).toBeLessThan(40);
+    expect(late.share()).toBeGreaterThan(baseline.share() - 0.08);
+    const settled = late.beliefs.filter((b) => b.t >= 100_000);
+    expect(settled.filter((b) => b.p > 0.5).length / settled.length).toBeGreaterThan(0.9);
+  });
+
+  it("builds a belief that settles on the followed story and steers toward it", () => {
+    // From the second minute on, past the 20 s lead in and the first decisions.
+    const settled = baseline.beliefs.filter((b) => b.t >= 80_000);
+    expect(settled.length).toBeGreaterThan(100);
+    expect(settled.filter((b) => b.p > 0.5).length / settled.length).toBeGreaterThan(0.95);
+    expect(Math.max(...settled.map((b) => b.p))).toBeGreaterThan(0.8);
+    // With no head direction, the posterior is the belief.
+    const snap = baseline.session.snapshot();
+    expect(snap.posterior[meta.attendedStory]).toBeCloseTo(snap.belief![meta.attendedStory], 12);
   });
 
   it("keeps one timeline when an earbud stalls and then delivers its backlog", () => {

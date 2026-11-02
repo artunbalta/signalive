@@ -3,7 +3,7 @@ import MaskHeadline from "@/components/ui/MaskHeadline";
 import Reveal from "@/components/ui/Reveal";
 import { research } from "@/lib/copy";
 import results from "@/public/research/results.json";
-import { CalibrationChart, ColumnChart, StripChart, WindowChart } from "./charts";
+import { CalibrationChart, ColumnChart, FrontierChart, ReliabilityChart, StripChart, WindowChart } from "./charts";
 import EarMap from "./EarMap";
 import Explorer, { type ExplorerConfigs } from "./Explorer";
 import { LazyConsole, LazyReplay } from "./Lazy";
@@ -17,6 +17,9 @@ import { LazyConsole, LazyReplay } from "./Lazy";
 
 type Summary = { mean: Record<string, number>; mesdMedian: number | null; above60: number };
 type Config = { generic: Summary; personal: Summary; perSubject60: number[]; electrodes: string[] };
+type Bin = { margin: number; predicted: number; predictedHandSet: number; observed: number; n: number };
+type Fit = { weight: number; accuracy: number; bins: Bin[] };
+type BeliefRow = { hazard: number; steady: number; switchMedian: number | null; switchMissed: number; decisionAccuracy: number };
 const R = results as unknown as {
   windows: number[];
   chance: Record<string, number | null>;
@@ -25,6 +28,14 @@ const R = results as unknown as {
   electrodeOrder: { left: string[]; right: string[] };
   people: { label: "clearest" | "typical" | "hardest"; id: string; accuracy60: number; attended: string }[];
   dataset: { doi: string; paper: string; people: number };
+  neural: {
+    mean: Record<string, number>;
+    control: Record<string, number>;
+    mesdMedian: number | null;
+    splits: { seed: number; mean60: number; mean300: number; mesdMedian: number | null }[];
+  };
+  fusion: { handSet: number; linear: Fit; neural: Fit };
+  belief: { chosenHazard: number; linear: { rows: BeliefRow[] }; learned: { rows: BeliefRow[] } };
 };
 
 const INK = "bg-ink text-paper";
@@ -40,11 +51,12 @@ const fill = (s: string, n: string | number, m?: string | number) => s.replace("
 export function ResearchHero() {
   const head = R.configs.wireless_4.generic;
   const lost = (g60("wired_4") - g60("wireless_4")) * 100;
+  const st = research.stats;
   const tiles = [
-    { key: "accuracy", value: pct(head.mean["60"]), copy: research.stats.accuracy },
-    { key: "wireless", value: `${lost.toFixed(1)}`, unit: research.points, copy: research.stats.wireless },
-    { key: "calibration", value: "0", unit: research.minutes, copy: research.stats.calibration },
-    { key: "speed", value: `${Math.round((head.mesdMedian ?? 0) / 60)}`, unit: research.minutes, copy: research.stats.speed },
+    { key: "accuracy", value: pct(R.neural.mean["60"]), copy: { ...st.accuracy, sub: fill(st.accuracy.sub, pct(head.mean["60"])) } },
+    { key: "wireless", value: `${lost.toFixed(1)}`, unit: research.points, copy: st.wireless },
+    { key: "calibration", value: "0", unit: research.minutes, copy: st.calibration },
+    { key: "speed", value: `${Math.round(R.neural.mesdMedian ?? 0)}`, unit: research.seconds, copy: { ...st.speed, sub: fill(st.speed.sub, Math.round(head.mesdMedian ?? 0)) } },
   ];
   return (
     <section id="research-hero" aria-labelledby="research-heading" className={`section ${INK} pt-[calc(var(--bar-h)+var(--nav-h)+var(--rhythm))]`}>
@@ -241,8 +253,137 @@ export function Findings() {
           <StripChart values={per} marks={marks} bar={bar} barLabel={f.people.bar} domain={[0.35, 0.95]} ticks={[0.4, 0.5, 0.6, 0.7, 0.8, 0.9]} label={f.people.chartLabel} ringLabel={f.people.ringed} />
           <Table head={["#", research.axisRight]} rows={per.map((v, i) => [i + 1, pct(v)])} />
         </Finding>
+
+        <Learned band={band} />
+        <Trust />
+        <Belief />
       </div>
     </section>
+  );
+}
+
+/** 05: the learned decoder against the linear one, and the check that it follows speech. */
+function Learned({ band }: { band: (number | null)[] }) {
+  const f = research.findings.learned;
+  const W = R.windows;
+  const series = [
+    { id: "learned", label: f.series.learned, values: W.map((w) => R.neural.mean[String(w)]), tone: "paper" as const },
+    { id: "linear", label: f.series.linear, values: W.map((w) => R.configs.wireless_4.generic.mean[String(w)]), tone: "mist" as const },
+    { id: "control", label: f.series.control, values: W.map((w) => R.neural.control[String(w)]), tone: "fog" as const },
+  ];
+  const splits = R.neural.splits.map((s) => s.mean60);
+  return (
+    <Finding id="learned" copy={f} body={fill(f.body, pct(g60("wireless_4")), pct(R.neural.mean["60"]))}>
+      <WindowChart
+        xs={W}
+        series={series}
+        band={band}
+        bandLabel={research.findings.window.chance}
+        // Under the out of step line, which runs along 50%.
+        bandLabelAt={0.465}
+        domain={[0.4, 0.95]}
+        ticks={[0.5, 0.6, 0.7, 0.8, 0.9]}
+        labelled={[1, 2, 5, 10, 30, 60, 120, 300, 600]}
+        xLabel={research.findings.window.x}
+        yLabel={research.axisRight}
+        label={f.chartLabel}
+      />
+      <p className="mt-8 max-w-[60ch] text-small leading-relaxed text-mist">{fill(f.check, pct(R.neural.control["60"]))}</p>
+      <p className="mt-4 max-w-[60ch] text-small leading-relaxed text-fog">{fill(f.splits, pct(Math.min(...splits)), pct(Math.max(...splits)))}</p>
+      <Table
+        head={[research.findings.window.x, ...series.map((s) => s.label), research.findings.window.chance]}
+        rows={W.map((w, i) => [w, ...series.map((s) => pct(s.values[i])), band[i] === null ? "" : pct(band[i] as number)])}
+      />
+    </Finding>
+  );
+}
+
+/** 06: how far a decision moves the fusion, set by hand and fitted. */
+function Trust() {
+  const f = research.findings.trust;
+  const lin = R.fusion.linear;
+  const nn = R.fusion.neural;
+  const w = (v: number) => v.toFixed(1);
+  const top = lin.bins[lin.bins.length - 1];
+  const series = [
+    { id: "learned", label: fill(f.learnedFit, w(nn.weight)), tone: "paper" as const, points: nn.bins.map((b) => ({ x: b.predicted, y: b.observed, n: b.n })) },
+    { id: "linear", label: fill(f.linearFit, w(lin.weight)), tone: "mist" as const, points: lin.bins.map((b) => ({ x: b.predicted, y: b.observed, n: b.n })) },
+    { id: "hand", label: fill(f.linearHand, w(R.fusion.handSet)), tone: "fog" as const, dashed: true, points: lin.bins.map((b) => ({ x: b.predictedHandSet, y: b.observed, n: b.n })) },
+  ];
+  return (
+    <Finding id="trust" copy={f} body={fill(f.body, pct(top.predictedHandSet), pct(top.observed))}>
+      <ReliabilityChart
+        series={series}
+        domain={[0.5, 1]}
+        ticks={[0.5, 0.6, 0.7, 0.8, 0.9, 1]}
+        xLabel={f.x}
+        yLabel={research.axisRight}
+        label={f.chartLabel}
+        diagonalLabel={f.diagonal}
+        pointLabel={f.point}
+      />
+      <Table
+        head={[f.x, research.axisRight, f.series]}
+        rows={series.flatMap((s) => s.points.map((p) => [pct(p.x), pct(p.y), s.label]))}
+      />
+    </Finding>
+  );
+}
+
+/** 07: from single decisions to a belief that holds, and what letting go costs. */
+function Belief() {
+  const f = research.findings.belief;
+  const h = R.belief.chosenHazard;
+  const at = (rows: BeliefRow[]) => rows.find((r) => Math.abs(r.hazard - h) < 1e-9) ?? rows[0];
+  const nn = at(R.belief.learned.rows);
+  // Settings that come over within five minutes; the slowest ones say little but how slow.
+  const line = (rows: BeliefRow[]) => rows.filter((r) => r.switchMedian !== null && r.switchMedian <= 300).map((r) => ({ x: r.switchMedian as number, y: r.steady, h: r.hazard }));
+  const lines = [
+    { id: "learned", label: f.learned, tone: "paper" as const, points: line(R.belief.learned.rows) },
+    { id: "linear", label: f.linear, tone: "mist" as const, points: line(R.belief.linear.rows) },
+  ];
+  const tiles = [
+    { key: "decision", value: pct(nn.decisionAccuracy), label: f.stats.decision },
+    { key: "belief", value: pct(nn.steady), label: f.stats.belief },
+    { key: "switch", value: `${Math.round(nn.switchMedian ?? 0)}`, unit: research.seconds, label: f.stats.switch },
+  ];
+  return (
+    <Finding id="belief" copy={f} body={fill(f.body, pct(nn.decisionAccuracy), pct(nn.steady)).replace("{k}", String(Math.round(nn.switchMedian ?? 0)))}>
+      <ul className="grid grid-cols-1 gap-x-8 gap-y-8 border-b border-hairline pb-10 sm:grid-cols-3">
+        {tiles.map((t) => (
+          <li key={t.key} className="flex flex-col gap-3">
+            <p className="research-stat-value research-stat-value-small">
+              {t.value}
+              {t.unit ? <span className="ml-2 text-[0.4em] tracking-normal text-mist">{t.unit}</span> : null}
+            </p>
+            <p className="text-small leading-relaxed text-mist">{t.label}</p>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-10">
+        <FrontierChart
+          lines={lines}
+          chosen={h}
+          domain={[0.5, 1]}
+          ticks={[0.5, 0.6, 0.7, 0.8, 0.9, 1]}
+          xMax={300}
+          xTicks={[0, 60, 120, 180, 240, 300]}
+          xLabel={f.x}
+          yLabel={research.axisRight}
+          label={f.chartLabel}
+          pointLabel={f.point}
+        />
+      </div>
+      <p className="mt-8 max-w-[60ch] text-small leading-relaxed text-fog">{fill(f.tradeoff, Math.round(h * 100))}</p>
+      <Table
+        head={[f.table.hazard, f.table.learnedSteady, f.table.learnedSwitch, f.table.linearSteady, f.table.linearSwitch]}
+        rows={R.belief.learned.rows.map((r, i) => {
+          const l = R.belief.linear.rows[i];
+          const s = (v: number | null) => (v === null ? f.table.beyond : `${Math.round(v)} s`);
+          return [`${Math.round(r.hazard * 1000) / 10}%`, pct(r.steady), s(r.switchMedian), pct(l.steady), s(l.switchMedian)];
+        })}
+      />
+    </Finding>
   );
 }
 

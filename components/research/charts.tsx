@@ -70,6 +70,7 @@ export function WindowChart({
   series,
   band,
   bandLabel,
+  bandLabelAt,
   domain,
   ticks,
   labelled,
@@ -82,6 +83,8 @@ export function WindowChart({
   /** Per window; null where one person's result cannot be told from chance at all. */
   band: (number | null)[];
   bandLabel: string;
+  /** Where the band's label sits on the value axis; default just under the band's edge at the first window. */
+  bandLabelAt?: number;
   domain: [number, number];
   ticks: number[];
   /** Window lengths that get a tick label; the rest are plotted unlabelled. */
@@ -147,7 +150,7 @@ export function WindowChart({
               style={{ left: `${px[px.length - 1]}%`, top: `${100 - scale(domain, s.values[s.values.length - 1])}%`, background: TONE[s.tone] }}
             />
           ))}
-          <span className="chart-bandlabel absolute" style={{ left: "1%", top: `${100 - scale(domain, bandVals[0])}%` }}>
+          <span className="chart-bandlabel absolute" style={{ left: "1%", top: `${100 - scale(domain, bandLabelAt ?? bandVals[0])}%` }}>
             {bandLabel}
           </span>
           {hover !== null ? (
@@ -454,6 +457,206 @@ export function StripChart({
           <span aria-hidden="true" className="chart-ring" />
           {ringLabel}
         </p>
+      </div>
+    </figure>
+  );
+}
+
+/**
+ * A reliability diagram: what the fusion believed about a decision against
+ * how often such decisions were right, on people the decoder never saw.
+ * Decisions are grouped in five equal groups by how clearly they were won.
+ * On the diagonal, belief and reality agree; to its right, the fusion
+ * trusted the decisions more than they earned.
+ */
+export function ReliabilityChart({
+  series,
+  domain,
+  ticks,
+  xLabel,
+  yLabel,
+  label,
+  diagonalLabel,
+  pointLabel,
+}: {
+  series: { id: string; label: string; tone: Series["tone"]; dashed?: boolean; points: { x: number; y: number; n: number }[] }[];
+  domain: [number, number];
+  ticks: number[];
+  xLabel: string;
+  yLabel: string;
+  label: string;
+  diagonalLabel: string;
+  /** "Believed {n}, right {m}", filled per point. */
+  pointLabel: string;
+}) {
+  const [hover, setHover] = useState<{ s: number; i: number } | null>(null);
+  const pos = (v: number) => scale(domain, v);
+  const keys: Series[] = series.map((l) => ({ id: l.id, label: l.label, values: [], tone: l.tone }));
+  const words = (p: { x: number; y: number }) => pointLabel.replace("{n}", pct(p.x)).replace("{m}", pct(p.y));
+  return (
+    <figure className="chart" aria-label={label}>
+      <Legend series={keys} />
+      <div className="chart-frame">
+        <div className="chart-plot" role="img" aria-label={label} onPointerLeave={() => setHover(null)}>
+          <svg viewBox={`0 0 ${V} ${V}`} preserveAspectRatio="none" aria-hidden="true" className="absolute inset-0 h-full w-full overflow-visible">
+            <Grid ticks={ticks} domain={domain} />
+            <line x1={0} y1={V} x2={V} y2={0} stroke={TONE.fog} strokeWidth={1} strokeDasharray="4 6" vectorEffect="non-scaling-stroke" />
+            {series.map((l) => (
+              <path
+                key={l.id}
+                d={l.points.map((p, i) => `${i ? "L" : "M"}${(pos(p.x) / 100) * V},${V - (pos(p.y) / 100) * V}`).join("")}
+                fill="none"
+                stroke={TONE[l.tone]}
+                strokeWidth={2}
+                strokeDasharray={l.dashed ? "6 6" : undefined}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </svg>
+          <YAxis ticks={ticks} domain={domain} label={yLabel} />
+          <span className="chart-bandlabel absolute" style={{ left: "62%", top: "18%" }}>
+            {diagonalLabel}
+          </span>
+          {series.map((l, si) =>
+            l.points.map((p, i) => (
+              <button
+                key={`${l.id}-${i}`}
+                type="button"
+                className="chart-trusthit"
+                style={{ left: `${pos(p.x)}%`, top: `${100 - pos(p.y)}%` }}
+                onPointerEnter={() => setHover({ s: si, i })}
+                onFocus={() => setHover({ s: si, i })}
+                onBlur={() => setHover(null)}
+                aria-label={`${l.label}: ${words(p)}`}
+              >
+                <span aria-hidden="true" className="chart-dot" style={{ background: TONE[l.tone] }} />
+              </button>
+            )),
+          )}
+          {hover !== null ? (
+            <div className="chart-tip" data-flip={pos(series[hover.s].points[hover.i].x) > 55 || undefined} style={{ left: `${pos(series[hover.s].points[hover.i].x)}%` }}>
+              <p className="chart-tip-head">{series[hover.s].label}</p>
+              <p className="chart-tip-row">
+                <span aria-hidden="true" className="chart-key" style={{ background: TONE[series[hover.s].tone] }} />
+                <span>{words(series[hover.s].points[hover.i])}</span>
+              </p>
+            </div>
+          ) : null}
+        </div>
+        <div className="chart-xaxis">
+          {ticks.map((t) => (
+            <span key={t} className="chart-tick absolute -translate-x-1/2" style={{ left: `${pos(t)}%` }}>
+              {pct(t)}
+            </span>
+          ))}
+        </div>
+        <p className="chart-xlabel">{xLabel}</p>
+      </div>
+    </figure>
+  );
+}
+
+/**
+ * Steadiness against speed: one line per decoder through the settings it
+ * was measured at, the setting the phone uses marked. Up is steadier (the
+ * share of decisions after which the belief names the followed story), left
+ * is quicker (median seconds to come over after a switch).
+ */
+export function FrontierChart({
+  lines,
+  chosen,
+  domain,
+  ticks,
+  xMax,
+  xTicks,
+  xLabel,
+  yLabel,
+  label,
+  pointLabel,
+}: {
+  lines: { id: string; label: string; tone: Series["tone"]; points: { x: number; y: number; h: number }[] }[];
+  /** The hazard the phone uses: its point on each line gets a ring. */
+  chosen: number;
+  domain: [number, number];
+  ticks: number[];
+  xMax: number;
+  xTicks: number[];
+  xLabel: string;
+  yLabel: string;
+  label: string;
+  /** "{n} s to come over, {m} steady", filled per point. */
+  pointLabel: string;
+}) {
+  const [hover, setHover] = useState<{ line: number; i: number } | null>(null);
+  const x = (v: number) => (Math.min(v, xMax) / xMax) * 100;
+  const keys: Series[] = lines.map((l) => ({ id: l.id, label: l.label, values: [], tone: l.tone }));
+  const words = (p: { x: number; y: number }) => pointLabel.replace("{n}", String(Math.round(p.x))).replace("{m}", pct(p.y));
+  return (
+    <figure className="chart" aria-label={label}>
+      <Legend series={keys} />
+      <div className="chart-frame">
+        <div className="chart-plot" role="img" aria-label={label} onPointerLeave={() => setHover(null)}>
+          <svg viewBox={`0 0 ${V} ${V}`} preserveAspectRatio="none" aria-hidden="true" className="absolute inset-0 h-full w-full overflow-visible">
+            <Grid ticks={ticks} domain={domain} />
+            {lines.map((l) => (
+              <path
+                key={l.id}
+                d={l.points.map((p, i) => `${i ? "L" : "M"}${(x(p.x) / 100) * V},${V - (scale(domain, p.y) / 100) * V}`).join("")}
+                fill="none"
+                stroke={TONE[l.tone]}
+                strokeWidth={2}
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </svg>
+          <YAxis ticks={ticks} domain={domain} label={yLabel} />
+          {lines.map((l, li) =>
+            l.points.map((p, i) => (
+              <button
+                key={`${l.id}-${i}`}
+                type="button"
+                className="chart-trusthit"
+                style={{ left: `${x(p.x)}%`, top: `${100 - scale(domain, p.y)}%` }}
+                onPointerEnter={() => setHover({ line: li, i })}
+                onFocus={() => setHover({ line: li, i })}
+                onBlur={() => setHover(null)}
+                aria-label={`${l.label}: ${words(p)}`}
+              >
+                <span
+                  aria-hidden="true"
+                  className="chart-dot"
+                  data-chosen={Math.abs(p.h - chosen) < 1e-9 || undefined}
+                  style={{ background: TONE[l.tone] }}
+                />
+              </button>
+            )),
+          )}
+          {hover !== null ? (
+            <div
+              className="chart-tip"
+              data-flip={x(lines[hover.line].points[hover.i].x) > 55 || undefined}
+              style={{ left: `${x(lines[hover.line].points[hover.i].x)}%` }}
+            >
+              <p className="chart-tip-head">{lines[hover.line].label}</p>
+              <p className="chart-tip-row">
+                <span aria-hidden="true" className="chart-key" style={{ background: TONE[lines[hover.line].tone] }} />
+                <span>{words(lines[hover.line].points[hover.i])}</span>
+              </p>
+            </div>
+          ) : null}
+        </div>
+        <div className="chart-xaxis">
+          {xTicks.map((t) => (
+            <span key={t} className="chart-tick absolute -translate-x-1/2" style={{ left: `${x(t)}%` }}>
+              {t}
+            </span>
+          ))}
+        </div>
+        <p className="chart-xlabel">{xLabel}</p>
       </div>
     </figure>
   );

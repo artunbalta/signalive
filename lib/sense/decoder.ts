@@ -38,6 +38,8 @@ export interface DecoderModel {
   lags: number;
   /** weights[c][k]: derived channel c at lag k. */
   weights: number[][];
+  /** Log odds per unit of margin a decision deserves in the fusion, when fitted; else the fusion's default. */
+  eegWeight?: number;
 }
 
 /** The outcome of one decision window. */
@@ -219,6 +221,13 @@ export class AttentionDecoder {
     return this.envCount[talker] ?? 0;
   }
 
+  /** The exclusive end of the newest window that could be decided now: where the reconstruction and every envelope have reached. */
+  get decidable(): number {
+    let end = this.reconCount;
+    for (const n of this.envCount) end = Math.min(end, n);
+    return end;
+  }
+
   /**
    * Decides over the most recent window of windowSeconds where the
    * reconstruction and every envelope exist, or null while there is not
@@ -226,8 +235,7 @@ export class AttentionDecoder {
    */
   decide(windowSeconds: number): Decision | null {
     const length = Math.round(windowSeconds * this.fs);
-    let end = this.reconCount;
-    for (const n of this.envCount) end = Math.min(end, n);
+    const end = this.decidable;
     return this.decideRange(end - length, length);
   }
 

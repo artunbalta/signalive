@@ -2,9 +2,13 @@
 
 `research/aad` answered what public recordings can: attention is decodable
 from electrodes around the ear, two separate earbuds lose almost nothing
-against a wired pair, four electrodes per ear are enough, no calibration is
-needed, and the EEG takes about two minutes to follow a switch. Four
-questions remain that no public data set answers. Each one below is sized
+against a wired pair, four electrodes per ear are enough, and no calibration
+is needed. A learned decoder (`deep.py`) does markedly better than the linear
+one on the same people, the fusion now weighs each decision by what it
+earned on people it never saw (`calibrate.py`), and a running belief turns
+weak ten second decisions into a steady answer that still follows a switch
+within about a minute (`belief.py`). Four questions remain that no public
+data set answers. Each one below is sized
 for a dev kit (an OpenBCI Cyton board, around the ear electrodes placed where
 the ranking in `research/aad/README.md` says) and runs through code that
 already exists: the board streams into `lib/sense` through
@@ -41,8 +45,10 @@ In the public data attention never moved. In life it does.
   trial plays the audio, so its envelopes are known exactly.
 - **Measure**: accuracy against the cue over time and the real switch time,
   compared with what MESD predicts from steady attention.
-- **What it decides**: whether the gain control should step on every
-  decision or wait for agreement, and how many steps it needs.
+- **What it decides**: the belief's one setting, the chance per decision
+  that attention moved (`DEFAULT_HAZARD` in `lib/sense/fusion.ts`, now 2%
+  from simulated switches), measured against real ones, and whether the
+  learned decoder's lead over the linear one holds when attention moves.
 
 ## 3. Does the EEG add anything to the head?
 
@@ -56,9 +62,10 @@ it knows something the head does not.
   straight ahead between them.
 - **Measure**: accuracy of head direction alone, EEG alone, and the two fused
   (`lib/sense/fusion.ts`), per block.
-- **What it decides**: the fusion weights, and the honest pitch. If the EEG
-  only helps when the head is turned away from the voice, that is the
-  feature: listening without looking.
+- **What it decides**: the head prior's width (`kappa`; the EEG's weight is
+  already fitted per decoder), and the honest pitch. If the EEG only helps
+  when the head is turned away from the voice, that is the feature:
+  listening without looking.
 
 ## 4. In the ear, or around it?
 
@@ -76,7 +83,10 @@ the skin. Earbuds touch the concha and the ear canal, dry.
 
 ## What carries over unchanged
 
-The decoder, the montage, the clench detector, the fusion, the protocol, the
-digital twin and the analysis scripts. A board or an earbud is just another
+Both decoders, the montage, the running belief, the clench detector, the
+fusion, the protocol, the digital twin and the analysis scripts. The learned
+decoder runs on the phone from `public/research/neural.json`; retraining it
+on recordings from the earbuds themselves is `deep.py` and `deep_export.py`
+pointed at the new data. A board or an earbud is just another
 source of SSP frames, so every number from these experiments drops into the
 same `results.json` format and the same page.

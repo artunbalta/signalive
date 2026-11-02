@@ -231,7 +231,13 @@ def main():
         "people": people_out,
         "method": results["method"],
     }
-    with open(os.path.join(OUT, "results.json"), "w") as f:
+    # The learned decoder's blocks come from deep_export.py; keep them across a rerun of this.
+    path = os.path.join(OUT, "results.json")
+    if os.path.exists(path):
+        with open(path) as f:
+            old = json.load(f)
+        page.update({k: old[k] for k in ("neural", "fusion", "belief") if k in old})
+    with open(path, "w") as f:
         json.dump(page, f, separators=(",", ":"))
     print("[export] done", flush=True)
 

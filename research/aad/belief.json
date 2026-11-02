@@ -1,0 +1,129 @@
+{
+ "stepSeconds": 10,
+ "settleDecisions": 6,
+ "withinDecisions": 30,
+ "chosenHazard": 0.02,
+ "linear": {
+  "weight": 2.973,
+  "rows": [
+   {
+    "hazard": 0.0,
+    "steady": 0.8465,
+    "switchMedian": 220.0,
+    "switchMissed": 0.4259,
+    "decisionAccuracy": 0.5797
+   },
+   {
+    "hazard": 0.005,
+    "steady": 0.8369,
+    "switchMedian": 140.0,
+    "switchMissed": 0.1111,
+    "decisionAccuracy": 0.5797
+   },
+   {
+    "hazard": 0.01,
+    "steady": 0.8252,
+    "switchMedian": 95.0,
+    "switchMissed": 0.0741,
+    "decisionAccuracy": 0.5797
+   },
+   {
+    "hazard": 0.02,
+    "steady": 0.8031,
+    "switchMedian": 70.0,
+    "switchMissed": 0.0463,
+    "decisionAccuracy": 0.5797
+   },
+   {
+    "hazard": 0.05,
+    "steady": 0.7558,
+    "switchMedian": 30.0,
+    "switchMissed": 0.0,
+    "decisionAccuracy": 0.5797
+   },
+   {
+    "hazard": 0.1,
+    "steady": 0.712,
+    "switchMedian": 20.0,
+    "switchMissed": 0.0,
+    "decisionAccuracy": 0.5797
+   },
+   {
+    "hazard": 0.2,
+    "steady": 0.6542,
+    "switchMedian": 10.0,
+    "switchMissed": 0.0,
+    "decisionAccuracy": 0.5797
+   },
+   {
+    "hazard": 0.5,
+    "steady": 0.5814,
+    "switchMedian": 10.0,
+    "switchMissed": 0.0,
+    "decisionAccuracy": 0.5797
+   }
+  ]
+ },
+ "learned": {
+  "weight": 15.934,
+  "splits": 3,
+  "rows": [
+   {
+    "hazard": 0.0,
+    "steady": 0.8851,
+    "switchMedian": 260.0,
+    "switchMissed": 0.4228,
+    "decisionAccuracy": 0.6217
+   },
+   {
+    "hazard": 0.005,
+    "steady": 0.8811,
+    "switchMedian": 100.0,
+    "switchMissed": 0.0401,
+    "decisionAccuracy": 0.6217
+   },
+   {
+    "hazard": 0.01,
+    "steady": 0.8739,
+    "switchMedian": 80.0,
+    "switchMissed": 0.0216,
+    "decisionAccuracy": 0.6217
+   },
+   {
+    "hazard": 0.02,
+    "steady": 0.8594,
+    "switchMedian": 60.0,
+    "switchMissed": 0.0062,
+    "decisionAccuracy": 0.6217
+   },
+   {
+    "hazard": 0.05,
+    "steady": 0.8198,
+    "switchMedian": 40.0,
+    "switchMissed": 0.0,
+    "decisionAccuracy": 0.6217
+   },
+   {
+    "hazard": 0.1,
+    "steady": 0.7745,
+    "switchMedian": 20.0,
+    "switchMissed": 0.0,
+    "decisionAccuracy": 0.6217
+   },
+   {
+    "hazard": 0.2,
+    "steady": 0.7131,
+    "switchMedian": 20.0,
+    "switchMissed": 0.0,
+    "decisionAccuracy": 0.6217
+   },
+   {
+    "hazard": 0.5,
+    "steady": 0.6238,
+    "switchMedian": 10.0,
+    "switchMissed": 0.0,
+    "decisionAccuracy": 0.6217
+   }
+  ]
+ }
+}

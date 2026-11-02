@@ -21,8 +21,8 @@
  * board and the earbuds themselves all produce SSP, which is the point.
  */
 import { ClenchDetector, type ClenchEvent } from "./clench";
-import { AttentionDecoder, type DecoderModel } from "./decoder";
-import { fuseAttention } from "./fusion";
+import { createDecoder, fusionWeight, type AnyDecoderModel, type StreamingDecoder } from "./decoders";
+import { AttentionBelief, fuseAttention } from "./fusion";
 import { ClockSync, EegStream, EventCode, Flag, QUAT_ONE, SspDecoder, encodeCommand, yawDeg, type EegFrame, type ImuFrame, type Side, type SspFrame } from "./protocol";
 
 export type Ear = "left" | "right";
@@ -35,8 +35,8 @@ export interface SessionOptions {
   fs: number;
   /** Electrodes per earbud, in the order each earbud sends them. */
   perEar: number;
-  /** An attention decoder; it needs the earbuds' AUDIO_ENV frames as well, and EEG at its fsRaw. */
-  model?: DecoderModel;
+  /** An attention decoder, linear or learned; it needs the earbuds' AUDIO_ENV frames as well, and EEG at its fsRaw. */
+  model?: AnyDecoderModel;
   /** Where the voices are in the room, degrees, 0 ahead and positive to the right. */
   azimuths?: number[];
   /** Milliseconds, the phone's clock. Default performance.now. */
@@ -88,7 +88,9 @@ export interface SessionSnapshot {
   yaw: number | null;
   /** The decoder's verdict over the last 10 seconds, when there is one. */
   eeg: { talker: number; margin: number } | null;
-  /** Probability per voice that it is the attended one, head and EEG together. */
+  /** The EEG's running belief per voice, built from every 10 second decision so far; null without a decoder. */
+  belief: number[] | null;
+  /** Probability per voice that it is the attended one, head and the EEG's belief together. */
   posterior: number[];
   /** Which ears clench detection uses now; null before it has decided. */
   clench: ClenchMode | null;
@@ -198,8 +200,12 @@ export class PhoneSession {
   readonly azimuths: number[];
 
   private rate: number;
-  private readonly model: DecoderModel | null;
-  private dec: AttentionDecoder | null;
+  private model: AnyDecoderModel | null;
+  private dec: StreamingDecoder | null;
+  /** Every non overlapping 10 second decision so far, weighed by what it is worth; it outlives a decoder restart. */
+  private belief: AttentionBelief | null = null;
+  /** The decoder sample the belief has taken decisions up to. */
+  private judged = 0;
   private detectors!: Record<ClenchMode, ClenchDetector>;
   /** Frames each detector has seen: its own timeline. */
   private fed: Record<ClenchMode, number> = { both: 0, left: 0, right: 0 };
@@ -273,8 +279,34 @@ export class PhoneSession {
   }
 
   /** The attention decoder, when a model was given and the earbuds' rate matches it. */
-  get decoder(): AttentionDecoder | null {
+  get decoder(): StreamingDecoder | null {
     return this.dec;
+  }
+
+  /**
+   * A decoder model that arrived after the session started (the learned one
+   * is fetched while the earbuds connect), or null to stop decoding. The
+   * decoder starts on the next tick; the belief starts even.
+   */
+  setModel(model: AnyDecoderModel | null): void {
+    this.model = model;
+    this.dec = null;
+    this.belief = null;
+    this.judged = 0;
+    this.warn = null;
+    if (!model) return;
+    if (model.fsRaw !== this.rate) {
+      this.warn = `the decoder model expects EEG at ${model.fsRaw} Hz, the earbuds send ${this.rate} Hz`;
+      return;
+    }
+    // Sample 0 of the new decoder is the next tick, as after a restart.
+    this.dec = createDecoder(model, this.azimuths.length, { historySeconds: 30 });
+    this.belief = new AttentionBelief({ talkers: this.azimuths.length, weight: fusionWeight(model) });
+    if (this.t0 !== null) {
+      this.t0 += (this.tick * 1000) / this.rate;
+      this.tick = 0;
+      this.processed = 0;
+    }
   }
 
   /** Both ears' detector: the usual one. */
@@ -302,8 +334,11 @@ export class PhoneSession {
     this.coverage = { left: new Coverage(size), right: new Coverage(size) };
     this.dec = null;
     if (this.model) {
-      if (this.model.fsRaw === fs) this.dec = new AttentionDecoder(this.model, this.azimuths.length, { historySeconds: 30 });
-      else this.warn = `the decoder model expects EEG at ${this.model.fsRaw} Hz, the earbuds send ${fs} Hz`;
+      if (this.model.fsRaw === fs) {
+        this.dec = createDecoder(this.model, this.azimuths.length, { historySeconds: 30 });
+        this.belief = new AttentionBelief({ talkers: this.azimuths.length, weight: fusionWeight(this.model) });
+        this.judged = 0;
+      } else this.warn = `the decoder model expects EEG at ${this.model.fsRaw} Hz, the earbuds send ${fs} Hz`;
     }
   }
 
@@ -500,12 +535,31 @@ export class PhoneSession {
       for (let i = have; i < place; i++) for (let k = 0; k < d.talkers; k++) d.pushEnvelope(k, NaN);
       for (let k = 0; k < d.talkers; k++) d.pushEnvelope(k, k < talkers ? values[s * talkers + k] : NaN);
     }
+    this.advanceBelief();
+  }
+
+  /**
+   * Each 10 second window, once, into the belief, as soon as the decoder can
+   * decide it: windows that do not overlap, on the decoder's own timeline,
+   * so every decision is fresh evidence.
+   */
+  private advanceBelief() {
+    const d = this.dec;
+    const b = this.belief;
+    if (!d || !b) return;
+    const length = Math.round(DECIDE_S * d.fs);
+    while (this.judged + length <= d.decidable) {
+      const v = d.decideRange(this.judged, length);
+      if (v) b.update(v);
+      this.judged += length;
+    }
   }
 
   /** A fresh decoder whose sample 0 is the next tick, for EEG and envelopes alike. */
   private restartDecoder() {
     if (!this.dec || !this.model || this.t0 === null) return;
-    this.dec = new AttentionDecoder(this.model, this.azimuths.length, { historySeconds: 30 });
+    this.dec = createDecoder(this.model, this.azimuths.length, { historySeconds: 30 });
+    this.judged = 0;
     this.t0 += (this.tick * 1000) / this.rate;
     this.tick = 0;
     this.processed = 0;
@@ -568,7 +622,10 @@ export class PhoneSession {
     this.t0 = at;
     this.tick = 0;
     this.processed = 0;
-    if (this.model && this.dec) this.dec = new AttentionDecoder(this.model, this.azimuths.length, { historySeconds: 30 });
+    if (this.model && this.dec) {
+      this.dec = createDecoder(this.model, this.azimuths.length, { historySeconds: 30 });
+      this.judged = 0;
+    }
     this.coverage.left.reset();
     this.coverage.right.reset();
     this.away.left = true;
@@ -592,6 +649,7 @@ export class PhoneSession {
    */
   private step(tickTime: number) {
     this.dec?.pushRaw(this.frame);
+    this.advanceBelief();
     this.processed++;
     const p = this.perEar;
     const has = (from: number) => {
@@ -714,8 +772,9 @@ export class PhoneSession {
     const d = this.dec?.decide(DECIDE_S) ?? null;
     const eeg = d ? { talker: d.talker, margin: d.margin } : null;
     const yaw = this.yaw;
-    const posterior = fuseAttention({ azimuthsDeg: this.azimuths, yawDeg: yaw ?? undefined, eeg });
-    return { ears: { left: ear("left"), right: ear("right") }, yaw, eeg, posterior, clench: this.mode, warning: this.warn };
+    const belief = this.dec && this.belief ? this.belief.probabilities : null;
+    const posterior = fuseAttention({ azimuthsDeg: this.azimuths, yawDeg: yaw ?? undefined, belief });
+    return { ears: { left: ear("left"), right: ear("right") }, yaw, eeg, belief, posterior, clench: this.mode, warning: this.warn };
   }
 
   /**

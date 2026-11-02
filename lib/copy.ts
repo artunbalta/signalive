@@ -474,7 +474,7 @@ export const research = {
     title: `${BRAND} research. 36 people, two stories, one question for the earbuds.`,
     description:
       "We ran our decoding pipeline on public EEG recorded around the ears of 36 people listening to two stories at once: what it can tell, how fast, with how many electrodes, and what that decides about the earbuds.",
-    ogAlt: "Research note 01: 68% of one minute decisions name the followed story, 1.6 points lost without a wire between the ears, no calibration.",
+    ogAlt: "Research note 01: 77% of one minute decisions name the followed story with the learned decoder, 1.6 points lost without a wire between the ears, no calibration.",
   },
   eyebrow: "Research note 01",
   date: "November 2026",
@@ -483,7 +483,7 @@ export const research = {
   stats: {
     accuracy: {
       label: "of one minute decisions name the story a person was following",
-      sub: "Four electrodes per ear, two separate earbuds, no calibration. A coin flip scores 50%.",
+      sub: "The learned decoder, four electrodes per ear, two separate earbuds, no calibration. The linear one: {n}. A coin flip scores 50%.",
     },
     wireless: {
       label: "lost by cutting the wire between the ears",
@@ -495,16 +495,17 @@ export const research = {
     },
     speed: {
       label: "for the EEG alone to follow a switch of attention",
-      sub: "Median expected switch duration. Enough to confirm, too slow to steer. So the head steers.",
+      sub: "Median expected switch duration with the learned decoder; {n} s with the linear one. Enough to confirm, too slow to steer. So the head steers.",
     },
   },
   points: "points",
   minutes: "min",
+  seconds: "s",
 
   replay: {
     eyebrow: "Live, in your browser",
     headlineLines: ["Watch it decide"],
-    body: "A real recording: three minutes of EEG from electrodes around one person's ears while two stories played, one on each side. Your browser runs it through the earbud pipeline, filtering, resampling and decoding, with a decoder trained on the other 35 people that has never seen this one.",
+    body: "A real recording: three minutes of EEG from electrodes around one person's ears while two stories played, one on each side. Your browser runs it through the earbud pipeline, filtering, resampling and decoding, with the linear decoder trained on the other 35 people that has never seen this one.",
     pick: "Whose recording",
     people: {
       clearest: "Clearest of 36",
@@ -583,11 +584,61 @@ export const research = {
       bar: "Beats chance for one person",
       ringed: "Ringed: the three recordings in the replay",
     },
+    learned: {
+      index: "05",
+      headlineLines: ["A learned decoder,", "the same 36 people"],
+      body: "The linear decoder rebuilds a story's loudness from the EEG through one fixed filter. The learned one trains two small networks together, one reading the electrodes and one reading each story, until the EEG's reading moves with the followed story's. Trained only on other people, scaled from the wearer's first two minutes, each window judged on its own samples. One minute decisions go from {n} to {m}.",
+      check: "The check: the same stories, played out of step with the EEG. A network that had learned to tell the two voices apart and read something else in the EEG, such as where the eyes were turned, would keep scoring. This one falls to {n}, a coin flip, so what it follows is the speech.",
+      splits: "Three different splits of the 36 people into training and testing, three networks each: one minute decisions from {n} to {m} per split.",
+      chartLabel: "Share of decisions right by decision window, 36 people, the learned and the linear decoder on people they never saw, and the learned one with the stories out of step",
+      series: {
+        learned: "Learned decoder",
+        linear: "Linear decoder",
+        control: "Learned, stories out of step",
+      },
+    },
+    trust: {
+      index: "06",
+      headlineLines: ["What a decision", "is worth"],
+      body: "On the phone, a ten second decision moves the estimate of who is being listened to by how clearly it was won. How far was set by hand. Measured on people the decoders never saw, it was three times too far for the linear decoder: when the fusion was {n} sure, those decisions were right {m} of the time. Each decoder now ships with the weight its decisions earned, so a decision moves the estimate exactly as far as it deserves.",
+      chartLabel: "How sure the fusion was of a ten second decision against how often such decisions were right, on people the decoders never saw",
+      x: "How sure the fusion was",
+      diagonal: "Sure as often as right",
+      linearHand: "Linear, weight set by hand ({n})",
+      linearFit: "Linear, weight fitted ({n})",
+      learnedFit: "Learned, weight fitted ({n})",
+      point: "Sure {n}, right {m}",
+      series: "Decoder and weight",
+    },
+    belief: {
+      index: "07",
+      headlineLines: ["Weak alone,", "strong together"],
+      body: "A ten second decision is right {n} of the time with the learned decoder: too weak to act on, so the phone acts on none of them alone. It keeps a belief about who is being listened to, adds every decision by what it is worth, and allows that attention may have moved since the last one. After the first minute the belief names the followed story {m} of the time, and after a switch it comes over in a median {k} seconds.",
+      tradeoff: "How readily the belief lets go is one number, the chance per decision that attention moved. Higher follows a switch sooner and wavers more. The phone uses {n}%, ringed.",
+      chartLabel: "Share of the time the belief names the followed story against the median time to come over after a switch, for each setting, learned and linear decoder",
+      x: "Seconds to come over after a switch",
+      learned: "Learned decoder",
+      linear: "Linear decoder",
+      point: "{n} s to come over, right {m} of the time",
+      table: {
+        hazard: "Chance attention moved, per decision",
+        learnedSteady: "Learned, names the story",
+        learnedSwitch: "Learned, to come over",
+        linearSteady: "Linear, names the story",
+        linearSwitch: "Linear, to come over",
+        beyond: "over 5 min",
+      },
+      stats: {
+        decision: "of single ten second decisions right",
+        belief: "of the time the belief names the followed story",
+        switch: "to come over after a switch",
+      },
+    },
   },
   explorer: {
     eyebrow: "Try a design",
     headlineLines: ["Pick an earbud,", "see what the data says"],
-    body: "Every configuration here was run on the same 36 people and held out the same way. Choose how many electrodes each earbud carries, whether the two share a wire, and whether the decoder learns the wearer.",
+    body: "Every configuration here was run on the same 36 people and held out the same way, with the linear decoder. Choose how many electrodes each earbud carries, whether the two share a wire, and whether the decoder learns the wearer.",
     electrodes: "Electrodes per ear",
     all: "All",
     form: "Form",
@@ -630,7 +681,7 @@ export const research = {
       },
       {
         title: "EEG is the slow channel",
-        body: "Two second decisions are barely better than a coin flip; one minute decisions are right about two times in three, five minute ones {n} of the time. Turning toward someone steers in a fraction of a second, a clench is the explicit command, and the EEG tells, over minutes, who a person keeps coming back to.",
+        body: "Two second decisions are barely better than a coin flip; with the learned decoder one minute decisions are right about three times in four, five minute ones {n} of the time. Turning toward someone steers in a fraction of a second, a clench is the explicit command, and the EEG's running belief tells, over a minute or two, who a person keeps coming back to.",
       },
     ],
   },
@@ -643,7 +694,7 @@ export const research = {
       {
         name: "Decoding pipeline",
         path: "lib/sense",
-        body: "Filtering, resampling, the attention decoder, gain control, head and EEG fusion, clench detection. TypeScript, matched against the research code sample for sample.",
+        body: "Filtering, resampling, the linear and the learned attention decoders, the running belief, head and EEG fusion, clench detection. TypeScript, matched against the research code sample for sample.",
       },
       {
         name: "Wire protocol",
@@ -731,6 +782,14 @@ export const research = {
         body: "Minimal expected switch duration (Geirnaert, Francart and Bertrand): the attended voice held in the top 35% of the gain range 80% of the time, with at least five gain steps.",
       },
       {
+        label: "Learned decoder",
+        body: "Two networks of one dimensional convolutions, about 16,000 weights each: one over the eight electrode channels, one over each story's loudness, trained on 5 second crops so that the followed story's embedding moves with the EEG's. Six folds by person, five more people held back to stop training, three networks per fold from different starting points, three different splits of the 36 people. The EEG is scaled from the person's first two minutes and each story by its own running spread; nothing reaches more than 0.44 s ahead. The control rotates both stories 97 s out of step with the EEG.",
+      },
+      {
+        label: "Trust and belief",
+        body: "Each decoder's ten second decisions on people it never saw fit the weight a decision's margin earns, by maximum likelihood. The belief is a hidden Markov model over the two stories, filtered forward one decision at a time. Its steadiness counts from the second minute of each block; its switch times come from switches simulated halfway through each block, the later decisions counting for the other story.",
+      },
+      {
         label: "Limits",
         body: "Electrode arcs around the ear are not earbuds. Attention here was instructed and held for whole blocks, never switched. A quiet room and people sitting still. These are published research recordings, not Signalive product measurements.",
       },
@@ -740,6 +799,10 @@ export const research = {
       "python3 research/aad/preprocess.py",
       "python3 research/aad/analyze.py",
       "python3 research/aad/export.py",
+      "python3 research/aad/calibrate.py",
+      "for s in 7 11 23; do AAD_SEED=$s AAD_ENSEMBLE=3 python3 research/aad/deep.py; done",
+      "python3 research/aad/belief.py",
+      "python3 research/aad/deep_export.py",
     ],
     sourceLabel: "The data set",
     paperLabel: "The study",

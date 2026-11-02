@@ -705,6 +705,7 @@ html[data-intro] [data-intro-fade] {
   font-family: var(--font-display); font-weight: 500; letter-spacing: -0.03em; line-height: 0.9;
   font-size: clamp(3rem, 6vw, 4.75rem);
 }
+.research-stat-value-small { font-size: clamp(2.25rem, 1.6rem + 2.2vw, 3.25rem); }
 .research-table { width: 100%; border-collapse: collapse; font-size: var(--text-small); }
 .research-table th, .research-table td { padding: 8px 12px 8px 0; text-align: left; border-bottom: 1px solid var(--hairline); font-variant-numeric: tabular-nums; }
 .research-table th { font-weight: 500; color: var(--color-fog); }
@@ -731,6 +732,10 @@ html[data-intro] [data-intro-fade] {
 .research-chip[aria-checked="true"] { border-color: var(--color-paper); color: var(--color-paper); }
 .chart-person[data-marked] > span { background: var(--color-ink); box-shadow: 0 0 0 2px var(--color-paper); }
 .chart-ring { display: inline-block; width: 10px; height: 10px; border-radius: 999px; box-shadow: inset 0 0 0 2px var(--color-paper); }
+.chart-trusthit { position: absolute; width: 32px; height: 32px; transform: translate(-50%, -50%); display: grid; place-items: center; }
+.chart-trusthit > .chart-dot { position: static; transform: none; }
+.chart-trusthit:hover > .chart-dot, .chart-trusthit:focus-visible > .chart-dot { box-shadow: 0 0 0 4px rgba(255, 255, 249, 0.18); }
+.chart-dot[data-chosen] { width: 12px; height: 12px; box-shadow: 0 0 0 2px var(--color-ink), 0 0 0 4px var(--color-paper); }
 .research-range { width: 100%; accent-color: var(--color-paper); }
 .research-path { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.02em; }
 .research-explorer-value {

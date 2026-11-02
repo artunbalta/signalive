@@ -18,7 +18,14 @@ python3 research/aad/preprocess.py   # fetch and filter all 36 people (about 7 G
 python3 research/aad/analyze.py      # every configuration, held out, about 2 minutes on 6 cores
 python3 research/aad/export.py       # the page's numbers, three demo recordings, the TypeScript fixture
 python3 research/aad/fixtures.py     # reference numbers for lib/sense's unit tests
+python3 research/aad/calibrate.py    # what one ten second decision of the linear decoder is worth
+for s in 7 11 23; do AAD_SEED=$s AAD_ENSEMBLE=3 python3 research/aad/deep.py; done   # the learned decoder, 3 splits, about 12 minutes each
+python3 research/aad/belief.py       # single decisions into a running belief, both decoders
+python3 research/aad/deep_export.py  # the learned model for the phone, its fixture, the page's numbers
 ```
+
+The learned decoder needs PyTorch (2.5 here, on Apple silicon's GPU; a CPU works,
+slower).
 
 `data/` (raw downloads and the 64 Hz intermediate files) is not committed.
 `results.json` is: it is the full output of `analyze.py`, per person and per
@@ -101,6 +108,9 @@ little about any one person, but over 36 people they show where evidence
 gathered across a conversation lands: 85% with four electrodes per ear on
 two separate earbuds, 89% over ten minutes.
 
+With the learned decoder below, the same windows read 55.6%, 62.2%, 76.6%,
+89.4% and 94.4% over ten minutes.
+
 Personal decoders trained on 20 minutes land within about a point of these
 (4 per ear, wireless: 69.3% at 60 s). Trained on fewer minutes they do worse
 than the generic decoder: 53.5% with 1 minute, 61.4% with 5, 66.2% with 10.
@@ -110,20 +120,115 @@ no calibration; 4 sit at or below 50%.
 
 Electrodes, best first: left `L01 L04b L06 L04`, right `R02 R05 R08 R04`.
 
+## Decoder v2: learned
+
+The linear decoder rebuilds the followed story's envelope through one fixed
+filter. [`deep.py`](deep.py) learns both sides instead: two small networks of
+one dimensional convolutions (a 1 by 1 mix to 24 channels, three layers of
+kernel 9 dilated 1, 2 and 4 with GELU, a 1 by 1 mix to a 12 dimensional
+embedding; about 16,000 weights each), one over the eight electrode channels
+of the wireless montage and one over each story's envelope, which also sees
+half a second of that story before each EEG sample. Training takes 5 second
+crops and asks, by cross entropy over the two stories, that the followed
+story's embedding move with the EEG's: the mean over time of their per
+sample product, each centred and scaled by its mean norm. A window of any
+length is judged by the same score over that window alone.
+
+- **Held out by person.** Six folds; each fold's models are trained on 25
+  people and stopped on 5 more, never on the 6 they are tested on. Three
+  networks per fold from different starting points; a window's scores are
+  their average. Three different random splits of the 36 people; each
+  person's accuracy is averaged over the three models that never saw them.
+- **Causal like an earbud.** The EEG is scaled by each person's first two
+  minutes, unlabelled, as the linear generic decoder is; each envelope by its
+  own running spread (30 s); no layer reaches more than 0.44 s ahead.
+- **Set once.** The settings above were chosen before these runs and not
+  tuned on the test folds. Ensembles of three were added after single
+  networks were seen to vary between splits (72.2% to 75.1% at 60 s).
+- **The check.** The same models, given both stories rotated 97 s out of
+  step with the EEG: the same voices, so a network that had learned to tell
+  them apart and read something else from the EEG (where the eyes were
+  turned, say) would keep scoring. It falls to chance.
+
+| 4 per ear, wireless, no calibration | 2 s | 10 s | 60 s | 5 min | 10 min | MESD (median) | People past the bar at 60 s |
+|---|---|---|---|---|---|---|---|
+| Linear | 54.2% | 58.0% | 68.1% | 85.2% | 88.9% | 120 s | 25 of 36 |
+| Learned | 55.6% | 62.2% | 76.6% | 89.4% | 94.4% | 78 s | 30 of 36 |
+| Learned, stories out of step | 49.9% | 49.8% | 49.1% | 47.4% | 45.7% | | |
+
+One minute decisions per split: 77.4%, 76.3%, 76.2%. The out of step control
+stays within noise of 50% (at 5 and 10 minutes each person has only six and
+three windows). The page draws the whole curve.
+
+Tried on the way and dropped, in [`improve.py`](improve.py) and
+[`improved.json`](improved.json): canonical correlation with a linear
+discriminant (de Cheveigné et al. 2018; 69.3% at 60 s, MESD 108 s), the same
+with the envelope's onsets as a second feature (70.0%, 100 s), and
+unsupervised adaptation to each person from their own decisions (65.1%,
+worse: thirty second self labels are too noisy to learn from).
+
+`deep_export.py` trains the shipped model on 31 people (five more to stop on),
+three networks, and writes it to `public/research/neural.json` with every
+weight as float32. `lib/sense/neural.ts` runs it on the phone, streaming, and
+its tests match this code's own streaming reference to 1e-9 on eight seconds
+of a real recording.
+
+## What a decision is worth
+
+On the phone a ten second decision moves the estimate of who is being
+listened to by exp(weight times margin), the margin being how far the winning
+story's score beat the other's. The weight was set by hand at 10.
+[`calibrate.py`](calibrate.py) fits it by maximum likelihood on the ten
+second decisions of decoders that never saw the person:
+
+| Decoder | Fitted weight | Right | Log loss, fitted | Log loss at 10 |
+|---|---|---|---|---|
+| Linear | 2.97 | 58.0% | 0.673 | 0.758 |
+| Learned | 15.9 | 62.2% | 0.649 | 0.655 |
+
+At 10 the linear decoder's decisions were trusted about three times too
+much: where the fusion was 91% sure, they were right 67% of the time, and the
+log loss was worse than a coin flip's (0.693). The learned decoder's scores
+run on a smaller scale, so its weight is larger. Each model now carries its
+own (`eegWeight`), and `DEFAULT_EEG_WEIGHT` is the linear one's.
+
+## From decisions to a belief
+
+So the phone acts on no single decision. [`belief.py`](belief.py) measures
+what `AttentionBelief` in `lib/sense/fusion.ts` does: a hidden Markov model
+over the two stories, filtered forward one ten second decision at a time,
+each decision weighed as above, with a chance h per decision that attention
+moved since the last. Steadiness counts from each block's second minute;
+switches are simulated halfway through each block (the decisions after it
+count for the other story) and timed until the belief first favours the new
+one, missed when that takes over five minutes.
+
+| h | Linear: names the story | to come over | missed | Learned: names the story | to come over | missed |
+|---|---|---|---|---|---|---|
+| 1% | 82.5% | 95 s | 7% | 87.4% | 80 s | 2% |
+| **2%** | **80.3%** | **70 s** | **5%** | **85.9%** | **60 s** | **1%** |
+| 5% | 75.6% | 30 s | 0% | 82.0% | 40 s | 0% |
+
+Single decisions are right 58.0% (linear) and 62.2% (learned) of the time.
+The phone uses 2% (`DEFAULT_HAZARD`).
+
 ## What it decides
 
 - **True wireless works.** Referencing each ear to itself costs about a point
   and a half against a wired montage. No neckband.
 - **Four electrodes per ear** leave margin: two per ear already reach 68%.
 - **No calibration step** is needed to start.
-- **EEG is the slow channel.** About two minutes to follow a switch, and two
-  second decisions barely beat a coin flip, but over five minutes it is right
-  85% of the time. Head orientation has to steer, the clench is the explicit
-  command, and the EEG says over minutes who a person keeps coming back to.
+- **EEG is the slow channel.** Two second decisions barely beat a coin flip.
+  With the learned decoder one minute decisions are right 77% of the time,
+  five minute ones 89%, and the running belief settles on the followed story
+  86% of the time while following a switch in about a minute. Head
+  orientation has to steer, the clench is the explicit command, and the EEG
+  says over a minute or two who a person keeps coming back to.
 
 ## Limits
 
 cEEGrids around the ear are not earbuds in the ear. Attention was instructed
 and held for whole blocks, never switched, in a quiet room with people sitting
-still. These are published research recordings, not Signalive product
+still; the belief's switch times come from simulated switches that assume the
+decoder is as good after a real one. These are published research recordings, not Signalive product
 measurements, and nothing here supports any claim about hearing.
