@@ -95,6 +95,12 @@ lives here, so that only the hardware remains to be built.
 - `hardware/` is the handoff: requirements with their reasons and tests, the system
   architecture, reference parts, and the protocol with a C encoder whose bytes the
   TypeScript decoder is tested against.
+- The web trial imports `lib/sense` and has an Earbuds card in Settings: simulated
+  earbuds today, Signalive earbuds over Bluetooth or an OpenBCI board over USB later. A
+  clench found in the raw electrode signal runs the wearer's bound command and the
+  earbuds' motion sensor steers Focus, in place of the J key and the camera.
+- `research/NEXT.md` sizes the experiments only hardware can answer, starting with the
+  dev kit.
 
 What the recordings say, in short: two separate earbuds, four electrodes each and no
 calibration, name the story a person follows in about 68% of one minute decisions and
