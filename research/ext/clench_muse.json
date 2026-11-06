@@ -1,0 +1,134 @@
+{
+ "source": "Lee and Ahn, Figshare 10.6084/m9.figshare.30162868 (CC BY 4.0), Muse 2 TP9 and TP10",
+ "fs": 256,
+ "k4": {
+  "people": 26,
+  "cues": 520,
+  "caught": 268,
+  "caughtShare": 0.515,
+  "kinds": {
+   "single": 264,
+   "double": 0,
+   "hold": 4
+  },
+  "peopleAbove90": 10,
+  "perPerson": [
+   0.55,
+   0,
+   0.8,
+   0.05,
+   0,
+   0,
+   0,
+   1,
+   0.5,
+   1,
+   0.8,
+   1,
+   1,
+   0,
+   0.7,
+   0,
+   0.95,
+   1,
+   1,
+   0,
+   0.05,
+   1,
+   1,
+   0,
+   0,
+   1
+  ],
+  "restReports": 0,
+  "restPerHour": 0,
+  "falseIn": {
+   "EB": {
+    "reports": 8,
+    "doubles": 0,
+    "minutes": 79.3,
+    "perHour": 6.1,
+    "doublesPerHour": 0
+   },
+   "MVO": {
+    "reports": 19,
+    "doubles": 1,
+    "minutes": 76.3,
+    "perHour": 15,
+    "doublesPerHour": 0.8
+   },
+   "MVC": {
+    "reports": 20,
+    "doubles": 0,
+    "minutes": 76.3,
+    "perHour": 15.7,
+    "doublesPerHour": 0
+   }
+  }
+ },
+ "k3": {
+  "people": 26,
+  "cues": 520,
+  "caught": 330,
+  "caughtShare": 0.635,
+  "kinds": {
+   "single": 317,
+   "double": 4,
+   "hold": 9
+  },
+  "peopleAbove90": 15,
+  "perPerson": [
+   0.95,
+   0,
+   0.95,
+   0.4,
+   0.1,
+   0,
+   0.2,
+   1,
+   1,
+   1,
+   1,
+   1,
+   1,
+   0,
+   1,
+   0.1,
+   1,
+   1,
+   1,
+   0,
+   0.8,
+   1,
+   1,
+   0,
+   0,
+   1
+  ],
+  "restReports": 2,
+  "restPerHour": 2.4,
+  "falseIn": {
+   "EB": {
+    "reports": 20,
+    "doubles": 4,
+    "minutes": 79.3,
+    "perHour": 15.1,
+    "doublesPerHour": 3
+   },
+   "MVO": {
+    "reports": 36,
+    "doubles": 1,
+    "minutes": 76.3,
+    "perHour": 28.3,
+    "doublesPerHour": 0.8
+   },
+   "MVC": {
+    "reports": 30,
+    "doubles": 0,
+    "minutes": 76.3,
+    "perHour": 23.6,
+    "doublesPerHour": 0
+   }
+  }
+ }
+}

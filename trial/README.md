@@ -110,7 +110,9 @@ rank) and `delete_my_data`, and the private `audio` bucket with per user folder 
 
 1. New project from this repository, **root directory `trial`**. Framework: Next.js. Keep
    "Include files outside the root directory in the Build Step" on (the default): the build
-   reads the earbud software in `../lib/sense`.
+   reads the earbud software in `../lib/sense`, and `scripts/copy-vendor.mjs` copies the
+   learned attention decoder and the attention study's two replay recordings from
+   `../public/research`.
 2. Add the environment variables above (production and preview as you see fit).
 3. `vercel.json` registers the daily audio expiry cron (Hobby plans run crons at most once
    a day; the job may fire any time within its hour, so expiry can lag by up to a day).

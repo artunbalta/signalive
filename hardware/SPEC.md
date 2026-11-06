@@ -206,7 +206,12 @@ the linked datasheets and product pages; prices in [BOM.md](BOM.md)):
   80 Hz (temporalis) within a 20 to 300 Hz bandwidth ([Muthukumaraswamy 2013](https://www.frontiersin.org/journals/human-neuroscience/articles/10.3389/fnhum.2013.00138/full)).
   The validation data were recorded at 500 Hz ([Holtze et al. 2022](https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2022.869426/full)).
   [PROTOCOL.md](PROTOCOL.md) budgets 250 Hz as the default stream; 500 Hz costs air time
-  (6.1 against 9.3 kB/s) and little power (section 8).
+  (6.1 against 9.3 kB/s) and little power (section 8). On public recordings, the phone's
+  unchanged detector caught 70% of cued clenches from electrodes around the ear at 250 Hz,
+  52% from one electrode behind each ear at 256 Hz, and 99% of cued clench blocks from the
+  temporal scalp at 1000 Hz ([research/ext](../research/ext/README.md)). Those sets differ in
+  electrodes and people as well as rate, so this agrees with the rate mattering rather than
+  proving it; T-13 at both rates settles it.
 - Verification: T-01 at both rates; T-13 at both rates.
 
 **HW-AFE-04 Resolution and scale** (Must)
@@ -457,6 +462,19 @@ latency here is about how natural and comfortable the sound is.
   bounded by the shell; spatial aliasing starts near c / 2d, about 11.4 kHz at 15 mm
   (arithmetic, c = 343 m/s).
 - Verification: T-10 beam patterns.
+
+**HW-MIC-03 A microphone facing the ear canal** (Target)
+- Requirement: the signal of a microphone that faces into the canal (the feedback microphone
+  that active noise cancelling already places there), at ≥ 8 kHz, available to the gesture
+  logic on the earbud or on the phone as a 64 Hz energy envelope.
+- Rationale: in labelled public recordings the commonest movement to set the clench detector
+  off is swallowing (51% of swallows produced a false single at the temporal scalp), then
+  raising the eyebrows (35%); talking, head turns and blinks stayed between 1 and 4%
+  ([research/ext](../research/ext/README.md), PhysioMotion). A swallow and the wearer's own
+  voice are loud in the occluded canal and silent on the outward microphones, and muscle
+  signal is invisible to the IMU, so this is the cheapest sensor that can tell them from a
+  clench.
+- Verification: T-13, with the canal envelope recorded alongside.
 
 **HW-MIC-02 Microphone performance** (Must)
 - Requirement: SNR ≥ 65 dB(A); acoustic overload ≥ 125 dB SPL; sensitivity matched within
@@ -945,7 +963,7 @@ that is tested. People counts are minimums.
 | T-10 | Steered audio | HW-MIC-01, -02, HW-AUD-01 to -04, HW-DSP-01 | Ear simulator: delay by impulse and swept sine; beam pattern at 0, ±30, ±60, ±90°; gain ramps; STEER loss and DSP fault injection | HW-AUD-02 limits; neutral within 10 s of link loss |
 | T-11 | Sweat and wear | HW-EEG-03, HW-MECH-04, -05 | Artificial sweat soak with impedance before and after; 1000 insertion cycles | Impedance within 2x of new |
 | T-12 | Link and power | HW-BLE-01 to -06, HW-MCU-02 to -05, HW-PWR-01 to -05 | Both earbuds streaming at 500 Hz to a reference Android phone (Chrome) and an iPhone (native test app) for 1 h: loss, gaps, clock fit residuals, negotiated parameters; per block current with a power profiler; rundown in attention mode; concurrent audio | HW-BLE-02 headroom, HW-BLE-04 loss, HW-PWR-01 runtime |
-| T-13 | Clench detection | Band C chain end to end | 20 people. Per person 50 single, 20 double and 20 hold clenches, seated and walking; then 1 h free living (talking, eating, chewing gum, laughing). lib/sense `ClenchDetector` unchanged, at 250 and 500 Hz | True detection > 95% and false positives < 1 per hour, the client brief's gate ([AGENT_BRIEF](../AGENT_BRIEF_ear-attention-interface.md), Phase 2) |
+| T-13 | Clench detection | Band C chain end to end | 20 people. Per person 50 single, 20 double and 20 hold clenches, seated and walking; then 1 h free living (talking, eating, chewing gum, laughing). lib/sense `ClenchDetector` unchanged, at 250 and 500 Hz. The trial's Studies, clench (`/studies/clench`) runs this protocol (60 cues over four conditions and a free period) and saves the raw signal | True detection > 95% and false positives < 1 per hour, the client brief's gate ([AGENT_BRIEF](../AGENT_BRIEF_ear-attention-interface.md), Phase 2). Public recordings already show singles and holds failing the false bar in quiet listening (5.6 an hour at k = 4) while doubles stay under it (0.11 an hour), and false doubles 20 to 50 times rarer than false singles in every recording ([research/ext](../research/ext/README.md)) |
 
 ---
 

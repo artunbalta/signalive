@@ -1,0 +1,142 @@
+{
+ "source": "PhysioMotion Artifact, OpenNeuro ds006386 (CC0), FT7 T7 TP7 P7 and FT8 T8 TP8 P8, 1000 Hz",
+ "people": 12,
+ "runs": 72,
+ "rule": "a report during an event or within 0.7 s after it; 'chew' is cued molar clenching, so there it is a hit",
+ "byLabel": [
+  {
+   "label": "blink_hor_headm",
+   "events": 552,
+   "shareWithReport": 0.013,
+   "reports": 7,
+   "doubles": 0,
+   "minutes": 32.8
+  },
+  {
+   "label": "tongue",
+   "events": 452,
+   "shareWithReport": 0.013,
+   "reports": 6,
+   "doubles": 2,
+   "minutes": 5.2
+  },
+  {
+   "label": "hor_headm",
+   "events": 428,
+   "shareWithReport": 0.007,
+   "reports": 3,
+   "doubles": 0,
+   "minutes": 26
+  },
+  {
+   "label": "ver_headm",
+   "events": 292,
+   "shareWithReport": 0.038,
+   "reports": 11,
+   "doubles": 0,
+   "minutes": 3.7
+  },
+  {
+   "label": "ver_eyem",
+   "events": 285,
+   "shareWithReport": 0,
+   "reports": 0,
+   "doubles": 0,
+   "minutes": 1.8
+  },
+  {
+   "label": "blink_ver_headm",
+   "events": 275,
+   "shareWithReport": 0.022,
+   "reports": 6,
+   "doubles": 0,
+   "minutes": 3.2
+  },
+  {
+   "label": "tongue_eyebrow",
+   "events": 200,
+   "shareWithReport": 0.015,
+   "reports": 3,
+   "doubles": 0,
+   "minutes": 2.2
+  },
+  {
+   "label": "blink_eyebrow",
+   "events": 136,
+   "shareWithReport": 0.11,
+   "reports": 15,
+   "doubles": 0,
+   "minutes": 11.6
+  },
+  {
+   "label": "eyebrow",
+   "events": 133,
+   "shareWithReport": 0.353,
+   "reports": 48,
+   "doubles": 0,
+   "minutes": 19.7
+  },
+  {
+   "label": "chew",
+   "events": 131,
+   "shareWithReport": 0.992,
+   "reports": 625,
+   "doubles": 1,
+   "minutes": 21.3
+  },
+  {
+   "label": "blink",
+   "events": 108,
+   "shareWithReport": 0.019,
+   "reports": 2,
+   "doubles": 0,
+   "minutes": 62.2
+  },
+  {
+   "label": "open_base",
+   "events": 106,
+   "shareWithReport": 0.066,
+   "reports": 12,
+   "doubles": 0,
+   "minutes": 109.5
+  },
+  {
+   "label": "swallow",
+   "events": 104,
+   "shareWithReport": 0.51,
+   "reports": 53,
+   "doubles": 0,
+   "minutes": 2.3
+  },
+  {
+   "label": "close_base",
+   "events": 95,
+   "shareWithReport": 0,
+   "reports": 0,
+   "doubles": 0,
+   "minutes": 73.7
+  },
+  {
+   "label": "hor_eyem",
+   "events": 64,
+   "shareWithReport": 0,
+   "reports": 0,
+   "doubles": 0,
+   "minutes": 8.2
+  },
+  {
+   "label": "swallow_eyebrow",
+   "events": 44,
+   "shareWithReport": 0.5,
+   "reports": 22,
+   "doubles": 0,
+   "minutes": 1
+  }
+ ],
+ "unlabelled": {
+  "reports": 887,
+  "doubles": 21,
+  "hours": 16.24,
+  "perHour": 54.6
+ }
+}

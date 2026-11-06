@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import AnnouncementBar from "@/components/chrome/AnnouncementBar";
 import Nav from "@/components/chrome/Nav";
-import { Built, ExplorerSection, Findings, Meaning, Method, ReplaySection, ResearchHero } from "@/components/research/Sections";
+import { Beyond, Built, ExplorerSection, Findings, Meaning, Method, ReplaySection, ResearchHero } from "@/components/research/Sections";
 import Footer from "@/components/sections/Footer";
 import { research } from "@/lib/copy";
 
@@ -41,6 +41,7 @@ export default function ResearchPage() {
         <ResearchHero />
         <ReplaySection />
         <Findings />
+        <Beyond />
         <ExplorerSection />
         <Meaning />
         <Built />

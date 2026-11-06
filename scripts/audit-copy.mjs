@@ -13,7 +13,9 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, extname } from "node:path";
 
 const ROOT = process.cwd();
-const SKIP = new Set(["node_modules", ".next", ".git", ".assetgen", "public", "out", "test-results", "playwright-report"]);
+// private/ holds gitignored notes and quoted third party reports that never ship;
+// data/ folders hold downloaded recordings.
+const SKIP = new Set(["node_modules", ".next", ".git", ".assetgen", "public", "out", "test-results", "playwright-report", "private", "data"]);
 const EXT = new Set([".ts", ".tsx", ".js", ".jsx", ".mjs", ".css", ".json", ".html", ".md"]);
 // The two source briefs are the client's own documents, not output we author,
 // and they legitimately discuss the words this audit forbids.

@@ -1,0 +1,192 @@
+{
+ "note": "Results beyond research/aad's main analysis; see research/ext/README.md and research/aad/README.md",
+ "clench": {
+  "threshold": 4,
+  "datasets": [
+   {
+    "key": "around",
+    "people": 15,
+    "fs": 250,
+    "caught": 0.7,
+    "peopleAll": 10,
+    "falsePerHour": 1.1
+   },
+   {
+    "key": "headband",
+    "people": 26,
+    "fs": 256,
+    "caught": 0.515,
+    "peopleAll": 10,
+    "falsePerHour": 12.16
+   },
+   {
+    "key": "scalp",
+    "people": 12,
+    "fs": 1000,
+    "caught": 0.992,
+    "peopleAll": null,
+    "falsePerHour": null
+   },
+   {
+    "key": "listening",
+    "people": 36,
+    "fs": 500,
+    "caught": null,
+    "peopleAll": null,
+    "falsePerHour": 5.7,
+    "hours": 18.24
+   }
+  ],
+  "sweep": [
+   {
+    "k": 2.1,
+    "caught": 0.973,
+    "falsePerHour": 21.3
+   },
+   {
+    "k": 2.25,
+    "caught": 0.973,
+    "falsePerHour": 16.2
+   },
+   {
+    "k": 2.5,
+    "caught": 0.94,
+    "falsePerHour": 7
+   },
+   {
+    "k": 2.75,
+    "caught": 0.94,
+    "falsePerHour": 5.5
+   },
+   {
+    "k": 3,
+    "caught": 0.893,
+    "falsePerHour": 3.3
+   },
+   {
+    "k": 3.5,
+    "caught": 0.8,
+    "falsePerHour": 1.8
+   },
+   {
+    "k": 4,
+    "caught": 0.7,
+    "falsePerHour": 1.1
+   }
+  ],
+  "listening": {
+   "perHour": 5.7,
+   "kindsPerHour": {
+    "single": 3.56,
+    "double": 0.11,
+    "hold": 2.03
+   },
+   "medianPerson": 2,
+   "worstPerson": 37.4
+  },
+  "movement": [
+   {
+    "key": "swallow",
+    "events": 104,
+    "share": 0.51,
+    "doubles": 0
+   },
+   {
+    "key": "eyebrow",
+    "events": 133,
+    "share": 0.353,
+    "doubles": 0
+   },
+   {
+    "key": "ver_headm",
+    "events": 292,
+    "share": 0.038,
+    "doubles": 0
+   },
+   {
+    "key": "blink",
+    "events": 108,
+    "share": 0.019,
+    "doubles": 0
+   },
+   {
+    "key": "tongue",
+    "events": 452,
+    "share": 0.013,
+    "doubles": 2
+   },
+   {
+    "key": "hor_headm",
+    "events": 428,
+    "share": 0.007,
+    "doubles": 0
+   },
+   {
+    "key": "eyes",
+    "events": 349,
+    "share": 0.0,
+    "doubles": 0
+   }
+  ],
+  "doubles": [
+   {
+    "key": "listening",
+    "hours": 18.24,
+    "doubles": 2,
+    "others": 102
+   },
+   {
+    "key": "around",
+    "hours": 2.73,
+    "doubles": 0,
+    "others": 3
+   },
+   {
+    "key": "headband",
+    "hours": 3.86,
+    "doubles": 1,
+    "others": 46
+   },
+   {
+    "key": "unannotated",
+    "hours": 16.24,
+    "doubles": 21,
+    "others": 866
+   }
+  ]
+ },
+ "heldOut": {
+  "standard": {
+   "mean": {
+    "1": 0.5404,
+    "2": 0.5568,
+    "5": 0.5832,
+    "10": 0.6168,
+    "20": 0.6586,
+    "30": 0.681,
+    "60": 0.7565,
+    "120": 0.8259,
+    "300": 0.912,
+    "600": 0.9444
+   },
+   "control60": 0.4843,
+   "mesd": 77.80664362176839
+  },
+  "study": {
+   "mean": {
+    "1": 0.5313,
+    "2": 0.5491,
+    "5": 0.5686,
+    "10": 0.6001,
+    "20": 0.6389,
+    "30": 0.6685,
+    "60": 0.7213,
+    "120": 0.7778,
+    "300": 0.8611,
+    "600": 0.8981
+   },
+   "control60": 0.4759,
+   "mesd": 95.33927456920021
+  }
+ }
+}

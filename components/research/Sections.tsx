@@ -3,6 +3,7 @@ import MaskHeadline from "@/components/ui/MaskHeadline";
 import Reveal from "@/components/ui/Reveal";
 import { research } from "@/lib/copy";
 import results from "@/public/research/results.json";
+import beyondData from "@/public/research/beyond.json";
 import { CalibrationChart, ColumnChart, FrontierChart, ReliabilityChart, StripChart, WindowChart } from "./charts";
 import EarMap from "./EarMap";
 import Explorer, { type ExplorerConfigs } from "./Explorer";
@@ -47,6 +48,8 @@ const TICKS = [0.5, 0.6, 0.7];
 const g60 = (name: string) => R.configs[name].generic.mean["60"];
 const pct = (v: number) => `${Math.round(v * 100)}%`;
 const fill = (s: string, n: string | number, m?: string | number) => s.replace("{n}", String(n)).replace("{m}", String(m ?? ""));
+/** A share with one decimal below 10%, where whole percents would hide the differences. */
+const pct1 = (v: number) => (v > 0 && v < 0.1 ? `${(Math.round(v * 1000) / 10).toFixed(1)}%` : pct(v));
 
 export function ResearchHero() {
   const head = R.configs.wireless_4.generic;
@@ -382,6 +385,98 @@ function Belief() {
           const s = (v: number | null) => (v === null ? f.table.beyond : `${Math.round(v)} s`);
           return [`${Math.round(r.hazard * 1000) / 10}%`, pct(r.steady), s(r.switchMedian), pct(l.steady), s(l.switchMedian)];
         })}
+      />
+    </Finding>
+  );
+}
+
+type ClenchData = {
+  threshold: number;
+  datasets: { key: "around" | "headband" | "scalp" | "listening"; people: number; fs: number; caught: number | null; peopleAll: number | null; falsePerHour: number | null; hours?: number }[];
+  listening: { perHour: number; kindsPerHour: { single: number; double: number; hold: number }; medianPerson: number; worstPerson: number };
+  movement: { key: keyof typeof research.beyond.clench.movements; events: number; share: number; doubles: number }[];
+};
+const B = beyondData as unknown as { clench?: ClenchData };
+
+/**
+ * Before the hardware: the phone's code on other people's public recordings.
+ * Each finding appears once research/ext/export_page.py has its numbers.
+ */
+export function Beyond() {
+  const b = research.beyond;
+  if (!B.clench) return null;
+  return (
+    <section id="beyond" aria-labelledby="beyond-heading" className={`section ${INK} border-t border-hairline`}>
+      <div className="shell flex flex-col gap-[var(--rhythm)]">
+        <div className="grid12">
+          <div className="col-span-12 lg:col-span-8">
+            <Reveal>
+              <h2 id="beyond-heading" className="t-mono text-fog">
+                {b.eyebrow}
+              </h2>
+            </Reveal>
+            <MaskHeadline as="p" lines={b.headlineLines} className="t-h2 mt-5" />
+            <Reveal className="mt-6">
+              <p className="max-w-[60ch] text-body text-mist">{b.body}</p>
+            </Reveal>
+          </div>
+        </div>
+        {B.clench ? <Clench data={B.clench} /> : null}
+      </div>
+    </section>
+  );
+}
+
+/** 10: the clench detector on real clenches and on everything that resembles one. */
+function Clench({ data }: { data: ClenchData }) {
+  const f = research.beyond.clench;
+  const around = data.datasets.find((d) => d.key === "around");
+  const swallow = data.movement.find((m) => m.key === "swallow");
+  const k = data.listening.kindsPerHour;
+  const bars = data.movement.map((m) => ({ label: f.movements[m.key], value: m.share, emphasis: m.key === "swallow" }));
+  const rate = (v: number) => (v < 1 ? v.toFixed(2) : v.toFixed(1));
+  const tiles = [
+    { key: "caught", value: around?.caught == null ? "" : pct(around.caught), label: f.stats.caught },
+    { key: "swallow", value: swallow ? pct(swallow.share) : "", label: f.stats.swallow },
+    { key: "doubles", value: rate(k.double), label: f.stats.doubles },
+  ];
+  return (
+    <Finding id="clench" copy={f} body={fill(f.body, around?.caught == null ? "" : pct(around.caught))}>
+      <ul className="grid grid-cols-1 gap-x-8 gap-y-8 border-b border-hairline pb-10 sm:grid-cols-3">
+        {tiles.map((t) => (
+          <li key={t.key} className="flex flex-col gap-3">
+            <p className="research-stat-value research-stat-value-small">{t.value}</p>
+            <p className="text-small leading-relaxed text-mist">{t.label}</p>
+          </li>
+        ))}
+      </ul>
+      <figure className="mt-10" aria-label={f.chartLabel}>
+        <p className="t-mono text-fog">{f.y}</p>
+        <ul className="mt-4 flex flex-col gap-3">
+          {bars.map((b) => (
+            <li key={b.label} className="grid grid-cols-[7.5rem_1fr_3.25rem] items-center gap-3 sm:grid-cols-[10rem_1fr_4rem] sm:gap-4">
+              <span className={`text-small ${b.emphasis ? "text-paper" : "text-mist"}`}>{b.label}</span>
+              <span className="relative h-2 rounded-full bg-[color-mix(in_srgb,var(--color-paper)_8%,transparent)]" aria-hidden="true">
+                <span
+                  className="absolute inset-y-0 left-0 rounded-full"
+                  style={{ width: `${Math.max(1, (b.value / 0.6) * 100)}%`, background: b.emphasis ? "var(--color-paper)" : "var(--color-fog)" }}
+                />
+              </span>
+              <span className={`t-mono text-right ${b.emphasis ? "text-paper" : "text-mist"}`}>{pct1(b.value)}</span>
+            </li>
+          ))}
+        </ul>
+        <figcaption className="mt-4 max-w-[60ch] text-small leading-relaxed text-fog">{f.movementsNote}</figcaption>
+      </figure>
+      <p className="mt-8 max-w-[60ch] text-small leading-relaxed text-mist">{fill(f.decides, rate(k.double), rate(k.single + k.hold))}</p>
+      <Table
+        head={[f.table.recording, f.table.people, f.table.caught, f.table.falsePerHour]}
+        rows={data.datasets.map((d) => [
+          f.datasets[d.key],
+          d.people,
+          d.caught === null ? "" : d.key === "scalp" ? fill(f.blocks, pct(d.caught)) : pct(d.caught),
+          d.falsePerHour === null ? "" : fill(f.perHour, rate(d.falsePerHour)),
+        ])}
       />
     </Finding>
   );

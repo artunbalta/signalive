@@ -1,0 +1,12 @@
+{"tag": "b.wide", "data": "all", "hidden": 48}
+{"tag": "b.emb24", "data": "all", "emb": 24}
+{"tag": "b.k5d8", "data": "all", "kernel": 5, "dilations": [1, 2, 4, 8]}
+{"tag": "b.crop10", "data": "all", "crop_s": 10}
+{"tag": "b.crop3", "data": "all", "crop_s": 3}
+{"tag": "b.nce", "data": "all", "loss": "nce"}
+{"tag": "b.aug", "data": "all", "noise": 0.1, "chscale": 0.1, "chdrop": 0.1}
+{"tag": "b.ea", "data": "all", "align": "ea"}
+{"tag": "b.drop25", "data": "all", "dropout": 0.25}
+{"tag": "b.long", "data": "all", "epochs": 24, "cosine": true}
+{"tag": "b.pre48", "data": "all", "pre": 48}
+{"tag": "b.lr1e3", "data": "all", "lr": 0.001}

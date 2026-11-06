@@ -1,0 +1,718 @@
+{
+ "source": "OpenNeuro ds004015 (CC0), selected blocks, 500 Hz",
+ "montage": "4 electrodes per ear, each ear against its own average",
+ "k4": {
+  "k": 4,
+  "reports": 104,
+  "kinds": {
+   "single": 65,
+   "double": 2,
+   "hold": 37
+  },
+  "kindsPerHour": {
+   "single": 3.56,
+   "double": 0.11,
+   "hold": 2.03
+  },
+  "medianPersonPerHour": 2,
+  "perPerson": [
+   {
+    "person": "sub-001",
+    "single": 3,
+    "double": 0,
+    "hold": 6
+   },
+   {
+    "person": "sub-002",
+    "single": 1,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-003",
+    "single": 1,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-004",
+    "single": 5,
+    "double": 0,
+    "hold": 4
+   },
+   {
+    "person": "sub-005",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-006",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-007",
+    "single": 1,
+    "double": 0,
+    "hold": 6
+   },
+   {
+    "person": "sub-008",
+    "single": 0,
+    "double": 1,
+    "hold": 0
+   },
+   {
+    "person": "sub-009",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-010",
+    "single": 6,
+    "double": 0,
+    "hold": 2
+   },
+   {
+    "person": "sub-011",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-012",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-013",
+    "single": 7,
+    "double": 0,
+    "hold": 4
+   },
+   {
+    "person": "sub-014",
+    "single": 13,
+    "double": 0,
+    "hold": 5
+   },
+   {
+    "person": "sub-015",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-016",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-017",
+    "single": 2,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-018",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-019",
+    "single": 0,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-020",
+    "single": 0,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-021",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-022",
+    "single": 2,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-023",
+    "single": 1,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-024",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-025",
+    "single": 1,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-026",
+    "single": 0,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-027",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-028",
+    "single": 3,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-029",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-030",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-031",
+    "single": 3,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-032",
+    "single": 1,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-033",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-034",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-035",
+    "single": 15,
+    "double": 1,
+    "hold": 3
+   },
+   {
+    "person": "sub-036",
+    "single": 0,
+    "double": 0,
+    "hold": 2
+   }
+  ],
+  "hours": 18.24,
+  "perHour": 5.7,
+  "people": 36,
+  "peopleWithAny": 21,
+  "worstPersonPerHour": 37.4
+ },
+ "k3": {
+  "k": 3,
+  "reports": 195,
+  "kinds": {
+   "single": 139,
+   "double": 9,
+   "hold": 47
+  },
+  "kindsPerHour": {
+   "single": 7.62,
+   "double": 0.49,
+   "hold": 2.58
+  },
+  "medianPersonPerHour": 5.9,
+  "perPerson": [
+   {
+    "person": "sub-001",
+    "single": 7,
+    "double": 0,
+    "hold": 7
+   },
+   {
+    "person": "sub-002",
+    "single": 1,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-003",
+    "single": 5,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-004",
+    "single": 14,
+    "double": 0,
+    "hold": 3
+   },
+   {
+    "person": "sub-005",
+    "single": 2,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-006",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-007",
+    "single": 7,
+    "double": 2,
+    "hold": 6
+   },
+   {
+    "person": "sub-008",
+    "single": 2,
+    "double": 1,
+    "hold": 0
+   },
+   {
+    "person": "sub-009",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-010",
+    "single": 4,
+    "double": 0,
+    "hold": 2
+   },
+   {
+    "person": "sub-011",
+    "single": 1,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-012",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-013",
+    "single": 9,
+    "double": 2,
+    "hold": 4
+   },
+   {
+    "person": "sub-014",
+    "single": 17,
+    "double": 0,
+    "hold": 8
+   },
+   {
+    "person": "sub-015",
+    "single": 3,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-016",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-017",
+    "single": 6,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-018",
+    "single": 1,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-019",
+    "single": 1,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-020",
+    "single": 3,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-021",
+    "single": 3,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-022",
+    "single": 3,
+    "double": 0,
+    "hold": 2
+   },
+   {
+    "person": "sub-023",
+    "single": 1,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-024",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-025",
+    "single": 0,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-026",
+    "single": 3,
+    "double": 1,
+    "hold": 1
+   },
+   {
+    "person": "sub-027",
+    "single": 1,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-028",
+    "single": 5,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-029",
+    "single": 1,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-030",
+    "single": 1,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-031",
+    "single": 5,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-032",
+    "single": 2,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-033",
+    "single": 4,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-034",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-035",
+    "single": 22,
+    "double": 3,
+    "hold": 3
+   },
+   {
+    "person": "sub-036",
+    "single": 5,
+    "double": 0,
+    "hold": 2
+   }
+  ],
+  "hours": 18.24,
+  "perHour": 10.69,
+  "people": 36,
+  "peopleWithAny": 30,
+  "worstPersonPerHour": 55.1
+ },
+ "k2.5": {
+  "k": 2.5,
+  "reports": 299,
+  "kinds": {
+   "single": 213,
+   "double": 22,
+   "hold": 64
+  },
+  "kindsPerHour": {
+   "single": 11.67,
+   "double": 1.21,
+   "hold": 3.51
+  },
+  "medianPersonPerHour": 10.8,
+  "perPerson": [
+   {
+    "person": "sub-001",
+    "single": 8,
+    "double": 2,
+    "hold": 8
+   },
+   {
+    "person": "sub-002",
+    "single": 1,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-003",
+    "single": 8,
+    "double": 1,
+    "hold": 1
+   },
+   {
+    "person": "sub-004",
+    "single": 19,
+    "double": 1,
+    "hold": 5
+   },
+   {
+    "person": "sub-005",
+    "single": 8,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-006",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-007",
+    "single": 11,
+    "double": 3,
+    "hold": 7
+   },
+   {
+    "person": "sub-008",
+    "single": 3,
+    "double": 2,
+    "hold": 0
+   },
+   {
+    "person": "sub-009",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-010",
+    "single": 9,
+    "double": 1,
+    "hold": 3
+   },
+   {
+    "person": "sub-011",
+    "single": 4,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-012",
+    "single": 2,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-013",
+    "single": 10,
+    "double": 2,
+    "hold": 5
+   },
+   {
+    "person": "sub-014",
+    "single": 23,
+    "double": 0,
+    "hold": 9
+   },
+   {
+    "person": "sub-015",
+    "single": 7,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-016",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-017",
+    "single": 8,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-018",
+    "single": 3,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-019",
+    "single": 3,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-020",
+    "single": 9,
+    "double": 0,
+    "hold": 3
+   },
+   {
+    "person": "sub-021",
+    "single": 4,
+    "double": 0,
+    "hold": 2
+   },
+   {
+    "person": "sub-022",
+    "single": 5,
+    "double": 0,
+    "hold": 2
+   },
+   {
+    "person": "sub-023",
+    "single": 0,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-024",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-025",
+    "single": 0,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-026",
+    "single": 3,
+    "double": 1,
+    "hold": 2
+   },
+   {
+    "person": "sub-027",
+    "single": 2,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-028",
+    "single": 6,
+    "double": 1,
+    "hold": 1
+   },
+   {
+    "person": "sub-029",
+    "single": 3,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-030",
+    "single": 1,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-031",
+    "single": 8,
+    "double": 0,
+    "hold": 2
+   },
+   {
+    "person": "sub-032",
+    "single": 3,
+    "double": 0,
+    "hold": 1
+   },
+   {
+    "person": "sub-033",
+    "single": 5,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-034",
+    "single": 0,
+    "double": 0,
+    "hold": 0
+   },
+   {
+    "person": "sub-035",
+    "single": 24,
+    "double": 7,
+    "hold": 3
+   },
+   {
+    "person": "sub-036",
+    "single": 13,
+    "double": 1,
+    "hold": 3
+   }
+  ],
+  "hours": 18.24,
+  "perHour": 16.39,
+  "people": 36,
+  "peopleWithAny": 31,
+  "worstPersonPerHour": 66.9
+ }
+}
