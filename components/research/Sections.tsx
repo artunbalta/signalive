@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import MaskHeadline from "@/components/ui/MaskHeadline";
+import HoldPlay, { type HoldReplay } from "./HoldPlay";
 import Reveal from "@/components/ui/Reveal";
 import { research } from "@/lib/copy";
 import results from "@/public/research/results.json";
@@ -116,32 +117,35 @@ export function ReplaySection() {
   );
 }
 
-function Table({ head, rows }: { head: string[]; rows: (string | number)[][] }) {
+/** The numbers behind a chart, folded away; or, where a table is the finding itself, shown open. */
+function Table({ head, rows, open = false }: { head: string[]; rows: (string | number)[][]; open?: boolean }) {
+  const table = (
+    <table className="research-table">
+      <thead>
+        <tr>
+          {head.map((h) => (
+            <th key={h} scope="col">
+              {h}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r, i) => (
+          <tr key={i}>
+            {r.map((c, j) => (
+              <td key={j}>{c}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+  if (open) return <div className="mt-6 overflow-x-auto">{table}</div>;
   return (
     <details className="research-details mt-6">
       <summary>{research.tableToggle}</summary>
-      <div className="mt-4 overflow-x-auto">
-        <table className="research-table">
-          <thead>
-            <tr>
-              {head.map((h) => (
-                <th key={h} scope="col">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i}>
-                {r.map((c, j) => (
-                  <td key={j}>{c}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <div className="mt-4 overflow-x-auto">{table}</div>
     </details>
   );
 }
@@ -402,6 +406,43 @@ const B = beyondData as unknown as {
   clench?: ClenchData;
   heldOut?: { standard?: Curve; content?: Curve; study?: Curve };
   inEar?: Partial<Record<"inear" | "aroundear" | "both" | "scalp", EarSystem>>;
+  hold?: HoldData;
+  hardware?: HardwareData;
+};
+
+type HardwareKind = "noise" | "pink" | "lsb" | "rate" | "skew" | "loss" | "burst" | "artifacts" | "gated" | "mains" | "envlag" | "crosstalk";
+type HardwareData = { model: string; networks: number } & Partial<Record<HardwareKind, { levels: number[]; mean10: number[]; mean60: number[]; sem60: number[]; people: number }>>;
+
+/**
+ * How far one degradation goes before one minute decisions lose a point, and
+ * where they have lost three, against the same model on the clean recording.
+ * Rate falls from 500 Hz; lag is judged on whichever side gives way first.
+ */
+function tolerance(levels: number[], mean: number[], clean: number): { holds: number | null; breaks: number | null } {
+  const base = mean[levels.indexOf(clean)] ?? mean[0]!;
+  const order = levels.map((l, i) => ({ l, m: mean[i]! })).sort((a, b) => Math.abs(a.l - clean) - Math.abs(b.l - clean));
+  let holds: number | null = null;
+  let breaks: number | null = null;
+  let failed = false;
+  for (const { l, m } of order) {
+    if (l === clean) continue;
+    if (breaks === null && m <= base - 0.03) breaks = l;
+    if (!failed && m >= base - 0.01) holds = l;
+    else failed = true;
+  }
+  return { holds, breaks };
+}
+
+type HoldKey = "face" | "face_hold" | "face_dwell" | "EEG" | "fused" | "fused_k1";
+type HoldData = {
+  away: number;
+  meanLookSeconds: number;
+  mixed: Record<HoldKey, number>;
+  other: Record<HoldKey, number>;
+  nobody: Record<HoldKey, number>;
+  covert: Record<HoldKey, number>;
+  switchTookS: Record<HoldKey, number | null>;
+  replay?: HoldReplay;
 };
 
 /**
@@ -410,7 +451,7 @@ const B = beyondData as unknown as {
  */
 export function Beyond() {
   const b = research.beyond;
-  if (!B.clench && !B.heldOut && !B.inEar) return null;
+  if (!B.clench && !B.heldOut && !B.inEar && !B.hold && !B.hardware) return null;
   return (
     <section id="beyond" aria-labelledby="beyond-heading" className={`section ${INK} border-t border-hairline`}>
       <div className="shell flex flex-col gap-[var(--rhythm)]">
@@ -430,6 +471,8 @@ export function Beyond() {
         {B.heldOut?.content && B.heldOut.standard ? <HeldOut data={B.heldOut} /> : null}
         {B.inEar ? <InEar data={B.inEar} /> : null}
         {B.clench ? <Clench data={B.clench} /> : null}
+        {B.hold ? <Hold data={B.hold} /> : null}
+        {B.hardware ? <Hardware data={B.hardware} /> : null}
       </div>
     </section>
   );
@@ -484,6 +527,85 @@ function InEar({ data }: { data: NonNullable<typeof B.inEar> }) {
       <ColumnChart bars={bars} domain={[0.4, 0.9]} ticks={[0.5, 0.6, 0.7, 0.8]} xLabel={f.x} yLabel={f.y} label={f.chartLabel} />
       <p className="mt-8 max-w-[60ch] text-small leading-relaxed text-mist">{f.decides}</p>
       <Table head={[f.table.system, f.table.linear, f.table.learned, f.table.learned5]} rows={keys.map((k) => [f.systems[k], v(k, "linear", "60"), v(k, "learned", "60"), v(k, "learned", "300")])} />
+    </Finding>
+  );
+}
+
+/** 11: what holding the voice is worth: real decisions under a simulated head. */
+function Hold({ data }: { data: HoldData }) {
+  const f = research.beyond.hold;
+  const order: HoldKey[] = ["face", "face_hold", "face_dwell", "EEG", "fused", "fused_k1"];
+  const bars = order.map((k) => ({ key: k, label: f.policies[k], value: data.mixed[k], emphasis: k === "fused_k1" }));
+  const tiles = [
+    { key: "nobody", value: pct(data.nobody.face_dwell), label: f.stats.nobody },
+    { key: "other", value: pct(data.other.fused_k1), label: fill(f.stats.other, pct(data.other.face_dwell)) },
+    { key: "covert", value: pct(data.covert.fused_k1), label: fill(f.stats.covert, pct(data.covert.fused), pct(data.covert.face_dwell)) },
+  ];
+  const took = data.switchTookS.fused_k1;
+  return (
+    <Finding id="hold" copy={f} body={f.body}>
+      <figure aria-label={f.chartLabel}>
+        <p className="t-mono text-fog">{f.y}</p>
+        <ul className="mt-4 flex flex-col gap-3">
+          {bars.map((b) => (
+            <li key={b.key} className="grid grid-cols-[9rem_1fr_3.25rem] items-center gap-3 sm:grid-cols-[13rem_1fr_4rem] sm:gap-4">
+              <span className={`text-small ${b.emphasis ? "text-paper" : "text-mist"}`}>{b.label}</span>
+              <span className="relative h-2 rounded-full bg-[color-mix(in_srgb,var(--color-paper)_8%,transparent)]" aria-hidden="true">
+                <span
+                  className="absolute inset-y-0 left-0 rounded-full"
+                  style={{ width: `${Math.max(1, b.value * 100)}%`, background: b.emphasis ? "var(--color-paper)" : "var(--color-fog)" }}
+                />
+              </span>
+              <span className={`t-mono text-right ${b.emphasis ? "text-paper" : "text-mist"}`}>{pct(b.value)}</span>
+            </li>
+          ))}
+        </ul>
+        <figcaption className="mt-4 max-w-[60ch] text-small leading-relaxed text-fog">{f.note}</figcaption>
+      </figure>
+      <ul className="mt-10 grid grid-cols-1 gap-x-8 gap-y-8 border-t border-hairline pt-10 sm:grid-cols-3">
+        {tiles.map((t) => (
+          <li key={t.key} className="flex flex-col gap-3">
+            <p className="research-stat-value research-stat-value-small">{t.value}</p>
+            <p className="text-small leading-relaxed text-mist">{t.label}</p>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-8 max-w-[60ch] text-small leading-relaxed text-mist">{fill(f.decides, took == null ? "" : Math.round(took))}</p>
+      {data.replay ? <HoldPlay data={data.replay} /> : null}
+    </Finding>
+  );
+}
+
+/** 12: what the electronics may add, measured by degrading the recordings. */
+function Hardware({ data }: { data: HardwareData }) {
+  const f = research.beyond.hardware;
+  const shares: HardwareKind[] = ["loss", "burst", "crosstalk"];
+  const kinds = (Object.keys(f.kinds) as HardwareKind[]).filter((k) => data[k] && k !== "artifacts" && k !== "gated");
+  const rows = kinds.map((k) => {
+    const d = data[k]!;
+    const clean = k === "rate" ? 500 : 0;
+    const t = tolerance(d.levels, d.mean60, clean);
+    const fmt = (v: number) => {
+      const x = Math.abs(v);
+      const n = shares.includes(k) ? `${Math.round(x * 1000) / 10}%` : `${x}`;
+      return `${k === "envlag" ? "\u00b1" : ""}${n} ${f.kinds[k].unit}`;
+    };
+    const first = d.levels.filter((l) => l !== clean).sort((a, b) => Math.abs(a - clean) - Math.abs(b - clean))[0]!;
+    const holds = t.holds === null ? `${f.under} ${fmt(first)}` : k === "rate" ? `${f.downTo} ${fmt(t.holds)}` : fmt(t.holds);
+    return [f.kinds[k].label, holds, t.breaks === null ? f.never : fmt(t.breaks)];
+  });
+  const rates = [0, 2, 5, 10];
+  const at = (k: "artifacts" | "gated") => {
+    const d = data[k];
+    return rates.map((r) => (d && d.levels.includes(r) ? pct(d.mean60[d.levels.indexOf(r)]!) : ""));
+  };
+  return (
+    <Finding id="hardware" copy={f} body={f.body}>
+      <Table open head={[f.table.what, f.table.holds, f.table.breaks]} rows={rows} />
+      {data.artifacts && data.gated ? (
+        <Table open head={[f.movement.head, ...rates.map(String)]} rows={[[f.movement.ungated, ...at("artifacts")], [f.movement.gated, ...at("gated")]]} />
+      ) : null}
+      <p className="mt-8 max-w-[60ch] text-small leading-relaxed text-mist">{f.decides}</p>
     </Finding>
   );
 }

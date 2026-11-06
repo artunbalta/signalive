@@ -9,11 +9,13 @@ own script wrote, and left out when that file does not exist yet.
   heldOut     research/aad/runs/*.json        (deep3.py with "holdout")
   hardware    research/aad/hardware.json      (hardware_bars.py)
   splice      research/aad/runs/*.splice.json (switch_splice.py)
+  hold        research/aad/hold_value.json    (hold_value.py)
 
     python3 research/ext/export_page.py
 """
 import glob
 import json
+import re
 import os
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -104,9 +106,44 @@ def held_out():
     return out if len(out) > 1 else None
 
 
+def hold():
+    h = load(os.path.join(AAD, "hold_value.json"))
+    if not h:
+        return None
+
+    def row(split, away=0.25):
+        return next(r for r in h["splits"][split] if abs(r["away"] - away) < 1e-9)
+
+    keys = {"face": "face", "face_hold": "face, hold", "face_dwell": "face, dwell", "EEG": "EEG", "fused": "fused", "fused_k1": "fused k1"}
+    pick = lambda r, pre="": {k: (r[pre + v] if pre == "took " else r3(r[pre + v])) for k, v in keys.items()}
+    mixed = row("half at the other talker")
+    return {
+        "away": 0.25,
+        "meanLookSeconds": h["meanLookSeconds"],
+        "mixed": pick(mixed),
+        "other": pick(row("all at the other talker")),
+        "nobody": pick(row("all at nobody")),
+        "covert": pick(mixed, "covert "),
+        "switchTookS": pick(mixed, "took "),
+        "replay": replay(),
+    }
+
+
+def replay():
+    """One typical person's real ten second decisions, for the page's hold replay: the median at one minute in the first final split."""
+    finals = sorted(p for p in glob.glob(os.path.join(AAD, "runs", "final.seed*.json")) if re.search(r"\.seed\d+\.json$", p))
+    if not finals:
+        return None
+    run = load(finals[0])
+    acc = run["perSubject"]["60"]
+    i = sorted(range(len(acc)), key=lambda k: acc[k])[len(acc) // 2]
+    margins = [round(float(m), 5) for block in run["margins10"][i] for m in block]
+    return {"weight": run["calibration"]["weight"], "hazard": 0.02, "kappa": 1.0, "margins": margins, "blocks": [len(b) for b in run["margins10"][i]], "person": {"accuracy60": r3(acc[i])}}
+
+
 def main():
     page = {"note": "Results beyond research/aad's main analysis; see research/ext/README.md and research/aad/README.md"}
-    for key, fn in (("clench", clench), ("inEar", in_ear), ("heldOut", held_out)):
+    for key, fn in (("clench", clench), ("inEar", in_ear), ("heldOut", held_out), ("hold", hold)):
         v = fn()
         if v:
             page[key] = v

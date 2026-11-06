@@ -747,3 +747,17 @@ html[data-intro] [data-intro-fade] {
   font-family: var(--font-display); font-weight: 500; letter-spacing: -0.03em; line-height: 1;
   font-size: clamp(2rem, 3vw, 2.625rem);
 }
+
+/* The hold replay in research finding 11: chips, two panels, a strip of ten second squares. */
+.hold-chip { border: 1px solid var(--hairline); border-radius: 999px; padding: 6px 14px; font-size: 0.875rem; color: var(--color-mist); transition: border-color 240ms var(--ease-out-att), color 240ms var(--ease-out-att); }
+.hold-chip:hover { color: var(--color-paper); }
+.hold-chip:focus-visible { outline: 2px solid var(--color-paper); outline-offset: 2px; }
+.hold-chip-on { border-color: var(--color-paper); color: var(--color-paper); }
+.hold-panel { margin: 0; border: 1px solid var(--hairline); border-radius: 12px; padding: 16px; }
+.hold-label { font-family: var(--font-mono, ui-monospace), monospace; font-size: 11px; fill: var(--color-fog); }
+.hold-strip { display: grid; gap: 2px; }
+.hold-cell { aspect-ratio: 1; border-radius: 1px; background: color-mix(in srgb, var(--color-paper) 7%, transparent); }
+.hold-cell-ok { background: var(--color-paper); }
+.hold-cell-miss { background: color-mix(in srgb, var(--color-fog) 45%, transparent); }
+.hold-cell-none { aspect-ratio: 1; }
+
