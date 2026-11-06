@@ -1,0 +1,98 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage[numbers,sort&compress]{natbib}
+\usepackage{caption}
+\usepackage[section]{placeins}
+\captionsetup{font=small,labelfont=bf}
+\setlength{\parskip}{0.35em}
+
+\input{numbers}
+
+\title{Attention decoding for true wireless earbuds:\\ calibration free, held out by person, story and study,\\ and what it asks of the hardware}
+\author{Artun Balta\\ \small Signalive}
+\date{\small Preprint, November 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\input{abstract}
+\end{abstract}
+
+\section{Introduction}
+
+A listener in a group can follow one voice among several, and the brain's response follows the envelope of the voice that is followed more closely than the envelope of the others \cite{geirnaert2021}. Auditory attention decoding (AAD) reads that difference from EEG: a decoder relates the EEG to each candidate talker's speech envelope and names the talker it matches best. Electrodes around and inside the ear make the measurement wearable \cite{mirkovic2016,kidmose2013,geirnaert2025}, which raises the question of what an earbud could do with it.
+
+A consumer earbud sets four conditions that laboratory AAD usually relaxes. It cannot ask each wearer to calibrate the decoder on labelled data. Two true wireless earbuds share no electrical reference, so each ear must be referenced to itself. Everything must be causal, with a bounded look ahead. And its claims must hold for people, speech and recording conditions the decoder never saw, because cross validation that shares any of them can flatter a decoder: a model trained on the same stories as the test listeners may learn the stories rather than the tracking \cite{puffay2023,detaillez2020}, and spatial decoders can follow the block design rather than attention \cite{rotaru2024,yan2025}.
+
+This paper reports what public recordings say about such an earbud, under those four conditions throughout.
+\begin{itemize}
+\item A learned decoder for eight electrodes around the ears, four per ear and each ear referenced to itself, trained on other people only and evaluated causally. It is tested on held out people, on held out story content and on a held out source study, each with an out of step control.
+\item A decision weight fitted by maximum likelihood and a two state hidden Markov belief, which turn weak ten second decisions into a stable estimate, timed on real EEG cut together from listeners who followed opposite stories.
+\item A replay of those decisions under a head that looks away, which says when the EEG adds anything to head direction and how much the head should weigh against it.
+\item A comparison of dry in-ear, wet around-ear and scalp electrodes recorded at the same moments from the same people, with the same calibration free protocol and each ear self referenced.
+\item The tolerances the decoder implies for the earbud's electronics, measured by degrading the raw recordings: noise, resolution, sampling rate, clock offset between the two earbuds, lost packets, movement artifacts, mains interference and the timing of the speech envelopes.
+\item A jaw clench command detector, the earbud's silent input, run unchanged on four public datasets of real clenches and of the movements that resemble them.
+\end{itemize}
+The code that runs on the phone is the code evaluated here: a TypeScript port of every step, checked against the reference implementation to within $10^{-9}$.
+
+\section{Data}
+
+\paragraph{Attention around the ear.} OpenNeuro ds004015 \cite{ds004015,holtze2022} pools 36 participants from two studies \cite{jaeger2020,holtze2021} who listened to two audiobooks at once, one from the left and one from the right, and followed one side throughout. Eighteen cEEGrid electrodes around the two ears were recorded at 500~Hz against an electrode behind the right ear. Each person has three equally loud 10 minute blocks selected by the dataset (the test set here) and two more: two equally loud blocks for the first study's participants, and two blocks in which the followed story was louder for the second's, which only ever train a model here. The dataset ships each story's speech envelope at 64~Hz, not the audio. Every participant heard the same story parts in the same blocks, with story 1 always on the left.
+
+\paragraph{In the ear and around it.} Ear-SAAD \cite{earsaad,geirnaert2025} has 15 participants, each with six 10 minute trials of two competing Danish lectures at $\pm60^\circ$, attending the left talker in some trials and the right in others. Recorded at once at 1000~Hz: 29 scalp channels, 9 and 10 wet electrodes around the left and right ear, and 6 dry electrodes in each ear canal and concha. Its description file gives the license as CC BY-NC-SA 4.0; it is used for research and only results are reported.
+
+\paragraph{Clenches and what resembles them.} Park et al.\ \cite{park2023ear}: 15 participants, 18 electrodes around the ears at 250~Hz, ten cued 3~s clenches each, and recordings of blinking, eye movements, rest with eyes open and closed, and heartbeat. Lee and Ahn \cite{leeahn2026}: a consumer headband (Muse 2) with one electrode behind each ear at 256~Hz, 20 cued clenches per person, blinks and head movements. PhysioMotion \cite{physiomotion}: 59 scalp channels at 1000~Hz with swallowing, tongue movement as in speech, eyebrow raises, head turns and nods, blinks and cued molar clenching, each marked by two annotators; 12 of its 30 participants are used. And the 18 hours of quiet listening in ds004015 at 500~Hz, in which no one was asked to clench.
+
+\section{Methods}
+
+\subsection{The signal chain}
+Each electrode passes a causal second order Butterworth band pass from 1 to 9~Hz at its recording rate and is resampled to 64~Hz by linear interpolation; the earbud runs the same steps, sample by sample. For two separate earbuds the four electrodes of each ear are referenced to their own average (the \emph{wireless} montage); the electrodes are the four per ear that a greedy search ranked best on the group. Each derived channel is scaled by its spread over the person's first two minutes, unlabelled. Each envelope is band passed the same way and scaled by its own running spread (an exponential average over 30~s). No step reads a sample from more than 0.47~s ahead of the moment it outputs.
+
+\subsection{Decoders}
+\label{sec:decoders}
+\paragraph{Linear.} A backward model rebuilds the followed envelope from every channel at lags of 0 to 484~ms by ridge regression, its strength chosen by inner cross validation; a window's verdict is the story whose envelope correlates best with the rebuilt one.
+\paragraph{Learned.} Two small convolutional networks map the EEG and each envelope to 12 dimensional embeddings: a $1\times1$ mix to 24 channels, then dilated convolutions with GELU and dropout, then a $1\times1$ mix to the embedding, about 16,000 weights each; the envelope network also sees half a second of its story before each EEG sample. Training takes random 5~s crops and asks, by cross entropy over the two stories, that the followed story's embedding move with the EEG's: the mean over time of their per sample product, each centred and scaled by its mean norm within the window. A window of any length is judged by the same score over that window alone, so one model serves every decision length.
+\paragraph{Choosing the settings.} Variants of the data, network and training were compared by the mean validation log loss of their ten second decisions, on the five validation people of each fold only, with the rule fixed before any run; test numbers were recorded but never used to choose.
+
+\subsection{Evaluation}
+\paragraph{People.} Six folds of six test people; of the other thirty, five stop training and the rest train it. Each person's accuracy is averaged over three random splits, each with its own models. A one minute decision is significant for one person at 66.7\% over 30 minutes (one sided binomial, 5\%).
+\paragraph{Story content.} Every test block is scored by models trained on no block of the same story parts, from anyone: for each part, the models of a fold are retrained without it.
+\paragraph{Study.} Models trained on one source study are tested on the other, in both directions.
+\paragraph{Out of step.} The same models score the same windows with both envelopes rotated 97~s against the EEG: the same voices, out of step. A decoder that tracks speech falls to chance; one that recognised the voices and read something else from the EEG would not.
+\paragraph{Switch time.} Accuracy over window length becomes a minimal expected switch duration (MESD) \cite{geirnaert2019mesd}; and the belief below is timed on real switches made by cutting together, at random times, the EEG of a held out listener who followed one story with that of another, from the same fold, who followed the other over the same blocks.
+
+\subsection{From decisions to a belief}
+A ten second decision moves the phone's estimate by $\exp(w\,m)$, $m$ being the margin of the winning story's score; $w$ is fitted by maximum likelihood on held out decisions. A two state hidden Markov model filters these decisions forward, with a chance $h$ per decision that attention moved; $h$ trades steadiness against speed.
+
+\subsection{Holding the talker}
+Each held out person's ten second decisions, in order, are replayed under a simulated head. Every ten second step the head faces the followed talker, nobody, or the other talker (at $\pm60^\circ$, with 10 or 20 degrees of jitter), by a Markov chain that keeps the current state with probability $e^{-10/20}$ per step and otherwise draws a new one from set shares; the share of time looking away and how it divides between nobody and the other talker are swept. Six ways of choosing the voice brought forward are compared: the talker faced (within $30^\circ$); the same, holding the last talker faced while facing nobody; the same, changing only after 20~s on a new talker; the belief alone; the phone's fusion of head prior and belief at its default weight $\kappa=2$; and the fusion at $\kappa=1$. Each is scored on blocks where attention stays (the share of steps from the second minute on with the followed voice forward), on blocks where attention and head switch together at a random moment (the decisions after it flipped, as in the belief's own test, and the time until the new voice comes forward), and on blocks where attention switches but the head goes on as before.
+
+\subsection{Hardware tolerances}
+The raw 500~Hz recordings of each held out person are degraded as a cheaper or harsher earbud would degrade them, then pass the whole causal chain and the models that never saw that person: white and $1/f$ noise at every electrode, quantisation to a given step, a lower sampling rate behind an anti alias filter, the right earbud's clock offset against the left, lost 20~ms and 200~ms frames with the last sample held, movement artifacts (200~$\mu$V Hann bumps of 0.2 to 1~s on every electrode with unequal gains), 50~Hz mains common to every electrode with 1\% imbalance, and speech envelopes late or early against the EEG.
+
+\subsection{The clench detector}
+The detector runs on the phone. Per ear it averages the 30 to 120~Hz power of that ear's electrodes into a 50~ms RMS, compared with an adaptive floor; a burst needs both ears above $k$ times their floor ($k=4$) for 40~ms. Bursts become a single, a double (two bursts of at most 450~ms within 450~ms) or a hold (over 700~ms); four bursts within 3~s are chewing, which silences it for 2~s and withdraws the gestures it reported since the first of those bursts. It is run unchanged, sample by sample, on every recording in Section~2.
+
+\section{Results}
+\input{results}
+
+\section{Discussion}
+\input{discussion}
+
+\section{Limitations}
+\input{limitations}
+
+\paragraph{Code and data.} Every number comes from scripts in the repository's \texttt{research/} folder, which also hold the commands to download each dataset. The public recordings remain their authors'; only derived results are shared.
+
+\bibliographystyle{unsrtnat}
+\bibliography{references}
+\end{document}

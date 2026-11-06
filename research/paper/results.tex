@@ -1,0 +1,102 @@
+\subsection{Decoding, held out by person}
+\label{sec:decoding}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig_windows.pdf}
+\caption{Share of decisions that name the followed story against the length of EEG a decision may use, for 36 people decoded by models that never saw them: four electrodes per ear, each ear referenced to itself, no calibration. Shaded: where one person's 30 minutes cannot be told from chance (one sided binomial, 5\%). Dotted grey: the learned decoder with the speech moved 97~s out of step. Amber: one learned network per fold trained without the story content tested (dashed) or without the source study tested (dotted).}
+\label{fig:windows}
+\end{figure}
+
+\begin{table}[t]
+\centering
+\caption{Share of decisions that name the followed story, mean over 36 held out people, four electrodes per ear, each ear referenced to itself, no calibration. Chance is 50\%. MESD: median minimal expected switch duration. Past bar: people whose one minute decisions over 30 minutes beat chance for one person (66.7\%).}
+\label{tab:main}
+\begin{tabular}{lrrrrrr}
+\toprule
+Decoder & 2~s & 10~s & 60~s & 5~min & MESD & Past bar \\
+\midrule
+Linear & \linTwo & \linTen & \linSixty & \linFiveMin & \linMesd~s & \linPast{} of 36 \\
+Learned & \nnTwo & \nnTen & \nnSixty & \nnFiveMin & \nnMesd~s & \nnPast{} of 36 \\
+Learned, out of step & & \nnCtlTen & \nnCtlSixty & & & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Of the thirteen training variants compared on validation people alone, the lowest validation log loss of ten second decisions went to the base architecture trained on all five blocks per person with a learning rate of $10^{-3}$ (0.6356; a wider receptive field scored 0.6357, inside the tie margin that goes to the simpler variant; every other variant 0.6378 or more). That variant, as an ensemble of five networks per fold, names the followed story in \nnSixty{} of one minute decisions and \nnFiveMin{} of five minute ones, against \linSixty{} and \linFiveMin{} for the linear decoder (Table~\ref{tab:main}, Figure~\ref{fig:windows}), and \nnTenMin{} over ten minutes. The three random splits of the people gave \nnSplits{} at one minute. Moved 97~s out of step with the EEG, the same speech scores \nnCtlSixty{}. Every story starts at its block's first sample, so the onset of the sound could in principle carry the answer in the first window: dropping the first 10 or 30~s of every block, EEG and stories alike, left five minute accuracy at \onsetFiveTen{} and \onsetFiveThirty{} against \onsetFiveZero{} (split 7).
+
+\subsection{Held out by story and by study}
+\label{sec:heldout}
+
+\begin{table}[t]
+\centering
+\caption{One network per fold (split 7), the settings of the search: what is held out besides the test people.}
+\label{tab:heldout}
+\begin{tabular}{lrrrr}
+\toprule
+Also held out & 10~s & 60~s & 5~min & Out of step, 60~s \\
+\midrule
+Nothing & \heldStandardTen & \heldStandardSixty & \heldStandardFiveMin & \heldStandardCtl \\
+The story content tested & \heldContentTen & \heldContentSixty & \heldContentFiveMin & \heldContentCtl \\
+The source study & \heldStudyTen & \heldStudySixty & \heldStudyFiveMin & \heldStudyCtl \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Trained without any block of the story content it was tested on, the network kept its one minute accuracy (\heldContentSixty{} against \heldStandardSixty{}) and lost a few points at five minutes; trained on one source study and tested on the other, it kept \heldStudySixty{} (Table~\ref{tab:heldout}).
+
+\begin{table}[t]
+\centering
+\caption{Published one minute accuracies with electrodes around the ear, each under its own protocol, and this decoder. SS: trained on the person tested; SI: trained on other people only.}
+\label{tab:lit}
+\begin{tabular}{llr}
+\toprule
+Study & Electrodes, training & 60~s \\
+\midrule
+Mirkovic et al.\ \cite{mirkovic2016} & cEEGrid, 16, linked mastoids, SS & 69.3\% \\
+Holtze et al.\ \cite{holtze2022} (this data set) & cEEGrid, 16, SS & 71.3\% \\
+Geirnaert, Kappel, Kidmose \cite{geirnaert2025} & 19 around the ear, SS & 67.2\% \\
+This work & 8, each ear referenced to itself, SI & \nnSixty \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{From decisions to a belief}
+\label{sec:belief}
+
+A ten second decision of the learned decoder is right \nnTen{} of the time. Fed into the belief with the fitted weight and a switch chance of 0.02 per decision, it favours the followed story after \beliefSteady{} of decisions from the second minute on. On EEG cut together from two held out listeners who followed opposite stories, the belief came over to the new story in a median of \spliceMedian~s, for \spliceFollowed{} of the switches it was in a position to follow, and favoured the followed story \spliceSteady{} of the time more than a minute after a cut.
+
+\subsection{What holding the talker is worth}
+\label{sec:hold}
+
+Every held out person's ten second decisions were replayed under a head that sometimes looks away, by a Markov chain over three states per ten second step (facing the followed talker, facing nobody, facing the other talker, at $\pm60^\circ$), with a mean look of 20~s; the share of time looking away is an assumption and was swept. With a quarter of the time looking away, half of it at the other talker, the followed voice was the one brought forward in \holdFace{} of steps when the head alone chose (the talker faced), \holdHold{} when the last talker faced was held while facing nobody, and \holdHeadDwell{} when a new talker had to be faced for 20~s first. The belief alone gave \holdEeg{}; the phone's fusion of head and belief \holdFused{}; with the head weighed half as much ($\kappa=1$) \holdFusedKOne{}, following a real turn in a median \holdSwitchTookKOne~s; and with the head's weight growing over the first 40~s of facing a talker \holdFusedDwell{}, at a median \holdSwitchTook~s. Looking away only at nobody, the patient head rule alone reached \holdNobodyHeadDwell{}, and the belief added nothing; looking away only at the other talker, it reached \holdOtherHeadDwell{}, against \holdOtherFusedDwell{} with the dwell fusion. When attention moved and the head did not, only the belief followed: the new talker was forward in \holdCovertEeg{} of the last two minutes, against \holdCovertHeadDwell{} for the head rule, \holdCovertFused{} for the phone's fusion and \holdCovertFusedKOne{} with the head weighed half.
+
+\subsection{In the ear and around it}
+\label{sec:ear}
+
+\begin{table}[t]
+\centering
+\caption{Ear-SAAD, 15 people, every person decoded by models trained on other people only, each ear referenced to itself (the scalp to its common average), causal, from the 10th second of each trial.}
+\label{tab:ear}
+\begin{tabular}{lrrr}
+\toprule
+Electrodes & Linear, 60~s & Learned, 60~s & Learned, 5~min \\
+\midrule
+In the ear, dry, 6 per ear & \earInLin & \earInNn & \earInNnFive \\
+Around the ear, wet, 9 and 10 & \earAroundLin & \earAroundNn & \earAroundNnFive \\
+Both together & \earBothLin & \earBothNn & \earBothNnFive \\
+Scalp, 29 & \earScalpLin & \earScalpNn & \earScalpNnFive \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+With dry contacts in the ear, neither decoder did better than chance; around the ear, the learned decoder reached \earAroundNn{} at one minute, and together the two sets did worse than around the ear alone (Table~\ref{tab:ear}). On the scalp, the same chain and decoders reached \earScalpNn{}. The out of step control stayed between 47\% and 51\% for every montage.
+
+\subsection{How accuracy grows with the people trained on}
+\label{sec:scaling}
+
+Trained on $N$ people drawn from the other 35, the linear decoder's one minute accuracy rose from \scaleLinTwo{} with two to \scaleLinFifteen{} with fifteen and then stopped: \scaleLinAll{} with all 35. The learned decoder, a single network per fold trained on 5 to 25 of each fold's people, reached \scaleNnFive{}, \scaleNnTen{}, \scaleNnFifteen{}, \scaleNnTwenty{} and \scaleNnAll{}.
+
+\input{results_hardware}
+
+\input{results_clench}

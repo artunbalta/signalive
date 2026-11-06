@@ -1,0 +1,13 @@
+\subsection{What the electronics may add}
+\label{sec:hardware}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{fig_hardware.pdf}
+\caption{Accuracy of the final decoder (split 7, \hwNets{} networks per fold) on the raw recordings of people it never saw, degraded as an earbud's electronics might degrade them; one panel per degradation, the clean recording at its first level (at 0~ms in the envelope panel). Black: one minute decisions; grey: ten second ones; amber, dashed: one minute decisions with movement artifacts gated.}
+\label{fig:hardware}
+\end{figure}
+
+Against a clean one minute accuracy of \hwNoiseBase{} with these networks (Figure~\ref{fig:hardware}), white noise added at every electrode cost less than a point up to \hwNoiseHolds{}~nV/$\sqrt{\mathrm{Hz}}$ and three points at \hwNoiseBreaks{}; 1/f noise in the decoder's band, up to \hwPinkHolds{}~$\mu$Vrms; one converter step, up to \hwLsbHolds{}~$\mu$V; and sampling, down to \hwRateHolds{}~Hz. A clock offset between the two earbuds cost nothing up to \hwSkewHolds{}~ms and three points at \hwSkewBreaks{}~ms. Frames lost one at a time cost under a point up to \hwLossHolds{} of all frames, and three points at \hwLossBreaks{}; lost in 200~ms bursts, three points at \hwBurstBreaks{}. Mains at 50~Hz, common to every electrode with 1\% imbalance, did nothing up to \hwMainsHolds{}~$\mu$V. The speech envelopes were the strictest: 25~ms late against the EEG they brought one minute accuracy to \hwEnvlagLate{}, 25~ms early to \hwEnvlagEarly{}, and three points were lost at \hwEnvlagBreaks{}~ms; the other talker mixed into each envelope, as imperfect separation would leave it, cost under a point up to \hwCrosstalkHolds{} of it.
+
+Movement was the one degradation that cost much at a plausible rate: two 200~$\mu$V jolts a minute brought one minute accuracy to \hwArtifactsTwo{} and ten to \hwArtifactsTen{}. A gate that blanks a quarter second either side of any sample over five times its channel's spread kept \hwGatedTwo{} and \hwGatedTen{} at those rates, and on the clean recording \hwGatedClean{}: it costs nothing and belongs in the chain.
