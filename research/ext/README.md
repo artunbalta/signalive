@@ -114,6 +114,30 @@ of them the clench at these sites is too weak for the shipped threshold,
 which experiment 1 of `research/NEXT.md` must measure on the earbud's own
 contacts.
 
+## A swallow looks like a clench
+
+Half of all swallows set off a single clench (above), so if a swallow looked
+different from a clench in the same signals, the detector could reject it in
+software. [`swallow_features.py`](swallow_features.py) takes PhysioMotion's
+104 labelled swallows and the 1,447 bursts inside its cued clench blocks,
+on the eight channels nearest the ears, and describes each by what the
+detector could compute as it goes, with causal filters: the weaker ear's
+peak over its run's median, the time above half the peak, slow (1 to 5 Hz)
+potentials during the event, upper against lower contacts, 60 to 120 Hz
+against 30 to 60 Hz power, and the two ears' symmetry.
+
+| Feature | Peak | Duration | Slow potentials | Upper against lower | Spectral balance | Symmetry |
+|---|---|---|---|---|---|---|
+| AUC, swallow against clench | 0.34 | 0.61 | 0.64 | 0.40 | 0.55 | 0.49 |
+
+The furthest from 0.5 is the peak (swallows are weaker, but overlap the
+clenches of weak clenchers), at 0.66 either way. All six together, in a
+logistic regression trained on eleven people and tested on the twelfth,
+reach 0.62: keeping 95% of clenches would reject 1% of swallows. **What it
+decides**: the electrodes cannot tell a swallow from a clench, so keeping a
+moment stays on the double clench, and the canal facing microphone of
+HW-MIC-03 is the way to make a single clench safe.
+
 ## In the ear, or around it
 
 Ear-SAAD: 15 people, six 10 minute trials of two Danish lectures at plus and

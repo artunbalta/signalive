@@ -1,0 +1,55 @@
+{
+ "swallows": 104,
+ "clenchBursts": 1447,
+ "people": 12,
+ "auc": {
+  "peak": 0.34,
+  "dur": 0.61,
+  "low": 0.644,
+  "upper": 0.396,
+  "high": 0.548,
+  "sym": 0.485
+ },
+ "medians": {
+  "peak": {
+   "swallow": 50.689193734451145,
+   "clench": 292.64709274067746
+  },
+  "dur": {
+   "swallow": 0.1885,
+   "clench": 0.143
+  },
+  "low": {
+   "swallow": 2.280488896611562,
+   "clench": 1.7502161889395669
+  },
+  "upper": {
+   "swallow": 4.53711517639958,
+   "clench": 5.8263413960460175
+  },
+  "high": {
+   "swallow": 2.2853366015066605,
+   "clench": 2.0990718143313574
+  },
+  "sym": {
+   "swallow": 0.4916094695089405,
+   "clench": 0.5026699003109981
+  }
+ },
+ "swallowsReported": 104,
+ "aucReported": {
+  "peak": 0.34,
+  "dur": 0.61,
+  "low": 0.644,
+  "upper": 0.396,
+  "high": 0.548,
+  "sym": 0.485
+ },
+ "heldOutAuc": 0.616,
+ "keep95": {
+  "swallowsRejected": 0.01
+ },
+ "keep99": {
+  "swallowsRejected": 0.0
+ }
+}

@@ -483,7 +483,11 @@ latency here is about how natural and comfortable the sound is.
   ([research/ext](../research/ext/README.md), PhysioMotion). A swallow and the wearer's own
   voice are loud in the occluded canal and silent on the outward microphones, and muscle
   signal is invisible to the IMU, so this is the cheapest sensor that can tell them from a
-  clench.
+  clench. The electrodes cannot do it alone: on the same labelled recordings no feature the
+  detector can compute as it goes (peak, duration, slow potentials, upper against lower
+  contacts, spectral balance, symmetry) told a swallow from a clench burst (AUC at most 0.66
+  each, 0.62 combined on people left out; keeping 95% of clenches would reject 1% of
+  swallows), `research/ext/swallow_features.py`.
 - Verification: T-13, with the canal envelope recorded alongside.
 
 **HW-MIC-02 Microphone performance** (Must)
