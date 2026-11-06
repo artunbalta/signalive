@@ -1,0 +1,4 @@
+{"tag": "n.5", "data": "all", "lr": 0.001, "ntrain": 5}
+{"tag": "n.10", "data": "all", "lr": 0.001, "ntrain": 10}
+{"tag": "n.15", "data": "all", "lr": 0.001, "ntrain": 15}
+{"tag": "n.20", "data": "all", "lr": 0.001, "ntrain": 20}

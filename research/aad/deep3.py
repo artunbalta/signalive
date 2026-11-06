@@ -83,6 +83,9 @@ DEFAULTS = {
     # without any block of that part of the two stories, from anyone.
     # "study": the other source study (train on Jaeger, test Holtze, and back).
     "holdout": None,
+    # Train on only this many of each fold's training people (a seeded draw),
+    # to ask how accuracy grows with the number of people trained on.
+    "ntrain": None,
 }
 
 
@@ -342,6 +345,8 @@ def main():
     for g, test in enumerate(groups):
         rest = [p for p in order if p not in test]
         val, trn = rest[:5], rest[5:]
+        if cfg["ntrain"]:
+            trn = [trn[i] for i in np.random.default_rng(seed + 500 + g).permutation(len(trn))[: cfg["ntrain"]]]
         if cfg["holdout"] == "part":
             # One model set per part of the stories the test people were scored on, trained without that part.
             parts = sorted({b for p in test for b in people[p]["testParts"]})

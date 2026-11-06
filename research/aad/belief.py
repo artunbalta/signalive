@@ -102,9 +102,14 @@ def table(people, w):
 
 
 def learned_runs():
-    """Per person and block margins of each learned split that kept them in order."""
+    """
+    Per person and block margins of each learned split that kept them in
+    order: deep.py's ensembles, or the runs AAD_BELIEF_RUNS names (a glob
+    relative to this folder, such as runs/final.seed*.json from deep3.py).
+    """
     runs = []
-    for path in sorted(glob.glob(os.path.join(ROOT, "deep*.ens3.json"))):
+    pattern = os.environ.get("AAD_BELIEF_RUNS", "deep*.ens3.json")
+    for path in sorted(glob.glob(os.path.join(ROOT, pattern))):
         with open(path) as f:
             d = json.load(f)
         m = d.get("margins10")
