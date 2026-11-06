@@ -396,7 +396,13 @@ type ClenchData = {
   listening: { perHour: number; kindsPerHour: { single: number; double: number; hold: number }; medianPerson: number; worstPerson: number };
   movement: { key: keyof typeof research.beyond.clench.movements; events: number; share: number; doubles: number }[];
 };
-const B = beyondData as unknown as { clench?: ClenchData };
+type Curve = { mean: Record<string, number>; control60: number | null; mesd: number | null };
+type EarSystem = { linear: { mean: Record<string, number> }; learned: { mean: Record<string, number> } };
+const B = beyondData as unknown as {
+  clench?: ClenchData;
+  heldOut?: { standard?: Curve; content?: Curve; study?: Curve };
+  inEar?: Partial<Record<"inear" | "aroundear" | "both" | "scalp", EarSystem>>;
+};
 
 /**
  * Before the hardware: the phone's code on other people's public recordings.
@@ -404,7 +410,7 @@ const B = beyondData as unknown as { clench?: ClenchData };
  */
 export function Beyond() {
   const b = research.beyond;
-  if (!B.clench) return null;
+  if (!B.clench && !B.heldOut && !B.inEar) return null;
   return (
     <section id="beyond" aria-labelledby="beyond-heading" className={`section ${INK} border-t border-hairline`}>
       <div className="shell flex flex-col gap-[var(--rhythm)]">
@@ -421,9 +427,64 @@ export function Beyond() {
             </Reveal>
           </div>
         </div>
+        {B.heldOut?.content && B.heldOut.standard ? <HeldOut data={B.heldOut} /> : null}
+        {B.inEar ? <InEar data={B.inEar} /> : null}
         {B.clench ? <Clench data={B.clench} /> : null}
       </div>
     </section>
+  );
+}
+
+/** 08: the learned decoder held out by story content and by source study, not only by person. */
+function HeldOut({ data }: { data: NonNullable<typeof B.heldOut> }) {
+  const f = research.beyond.heldOut;
+  const W = R.windows;
+  const curve = (c: Curve | undefined) => W.map((w) => c?.mean[String(w)] ?? NaN);
+  // The series the finding is about comes first: the chart labels its end.
+  const series = [
+    { id: "content", label: f.series.content, values: curve(data.content), tone: "paper" as const },
+    { id: "standard", label: f.series.standard, values: curve(data.standard), tone: "mist" as const },
+    ...(data.study ? [{ id: "study", label: f.series.study, values: curve(data.study), tone: "fog" as const }] : []),
+  ];
+  const band = W.map((w) => R.chance[String(w)] ?? null);
+  const at60 = (c: Curve | undefined) => (c ? pct(c.mean["60"]) : "");
+  const body = f.body.replace("{std}", at60(data.standard)).replace("{content}", at60(data.content)).replace("{study}", at60(data.study));
+  return (
+    <Finding id="held-out" copy={f} body={body}>
+      <WindowChart
+        xs={W}
+        series={series}
+        band={band}
+        bandLabel={f.chance}
+        domain={[0.45, 0.95]}
+        ticks={[0.5, 0.6, 0.7, 0.8, 0.9]}
+        labelled={[1, 2, 5, 10, 30, 60, 120, 300, 600]}
+        xLabel={f.x}
+        yLabel={research.axisRight}
+        label={f.chartLabel}
+      />
+      <p className="mt-8 max-w-[60ch] text-small leading-relaxed text-mist">{f.decides.replace("{ctl}", data.content?.control60 == null ? "" : pct(data.content.control60))}</p>
+      <Table head={[f.x, ...series.map((x) => x.label)]} rows={W.map((w, i) => [w, ...series.map((x) => (Number.isFinite(x.values[i]) ? pct(x.values[i]) : ""))])} />
+    </Finding>
+  );
+}
+
+/** 09: the same decoders on dry electrodes in the ear, wet ones around it, and the scalp, at the same moments. */
+function InEar({ data }: { data: NonNullable<typeof B.inEar> }) {
+  const f = research.beyond.inEar;
+  const keys = (["inear", "aroundear", "both", "scalp"] as const).filter((k) => data[k]);
+  const bars = keys.map((k) => ({ label: f.systems[k], value: data[k]!.learned.mean["60"], emphasis: k === "aroundear", labelled: true }));
+  const v = (k: (typeof keys)[number], dec: "linear" | "learned", w: string) => {
+    const x = data[k]?.[dec].mean[w];
+    return typeof x === "number" ? pct(x) : "";
+  };
+  const body = f.body.replace("{around}", v("aroundear", "learned", "60")).replace("{inear}", v("inear", "learned", "60"));
+  return (
+    <Finding id="in-ear" copy={f} body={body}>
+      <ColumnChart bars={bars} domain={[0.4, 0.9]} ticks={[0.5, 0.6, 0.7, 0.8]} xLabel={f.x} yLabel={f.y} label={f.chartLabel} />
+      <p className="mt-8 max-w-[60ch] text-small leading-relaxed text-mist">{f.decides}</p>
+      <Table head={[f.table.system, f.table.linear, f.table.learned, f.table.learned5]} rows={keys.map((k) => [f.systems[k], v(k, "linear", "60"), v(k, "learned", "60"), v(k, "learned", "300")])} />
+    </Finding>
   );
 }
 

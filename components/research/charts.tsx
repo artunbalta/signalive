@@ -216,7 +216,7 @@ export function ColumnChart({
   yLabel,
   label,
 }: {
-  bars: { label: string; value: number; emphasis?: boolean }[];
+  bars: { label: string; value: number; emphasis?: boolean; labelled?: boolean }[];
   domain: [number, number];
   ticks: number[];
   xLabel: string;
@@ -254,7 +254,7 @@ export function ColumnChart({
                   style={{ height: `${h}%` }}
                 />
                 {/* Labelled selectively: the column the story is about, the last one, and the one under the pointer. */}
-                {b.emphasis || i === n - 1 || hover === i ? (
+                {b.emphasis || b.labelled || i === n - 1 || hover === i ? (
                   <span aria-hidden="true" className="chart-collabel" style={{ bottom: `calc(${h}% + 6px)` }}>
                     {pct(b.value)}
                   </span>

@@ -101,6 +101,13 @@ the skin. Earbuds touch the concha and the ear canal, dry.
   artifacts) and decoding accuracy for each set.
 - **What it decides**: where the four electrodes of the earbud go, and
   whether a dry tip is enough or the product needs a different contact.
+- **Already learned from public data**: on Ear-SAAD, 15 people recorded at
+  once in the ear (dry) and around it (wet), each ear referenced to itself
+  and no calibration, one minute decisions reach 61% around the ear with the
+  learned decoder and 48% in it, a coin flip ([ext/README.md](ext/README.md)).
+  So the dry in-canal tip alone is not enough: the experiment now has to find
+  which positions outside the canal (concha, behind the ear, an ear hook)
+  recover the signal on the earbud's own contacts.
 
 ## What carries over unchanged
 

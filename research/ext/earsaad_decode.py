@@ -40,6 +40,10 @@ from deep import running_norm  # noqa: E402
 from pipeline import FS, LAGS, bandpass_sos, causal_filter, lagged, ridge, window_correlations  # noqa: E402
 
 PREP = os.path.join(ROOT, "data", "earsaad", "prep")
+# Each trial was recorded on its own, so its filters start cold and the sound
+# starts with it: a decision window that begins at the trial's first sample
+# hears that onset, not attention. Every trial is used from this second on.
+SKIP_S = 10
 OUT = os.path.join(ROOT, "earsaad.json")
 WINDOWS = A.WINDOWS
 ALPHAS = [1e-2, 1e-1, 1.0, 10.0, 100.0]
@@ -80,10 +84,11 @@ def load(montage):
         names = [str(n) for n in z["channels"]]
         sides = [str(s) for s in z["sides"]]
         trials = []
+        skip = SKIP_S * FS
         for t, side in enumerate(sides):
-            x = derive(z[f"eeg{t}"], names, MONTAGES[montage])
-            e1 = causal_filter(sos, z[f"env1_{t}"].astype(np.float64))
-            e2 = causal_filter(sos, z[f"env2_{t}"].astype(np.float64))
+            x = derive(z[f"eeg{t}"], names, MONTAGES[montage])[:, skip:]
+            e1 = causal_filter(sos, z[f"env1_{t}"].astype(np.float64))[skip:]
+            e2 = causal_filter(sos, z[f"env2_{t}"].astype(np.float64))[skip:]
             att, una = (e1, e2) if side == "left" else (e2, e1)
             trials.append((x, att, una))
         # The person's scale from the first two minutes of their first trial, unlabelled.
@@ -130,15 +135,24 @@ def deep_items(items):
     return [(eeg, a, u) for eeg, a, u, *_ in items]
 
 
+def mesd(acc):
+    """MESD over the windows a 10 minute trial holds (no 600 s window fits in one)."""
+    ws = [W for W in WINDOWS if np.isfinite(acc[W])]
+    grid = np.arange(ws[0], ws[-1] + 0.01, 0.25)
+    pg = np.interp(grid, ws, [acc[W] for W in ws])
+    return min(A.emtt(p, tau) for tau, p in zip(grid, pg))
+
+
 def summarize(per, control):
     n = len(per)
-    m = [A.mesd({W: p[W] for W in WINDOWS}) for p in per]
+    m = [mesd({W: p[W] for W in WINDOWS}) for p in per]
+    ok = [W for W in WINDOWS if all(np.isfinite(p[W]) for p in per)]
     return {
-        "mean": {W: float(np.mean([p[W] for p in per])) for W in WINDOWS},
-        "sem": {W: float(np.std([p[W] for p in per], ddof=1) / np.sqrt(n)) for W in WINDOWS},
+        "mean": {W: float(np.mean([p[W] for p in per])) for W in ok},
+        "sem": {W: float(np.std([p[W] for p in per], ddof=1) / np.sqrt(n)) for W in ok},
         "perSubject60": [round(p[60], 4) for p in per],
         "mesdMedian": float(np.median(m)) if np.isfinite(np.median(m)) else None,
-        "control": {W: float(np.mean([c[W] for c in control])) for W in WINDOWS},
+        "control": {W: float(np.mean([c[W] for c in control])) for W in ok},
     }
 
 
@@ -172,8 +186,8 @@ def main():
             for p in test:
                 h = linear_hits(w, people[p]["items"])
                 hc = linear_hits(w, people[p]["items"], shift_s=97)
-                lin_per[p] = {W: float(np.mean(v)) for W, v in h.items()}
-                lin_ctl[p] = {W: float(np.mean(v)) for W, v in hc.items()}
+                lin_per[p] = {W: float(np.mean(v)) if v else float("nan") for W, v in h.items()}
+                lin_ctl[p] = {W: float(np.mean(v)) if v else float("nan") for W, v in hc.items()}
             model, _, _ = D.train(deep_items(train_items), deep_items(val_items), cfg, 7 + g)
             for p in test:
                 deep_per[p], _ = D.evaluate([model], deep_items(people[p]["items"]), cfg["pre"])

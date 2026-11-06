@@ -116,5 +116,37 @@ contacts.
 
 ## In the ear, or around it
 
-Pending: `earsaad_decode.py` (in-ear, around-ear, both, scalp; linear and
-learned; calibration free).
+Ear-SAAD: 15 people, six 10 minute trials of two Danish lectures at plus and
+minus 60 degrees, attending the left talker in some trials and the right in
+others, recorded at once by 6 dry electrodes in each ear canal and concha, 9
+and 10 wet ones around each ear, and 29 on the scalp. Each trial goes through
+the earbud's causal chain at 1000 Hz (`earsaad_prep.py`); each ear is
+referenced to its own average (the scalp to its common average); every person
+is decoded by models trained on other people only (five folds of 3, 3 more to
+stop training and choose the ridge strength), from the 10th second of each
+trial on (a window that starts at a trial's first sample hears the sound and
+the filters start, not attention). The 97 s out of step control runs for every
+montage.
+
+| Electrodes | Linear, 10 s | Linear, 60 s | Learned, 10 s | Learned, 60 s | Learned, 5 min | Control, 60 s |
+|---|---|---|---|---|---|---|
+| In the ear, dry, 6 per ear | 49.5% | 48.6% | 49.5% | 48.3% | 45.6% | 51% |
+| Around the ear, wet, 9 and 10 | 53.9% | 56.9% | 55.2% | 61.0% | 71.1% | 47 to 49% |
+| Both together, 15 and 16 | 50.0% | 49.3% | 53.6% | 59.0% | 60.0% | 48 to 51% |
+| Scalp, wet, 29, common average | 60.4% | 74.1% | 65.6% | 80.9% | 95.6% | 48 to 50% |
+
+**What it decides.** Without calibration and with each ear referenced to
+itself, the dry electrodes inside the ear carry no decodable attention with
+either decoder, while those around it do, and the learned decoder adds four
+points at one minute and seven at five. Adding the in-ear electrodes to the
+around-ear ones makes both decoders worse, not better: for people they never
+saw, the extra channels are noise to fit. The scalp row shows the chain
+itself is sound: on the same people and moments it reaches 81% at one minute
+without calibration, against the paper's 83.4% trained on each person. The earbud's contacts cannot all sit
+in the canal: some must reach around or behind the ear. This agrees with the
+dataset's own paper, which found in-ear decoding losing 11.7 points without
+calibration and 4.1 more with each ear referenced to itself
+([Geirnaert, Kappel, Kidmose 2025](https://arxiv.org/abs/2505.14478)). The
+around-ear numbers here sit below that paper's 67.2%, which was trained on
+each person, cleaned of artifacts and filtered in both directions; these are
+calibration free, causal, and trained on 9 people per fold.
