@@ -35,6 +35,16 @@ parameter.
 | carousel still 3, reshot | `nano_banana_pro` | canonical as `--image_references` | 2.0 |
 | gesture video, reshot | `veo3_1_lite` | card 1 crop as `--start_image` | 8.0 |
 | two hero voices | `text2speech_v2` | elevenlabs preset voices | 0.3 |
+| concept: earbud with its arc of contacts | `nano_banana_pro` | canonical as `--image_references` | 2.0 |
+| concept: the arc worn behind the ear | `nano_banana_pro` | canonical as `--image_references` | 2.0 |
+
+The two concept stills (November 2026, `.assetgen/p_concept_arc_*.txt`) show
+the contacts where the research puts them: on a slim arc that rests behind the
+ear, after Ear-SAAD found dry contacts in the canal at chance without
+calibration (research/ext/README.md, HW-EEG-02). They drop "visible
+electrodes" from the negatives on purpose, since the contacts are the point,
+and the page captions them as concept renders. Encoded as WebP at 1000 and
+1600 px into `public/media/concept/`.
 
 Two takes were discarded and are worth knowing about:
 

@@ -5,7 +5,7 @@
  *  1. Zero em dash (U+2014) and en dash (U+2013) in any source file.
  *  2. "mind", "thought", "telepath", "brainwave" appear only in lib/copy.ts
  *     inside the notMind block, where they are being denied.
- *  3. The 83% figure always carries its laboratory qualifier.
+ *  3. Every research percentage carries its non product qualifier.
  *
  * Run: npm run audit:copy
  */
@@ -84,17 +84,23 @@ for (const f of files) {
 }
 if (!claimHits) pass("no forbidden claim outside the denial block");
 
-/* ---- 3. The 83% figure -------------------------------------------------- */
-console.log("\n[3] the 83% laboratory reference");
+/* ---- 3. Research numbers ----------------------------------------------- */
+console.log("\n[3] every research percentage carries its qualifier");
 const copy = readFileSync(join(ROOT, "lib/copy.ts"), "utf8");
-if (!copy.includes("~83%")) fail("the 83% figure is missing from lib/copy.ts");
-else {
-  const idx = copy.indexOf("~83%");
-  const window = copy.slice(idx, idx + 500);
-  const hasLab = /laboratory conditions using full scalp sensors/.test(window);
-  const hasQualifier = /Published laboratory reference, not a .* product measurement/.test(window);
-  if (hasLab && hasQualifier) pass("83% carries both its laboratory framing and its non-product qualifier");
-  else fail("the 83% figure has lost its laboratory qualifier and could read as a product claim");
+{
+  // A stat is { value, body, qualifier }. Any value with a percent sign is a
+  // research number and must say, in its own qualifier, that it is not a
+  // Signalive product measurement.
+  const stats = [...copy.matchAll(/value:\s*"([^"]*%[^"]*)"[\s\S]*?qualifier:\s*"([^"]*)"/g)];
+  if (!stats.length) fail("no qualified research percentage found in lib/copy.ts");
+  let bad = 0;
+  for (const [, value, qualifier] of stats) {
+    if (!/not a .* product measurement/.test(qualifier)) {
+      bad++;
+      fail(`${value} has lost its non product qualifier and could read as a product claim`);
+    }
+  }
+  if (stats.length && !bad) pass(`${stats.length} research percentages, each with its non product qualifier`);
 }
 
 console.log(

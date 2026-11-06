@@ -62,8 +62,8 @@ function GestureStudio({ mode, playing }: { mode: number; playing: boolean }) {
   return (
     <div className="gesture-studio" data-mode={mode} data-playing={playing}>
       <div className="gesture-studio-top t-mono"><span>Signalive / Gesture input</span><span>0{mode + 1}</span></div>
-      <div className="gesture-object">
-        <img src="/media/seq/frame-032.webp" width="1000" height="562" alt="Signalive earbud with its metal contact rings set into the silicone eartip" loading="lazy" />
+      <div className="gesture-object" data-concept="arc">
+        <img src="/media/concept/arc-product-1000.webp" width="1000" height="558" alt="Concept render of the Signalive earbud with the slim arc that carries its contacts around the ear" loading="lazy" />
         <div className="gesture-register" aria-hidden="true"><span /><span /></div>
       </div>
       <div className="gesture-trace" aria-hidden="true">
@@ -74,13 +74,13 @@ function GestureStudio({ mode, playing }: { mode: number; playing: boolean }) {
         </svg>
       </div>
       <div className="gesture-result" key={mode}>
-        <div className="gesture-result-icon" aria-hidden="true">{mode === 0 ? "↗" : mode === 1 ? "↶" : "↗"}</div>
+        <div className="gesture-result-icon" aria-hidden="true">{mode === 0 ? "↺" : "↗"}</div>
         <div>
-          <p className="t-mono text-fog">{["Saved to calendar", "Capture removed", "Answered in your ear"][mode]}</p>
-          <p className="gesture-result-title">{mode === 0 ? oneClench.card.title : mode === 1 ? "Back to the conversation." : "A question. A quiet answer."}</p>
-          <p className="gesture-result-detail">{mode === 0 ? `${oneClench.card.day} · ${oneClench.card.time}` : mode === 1 ? "One double clench. Nothing to open." : "No screen. No spoken command."}</p>
+          <p className="t-mono text-fog">{["Replayed in your ear", "Saved to calendar", "Answered in your ear"][mode]}</p>
+          <p className="gesture-result-title">{mode === 0 ? "The last ten seconds, again." : mode === 1 ? oneClench.card.title : "A question. A quiet answer."}</p>
+          <p className="gesture-result-detail">{mode === 0 ? "Of the person you face. Nothing to open." : mode === 1 ? `${oneClench.card.day} · ${oneClench.card.time}` : "No screen. No spoken command."}</p>
         </div>
-        <span className="gesture-result-mark" aria-hidden="true">{mode === 1 ? "−" : "✓"}</span>
+        <span className="gesture-result-mark" aria-hidden="true">✓</span>
       </div>
     </div>
   );

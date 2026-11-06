@@ -5,7 +5,7 @@ import Hero from "@/components/sections/Hero";
 import OneClench from "@/components/sections/OneClench";
 import Problem from "@/components/sections/Problem";
 import HowItWorks from "@/components/sections/HowItWorks";
-import ScrubSequence from "@/components/sections/ScrubSequence";
+import WhereSignal from "@/components/sections/WhereSignal";
 import ThePoint from "@/components/sections/ThePoint";
 import Carousel from "@/components/sections/Carousel";
 import NotMind from "@/components/sections/NotMind";
@@ -38,7 +38,7 @@ export default function Page() {
         <OneClench />
         <Problem />
         <HowItWorks />
-        <ScrubSequence />
+        <WhereSignal />
         <ThePoint />
         <Carousel />
         <NotMind />

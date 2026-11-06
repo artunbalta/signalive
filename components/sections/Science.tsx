@@ -215,9 +215,9 @@ export default function Science() {
                 <p className="text-small text-mist mt-5 max-w-[36ch]">
                   {stat.body}
                 </p>
-                {/* Permanently visible, never a hover or a tooltip. The 83%
-                    figure is a published laboratory reference and must never be
-                    readable as a Signalive product claim. Spec 3.9. */}
+                {/* Permanently visible, never a hover or a tooltip. The
+                    percentages come from public research recordings and must
+                    never be readable as a Signalive product claim. Spec 3.9. */}
                 <p className="t-mono text-fog mt-4 max-w-[40ch] leading-[1.7]">
                   {stat.qualifier}
                 </p>

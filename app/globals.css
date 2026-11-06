@@ -562,6 +562,7 @@ html[data-intro] [data-intro-fade] {
 .gesture-register { position: absolute; inset: 0; pointer-events: none; }
 .gesture-register span { position: absolute; top: 50%; left: 50%; width: 126px; height: 126px; border: 1px solid var(--color-signal); border-radius: 50%; opacity: 0; transform: translate(-50%,-50%); animation: gesture-register 4400ms var(--ease-out-att) infinite; }
 .gesture-register span + span { display: none; }
+.gesture-object[data-concept] .gesture-register span { left: 30%; top: 46%; width: 104px; height: 104px; }
 [data-mode="1"] .gesture-register span + span { display: block; animation-delay: 180ms; }
 [data-mode="2"] .gesture-register span { animation-name: gesture-hold; }
 .gesture-trace { display: flex; align-items: center; gap: 20px; padding: 0 28px; margin-top: -7px; }

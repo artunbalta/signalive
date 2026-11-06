@@ -10,6 +10,11 @@ import { BRAND, BRAND_CITY, BRAND_YEAR } from "./brand";
  *      allowed to appear at all, and there it is being refused.
  *
  * Copy is final as written in the build spec. Do not paraphrase it.
+ *
+ * The evidence pass (branch "evidence", November 2026) changes the lines the
+ * research contradicts, and only those: the two second claim, the contacts in
+ * the eartip, and the single clench as the capture. Each change names its
+ * measurement in research/ or hardware/SPEC.md.
  */
 
 export const announcement = {
@@ -78,11 +83,11 @@ export const focusRoom = {
  * being a feature and becomes the reason the product exists.
  */
 export const oneClench = {
-  eyebrow: "One clench",
+  eyebrow: "A double clench",
   beats: [
     "Someone says a date you need to remember.",
     "You do not reach for your phone.",
-    "You clench your jaw once. Nobody at the table notices.",
+    "You clench your jaw twice. Nobody at the table notices.",
     "It is in your calendar before they finish the sentence.",
   ],
   /** The confirmation that settles in on the last beat. Built in code. */
@@ -103,7 +108,7 @@ export const problem = {
     "When two voices compete, you lock onto the one you care about and push the other back.",
   leadRest: " This has been understood for seventy years.",
   paragraphs: [
-    "Modern earbuds cannot do it. They boost whatever is loudest, or nearest, or in front of you. In a restaurant, in an open office, on a conference floor, that guess is wrong most of the time.",
+    "Modern earbuds cannot do it. They boost whatever is loudest, or nearest, or in front of you, and they let go the moment you look away. In a restaurant, in an open office, on a conference floor, you look away all the time.",
     "Separating the voices was never the hard part. Knowing which one you wanted is.",
   ],
 };
@@ -117,20 +122,20 @@ export const howItWorks = {
     { label: "A task", body: "Goes to your list in the words they used" },
     { label: "A number", body: "Goes to your notes with what it referred to" },
   ],
-  headlineLines: ["Three things happen", "in under two seconds"],
+  headlineLines: ["Three signals,", "each at its own speed"],
   steps: [
     {
       index: "01",
-      title: "You listen",
-      body: "When you attend to a voice, your auditory cortex tracks its rhythm more strongly than the voices you are ignoring. The sensors in the eartip pick up that difference.",
+      title: "You turn",
+      body: "Turn toward someone and their voice comes forward within a fraction of a second. The motion sensor in each earbud knows where you face, so this part never waits for anything else.",
       media: "/media/step-01.webp",
       poster: null,
       alt: "A man with grey hair listening closely to someone off camera, wearing the earbud.",
     },
     {
       index: "02",
-      title: "It follows",
-      body: "The earbud identifies which stream you are on and brings it forward. The rest recede. You did not press anything and you did not turn your head.",
+      title: "It holds",
+      body: "Look down at your plate, your phone, the person beside you. When you follow a voice, your auditory cortex tracks its rhythm more strongly than the others, and contacts around your ear pick up that difference. Over a minute or two they settle on the voice you keep coming back to, and it stays forward while you look away.",
       media: null,
       poster: null,
       alt: "Diagram of two audio streams where the attended stream is brought forward and the other recedes.",
@@ -138,7 +143,7 @@ export const howItWorks = {
     {
       index: "03",
       title: "You act on it",
-      body: "This is the part that changes your day. Hear a date, a name, a task, a number. Clench your jaw once. The assistant already knows which conversation you were in, so it knows what you meant. The thing gets captured, filed, and handed back to you when you need it.",
+      body: "This is the part that changes your day. Hear a date, a name, a task, a number. Clench your jaw twice. The assistant already knows which conversation you were in, so it knows what you meant. The thing gets captured, filed, and handed back to you when you need it.",
       media: null,
       poster: null,
       alt: "A date, a name, a task and a number being captured from a conversation and filed where each one belongs.",
@@ -171,12 +176,48 @@ export const eartip = {
     "An earbud rotating slowly to reveal the two concentric contact rings set into its eartip.",
 };
 
+/**
+ * Where the contacts go. Takes the place of the eartip rotation: Ear-SAAD
+ * recorded 15 people in the ear canal and around the ear at the same moments,
+ * and calibration free, with each ear referenced to itself, the canal
+ * contacts decoded at chance (research/ext/README.md). HW-EEG-02.
+ */
+export const whereSignal = {
+  eyebrow: "Around the ear",
+  headlineLines: ["The signal is around your ear,", "not inside it"],
+  paragraphs: [
+    "Before building anything, we asked where an earbud's contacts have to sit. On public recordings of 15 people, made in the ear canal and around the ear at the same moments, the contacts in the canal named the voice a person followed no more often than a coin flip. The ones around the ear did.",
+    "So ours reach around the ear: four contacts per ear on a slim arc that rests behind it. The same contacts feel the clench, which is strongest there too.",
+  ],
+  figureAlt:
+    "Side view of an ear wearing the earbud, with a slim dark arc running over the top of the ear and resting behind it.",
+  figureCaption: "Concept render, not a product photograph.",
+  stats: [
+    {
+      value: "48%",
+      body: "In the ear canal: one minute decisions on people the decoder never saw. A coin flip is 50%.",
+      qualifier: "Public research recordings of 15 people, not a Signalive product measurement",
+    },
+    {
+      value: "61%",
+      body: "Around the ear: the same people, at the same moments, by the same decoder",
+      qualifier: "Public research recordings of 15 people, not a Signalive product measurement",
+    },
+    {
+      value: "77%",
+      body: "Around the ear, eight contacts, on 36 other people with no calibration",
+      qualifier: "Public research recordings of 36 people, not a Signalive product measurement",
+    },
+  ],
+  researchLink: "How we measured it, in research note 01",
+};
+
 export const thePoint = {
   eyebrow: "The point",
   headlineLines: ["Every assistant needs you to", "stop what you are doing"],
   paragraphs: [
     "Talking to an assistant in public does not work. Typing means leaving the conversation. That is why the most capable AI ever built sits unused in your pocket during exactly the moments you could use it.",
-    "A single jaw clench is invisible and unambiguous. It takes no hands, no screen, and no pause in what you were doing.",
+    "A double jaw clench is invisible, and it almost never happens by accident. It takes no hands, no screen, and no pause in what you were doing.",
   ],
 
   /** Subsection A. Three gestures, each with its resulting action. */
@@ -184,13 +225,13 @@ export const thePoint = {
   vocabulary: [
     {
       label: "Single",
-      title: "Capture this",
-      body: "Marks the last thirty seconds. Dates go to your calendar, names go to your contacts, tasks go to your list.",
+      title: "Replay that",
+      body: "Plays back the last ten seconds of the person you face. The thing you missed, again, without asking them to repeat it.",
     },
     {
       label: "Double",
-      title: "Undo that",
-      body: "Wrong moment, wrong thing. Take it back without opening anything.",
+      title: "Keep this",
+      body: "Marks the last thirty seconds. Dates go to your calendar, names go to your contacts, tasks go to your list.",
     },
     {
       label: "Hold",
@@ -205,7 +246,7 @@ export const thePoint = {
       "Three gestures cover everything",
       "because it knows where you are",
     ],
-    body: "The same double clench means skip while you are listening to music and take that back while you are listening to a person. Attention supplies the context, so the gesture does not have to carry it. This is why we do not need a menu, a wake word, or a vocabulary you have to memorise.",
+    body: "The same double clench keeps the moment while you are listening to a person and skips the track while you are listening to music. Attention supplies the context, so the gesture does not have to carry it. This is why we do not need a menu, a wake word, or a vocabulary you have to memorise.",
   },
 
 };
@@ -264,27 +305,27 @@ export const science = {
   headlineLines: ["Fifteen years of published work,", "finally small enough to wear"],
   paragraphs: [
     "Auditory attention decoding is an established research field. The open questions were never whether the signal exists. They were signal quality in a device this small, decision speed, and how much calibration each person needs.",
-    "That is what we work on.",
+    "We measured all three on public recordings before building anything: eight contacts around the ears are enough, no calibration is needed, and a decision takes about a minute. So a turn of the head steers, and the contacts hold.",
   ],
   stats: [
     {
-      value: "~83%",
-      body: "Attention decoding accuracy reported in laboratory conditions using full scalp sensors",
+      value: "77%",
+      body: "Of one minute decisions name the voice a person follows, from eight contacts around the ears, on people our decoder never saw",
       /** Guards against this being shortened into a product claim. Spec 3.9. */
-      qualifier: "Published laboratory reference, not a Signalive product measurement",
+      qualifier: "Public research recordings of 36 people, not a Signalive product measurement",
     },
     {
-      value: "<2 sec",
-      body: "The decision window a wearable product has to work within",
-      qualifier: "Design target",
+      value: "~1 min",
+      body: "What a decision takes. A turn of the head steers at once; the contacts hold the choice while you look away",
+      qualifier: "Measured on the same recordings",
     },
     {
       value: "4",
-      body: "Sensors per ear our design targets",
+      body: "Contacts per ear our design targets, around the ear rather than in the canal",
       qualifier: "Design target",
     },
   ],
-  figureCaption: "Two competing talkers, one attended stream, decoded inside a two second window.",
+  figureCaption: "Two competing talkers, one followed voice, named from a minute of signal.",
   /** Leads to /research, where the decoder runs on public recordings. */
   researchLink: "We ran our decoder on 36 people's ear EEG. Read research note 01",
 };
@@ -953,7 +994,7 @@ export const stickyCta = {
 export const meta = {
   title: `${BRAND}. Earbuds that know who you are listening to.`,
   description:
-    "Earbuds that follow the voice you are listening to and capture what matters with a single jaw clench. No screen, no wake word, no pause in the conversation.",
+    "Earbuds that follow the voice you are listening to and capture what matters with a jaw clench. No screen, no wake word, no pause in the conversation.",
 };
 
 export const a11y = {

@@ -38,7 +38,7 @@ const CHANNEL = {
   "how-it-works": "split",   // steps 01 and 02 listen, step 03 acts
   "use-cases": "split",      // two listening cards, two acting cards
   hero: "shared",
-  scrub: "shared",
+  where: "shared",
   plainly: "shared",
   waitlist: "shared",
 };

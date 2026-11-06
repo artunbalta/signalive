@@ -64,7 +64,7 @@ hardware/             what the earbud must provide: spec, architecture, parts,
                       the wire protocol and its C encoder for the firmware
 research/aad/         the analysis behind /research, in Python, from public data
 scripts/
-  audit-copy.mjs      em dash, forbidden claims, the 83% qualifier
+  audit-copy.mjs      em dash, forbidden claims, research numbers qualified
   audit-design.mjs    contrast table and the amber inventory
   balance.mjs         the two channel weight check
 docs/
