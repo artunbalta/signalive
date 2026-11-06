@@ -82,6 +82,18 @@ export interface ClenchInfo {
   k: number;
 }
 
+/** One 10 second decision of the attention decoder, as the belief takes it in. */
+export interface AttentionDecision {
+  /** The window, phone ms: from its first sample to just after its last. */
+  startMs: number;
+  endMs: number;
+  /** The talker whose envelope scored best, and by how much over the next. */
+  talker: number;
+  margin: number;
+  /** The belief per talker after this decision. */
+  belief: number[];
+}
+
 export interface SessionSnapshot {
   ears: Record<Ear, EarStats>;
   /** Head yaw from the motion sensors, degrees, positive to the right; null when none has reported lately. */
@@ -232,7 +244,7 @@ export class PhoneSession {
   /** Each side's newest EEG time, unwrapped device microseconds: AUDIO_ENV timestamps are unwrapped against it. */
   private readonly eegDevice = new Map<Side, number>();
   /** The earbud whose envelopes are used, and when it last sent one (phone ms). */
-  private envSource: Side | null = null;
+  private envSource: Side | "phone" | null = null;
   private envSourceAt = -Infinity;
 
   // The grid.
@@ -258,6 +270,7 @@ export class PhoneSession {
   private readonly frame: Float64Array;
   private readonly listeners = new Set<(e: ClenchEvent, info: ClenchInfo) => void>();
   private readonly withdrawListeners = new Set<(w: ClenchWithdrawal) => void>();
+  private readonly decisionListeners = new Set<(d: AttentionDecision) => void>();
   private readonly tapListeners = new Set<(ear: Ear, uv: number[], t: number) => void>();
   private readonly motionListeners = new Set<(ear: Ear, yaw: number[], t: number) => void>();
   /** Ticks read out so far: the decoder's and the detector's shared clock, at fs. */
@@ -361,6 +374,41 @@ export class PhoneSession {
   onClenchWithdrawn(cb: (w: ClenchWithdrawal) => void): () => void {
     this.withdrawListeners.add(cb);
     return () => this.withdrawListeners.delete(cb);
+  }
+
+  /** Every 10 second decision of the attention decoder, as the running belief takes it in. */
+  onDecision(cb: (d: AttentionDecision) => void): () => void {
+    this.decisionListeners.add(cb);
+    return () => this.decisionListeners.delete(cb);
+  }
+
+  /**
+   * The voices' envelopes from the phone itself, for a board that sends
+   * none: the phone is playing the voices, so it knows them exactly.
+   * values[k] is talker k's envelope (linear amplitude, any scale) at the
+   * decoder's rate, its sample s heard at phone time startMs + s / fs.
+   * Envelopes from earbuds win while they arrive.
+   */
+  envelopesAt(startMs: number, values: ArrayLike<number>[]): void {
+    const d = this.dec;
+    if (!d || this.t0 === null) return;
+    const now = this.now();
+    if (this.envSource !== null && this.envSource !== "phone" && now - this.envSourceAt < ENV_FAILOVER_MS) return;
+    this.envSource = "phone";
+    this.envSourceAt = now;
+    const n = values[0]?.length ?? 0;
+    for (let s = 0; s < n; s++) {
+      const place = Math.round(((startMs + (s * 1000) / d.fs - this.t0) * d.fs) / 1000);
+      const have = d.envelopeCount(0);
+      if (place < have) continue;
+      if (place - have > MAX_PAD_S * d.fs) {
+        this.restartDecoder();
+        return;
+      }
+      for (let i = have; i < place; i++) for (let k = 0; k < d.talkers; k++) d.pushEnvelope(k, NaN);
+      for (let k = 0; k < d.talkers; k++) d.pushEnvelope(k, k < values.length ? values[k][s] : NaN);
+    }
+    this.advanceBelief();
   }
 
   /**
@@ -562,6 +610,11 @@ export class PhoneSession {
     while (this.judged + length <= d.decidable) {
       const v = d.decideRange(this.judged, length);
       if (v) b.update(v);
+      if (v && this.t0 !== null && this.decisionListeners.size) {
+        const startMs = this.t0 + (this.judged * 1000) / d.fs;
+        const decision: AttentionDecision = { startMs, endMs: startMs + DECIDE_S * 1000, talker: v.talker, margin: v.margin, belief: [...b.probabilities] };
+        for (const cb of this.decisionListeners) cb(decision);
+      }
       this.judged += length;
     }
   }

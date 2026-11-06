@@ -54,7 +54,7 @@ let attentionModel: Promise<AnyDecoderModel | null> | null = null;
  * The learned decoder, fetched once and only for real earbuds (about half a
  * megabyte). Null when it cannot be had; the next connect tries again.
  */
-function loadAttentionModel(): Promise<AnyDecoderModel | null> {
+export function loadAttentionModel(): Promise<AnyDecoderModel | null> {
   attentionModel ??= fetch(ATTENTION_MODEL_URL)
     .then((r) => (r.ok ? (r.json() as Promise<AnyDecoderModel>) : null))
     .catch(() => null)
@@ -86,6 +86,11 @@ class EarbudsController {
   /** The connected earbuds, or NullSensorProvider. */
   get sensor(): SensorProvider {
     return this.provider ?? NONE;
+  }
+
+  /** The connected provider itself, for the studies that drive its session directly; null while nothing is connected. */
+  get connected(): SignaliveSensorProvider | null {
+    return this.provider;
   }
 
   /** The simulated earbuds while they are connected; null otherwise. */

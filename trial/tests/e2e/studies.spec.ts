@@ -38,3 +38,27 @@ test("studies: a quick clench study on the simulated earbuds, scored and saved",
   expect(report.prompts).toHaveLength(6);
   expect(errors).toEqual([]);
 });
+
+/**
+ * The attention study (research/NEXT.md, experiment 2) as a replay: two real
+ * people spliced into one listener who switches, through the simulated
+ * earbuds, decoded by the learned model on the phone. Started, followed to
+ * its first decisions, stopped and scored.
+ */
+test("studies: the attention study replays two real listeners and scores the decoder against the cue", async ({ page }) => {
+  test.setTimeout(180_000);
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await startTrial(page);
+  await page.goto("/studies/attention");
+  await expect(page.getByRole("heading", { name: "Following a voice that moves", level: 1 })).toBeVisible();
+  await page.getByRole("radio", { name: "A replay of two real people" }).click();
+  await page.getByRole("button", { name: "Start the study" }).click();
+  await expect(page.getByText("Follow the left voice")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/Last 10 s pointed (Left|Right)/)).toBeVisible({ timeout: 60_000 });
+  await page.getByRole("button", { name: "Stop and score" }).click();
+  await expect(page.getByRole("heading", { name: "Result" })).toBeVisible();
+  await expect(page.getByText("Decisions that named the cued voice")).toBeVisible();
+  await expect(page.getByText("A replay of two real people through the simulated earbuds", { exact: false })).toBeVisible();
+  expect(errors).toEqual([]);
+});

@@ -36,7 +36,17 @@ const files = [
 // The learned attention decoder the earbuds use (research/aad/deep_export.py),
 // from the repo root, where the research page serves it too. Loaded only when
 // earbuds that send the voices' envelopes connect.
-const shared = [["../public/research/neural.json", "attention/neural.json"]];
+const shared = [
+  ["../public/research/neural.json", "attention/neural.json"],
+  // Two people from the public recordings, over the same stretch of the same
+  // two stories, one following each: the attention study's replay splices
+  // them into one listener who switches. The shipped model was trained with
+  // them, so a replay shows the study working, not how well it decodes.
+  ["../public/research/people/clearest.json", "attention/people/clearest.json"],
+  ["../public/research/people/clearest.bin", "attention/people/clearest.bin"],
+  ["../public/research/people/typical.json", "attention/people/typical.json"],
+  ["../public/research/people/typical.bin", "attention/people/typical.bin"],
+];
 
 let copied = 0;
 for (const [from, to] of shared) {

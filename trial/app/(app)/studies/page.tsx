@@ -10,7 +10,10 @@ import { Icon } from "@/components/ui/Icon";
  */
 export default function StudiesPage() {
   const { m } = useI18n();
-  const studies = [{ href: "/studies/clench", copy: m.studies.clench, icon: "moment" as const }];
+  const studies = [
+    { href: "/studies/clench", copy: m.studies.clench, icon: "moment" as const },
+    { href: "/studies/attention", copy: m.studies.attention, icon: "focus" as const },
+  ];
   return (
     <div className="mx-auto max-w-[820px] space-y-6">
       <header>

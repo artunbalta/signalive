@@ -2,7 +2,7 @@ import type { ClenchEvent, ClenchWithdrawal } from "@sense/clench";
 import type { AnyDecoderModel } from "@sense/decoders";
 import { NativeBridgeTransport, inNativeShell } from "@sense/native-bridge";
 import { encodeCommand, type HostCommand, type Side } from "@sense/protocol";
-import { PhoneSession, type ClenchMode, type Ear, type EarbudInfo, type SessionSnapshot } from "@sense/session";
+import { PhoneSession, type AttentionDecision, type ClenchMode, type Ear, type EarbudInfo, type SessionSnapshot } from "@sense/session";
 import {
   CytonSerialTransport,
   TwinTransport,
@@ -227,7 +227,8 @@ export class SignaliveSensorProvider implements SensorProvider {
   private readonly now: () => number;
   private model: AnyDecoderModel | null;
   /** Envelopes can come: the earbuds' microphones send them, the board has none, the twin only when given some. */
-  private readonly envelopes: boolean;
+  private envelopes: boolean;
+  private readonly decisionListeners = new Set<(d: AttentionDecision) => void>();
   /** The EEG rate the session starts at; the earbuds' HELLO wins. */
   private readonly rate: number;
   private readonly azimuths: number[] | undefined;
@@ -350,6 +351,32 @@ export class SignaliveSensorProvider implements SensorProvider {
     this.session.setModel(this.decodes ? model : null);
   }
 
+  /**
+   * Decodes attention from envelopes the phone hands over itself
+   * (envelopesAt), for a board or a simulation that sends none: the
+   * attention study plays the voices, so it knows them exactly.
+   */
+  usePhoneEnvelopes(model: AnyDecoderModel): void {
+    this.envelopes = true;
+    this.useDecoderModel(model);
+  }
+
+  /** The voices' envelopes at the decoder's rate, sample s heard at phone time startMs + s / fs (PhoneSession.envelopesAt). */
+  envelopesAt(startMs: number, values: ArrayLike<number>[]): void {
+    this.session.envelopesAt(startMs, values);
+  }
+
+  /** The phone's clock as this provider keeps it, ms: what envelopesAt and decisions are timed on. */
+  phoneTime(): number {
+    return this.now();
+  }
+
+  /** Every 10 second decision of the attention decoder, with the belief after it. */
+  onDecision(listener: (d: AttentionDecision) => void): () => void {
+    this.decisionListeners.add(listener);
+    return () => this.decisionListeners.delete(listener);
+  }
+
   /** Bluetooth: each earbud is its own device, so the second one needs a second pick, from another tap. */
   async addEarbud(): Promise<void> {
     const t = this.transport;
@@ -438,6 +465,9 @@ export class SignaliveSensorProvider implements SensorProvider {
     });
     session.onClench((e, { k, latencyMs }) => this.gesture(e, k, latencyMs));
     session.onClenchWithdrawn((w) => this.withdraw(w));
+    session.onDecision((d) => {
+      for (const l of this.decisionListeners) l(d);
+    });
     session.onSamples((ear, uv, t) => this.sample(ear, uv, t));
     session.onMotion((_ear, yaw, t) => this.motion(yaw, t));
     return session;

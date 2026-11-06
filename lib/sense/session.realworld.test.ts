@@ -95,6 +95,40 @@ describe("PhoneSession on a real recording, through a real radio", () => {
     expect(Math.abs(baseline.skew)).toBeLessThan(40);
   });
 
+  it("decodes as well from envelopes the phone plays itself (envelopesAt) as from AUDIO_ENV", () => {
+    // A dev kit sends no envelopes: the phone, which plays the voices, hands
+    // them to the session on its own clock, here 8 ms behind the twin's.
+    const twin = new DigitalTwin({
+      recording: { fs: meta.fsRaw, labels: meta.channels, data },
+      sides: { left: [0, 1, 2, 3], right: [4, 5, 6, 7] },
+      clock: manualClock,
+      seed: 11,
+    });
+    let host = 0;
+    const session = new PhoneSession({ fs: meta.fsRaw, perEar: 4, model: meta.model, azimuths: [-90, 90], now: () => host });
+    const decisions: { talker: number; endMs: number; belief: number[] }[] = [];
+    session.onDecision((d) => decisions.push({ talker: d.talker, endMs: d.endMs, belief: d.belief }));
+    twin.start((bytes, side) => session.bytes(bytes, side));
+    let sent = 0;
+    for (let t = 0; t < 200_000; t += 20) {
+      twin.tick(20);
+      host = twin.time + 8;
+      // Every 250 ms, the envelope samples heard since the last hand over.
+      const upTo = Math.min(n64, Math.floor((twin.time * 64) / 1000));
+      if (upTo - sent >= 16) {
+        session.envelopesAt(8 + (sent * 1000) / 64, audio.map((a) => a.subarray(sent, upTo)));
+        sent = upTo;
+      }
+    }
+    const late = decisions.filter((d) => d.endMs >= 31_000);
+    expect(late.length).toBeGreaterThan(14);
+    const right = late.filter((d) => d.talker === meta.attendedStory).length / late.length;
+    expect(right).toBeGreaterThan(baseline.share() - 0.1);
+    // Each decision covers 10 s that do not overlap, and comes with the belief it led to.
+    for (let i = 1; i < decisions.length; i++) expect(decisions[i]!.endMs - decisions[i - 1]!.endMs).toBeCloseTo(10_000, 6);
+    expect(late[late.length - 1]!.belief[meta.attendedStory]).toBeGreaterThan(0.8);
+  });
+
   it("takes a model that arrives after the earbuds connected", () => {
     const late = run({ modelAt: 15_000 });
     expect(late.session.decoder).not.toBeNull();

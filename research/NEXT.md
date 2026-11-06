@@ -60,6 +60,12 @@ In the public data attention never moved. In life it does.
   that attention moved (`DEFAULT_HAZARD` in `lib/sense/fusion.ts`, now 2%
   from simulated switches), measured against real ones, and whether the
   learned decoder's lead over the linear one holds when attention moves.
+- **Ready to run**: the trial's Studies, attention (`/studies/attention`),
+  plays two recordings of speech chosen on the device at plus and minus 60
+  degrees, moves the cue every 30 to 90 s, hands the decoder the envelopes
+  it played (`PhoneSession.envelopesAt`, so a board that sends none works),
+  and scores every decision and switch. Its report keeps the envelopes, and
+  the raw file every electrode, for retraining with `research/aad`.
 
 ## 3. Does the EEG add anything to the head?
 
