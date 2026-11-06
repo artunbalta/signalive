@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useI18n } from "@/components/providers/AppProviders";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Callout, Card, SectionTitle } from "@/components/ui/Card";
 import { Checkbox, Field, Segmented } from "@/components/ui/Controls";
 import { fmtPct } from "@/components/ui/Readout";
-import { earbuds } from "@/lib/client/earbuds";
+import { earbuds, loadAttentionModel } from "@/lib/client/earbuds";
 import { useStore } from "@/lib/client/store";
 import { FULL_ATTENTION, QUICK_ATTENTION, attentionStudy } from "@/lib/client/studies/attention-runner";
 
@@ -38,6 +38,18 @@ function Setup() {
   const quick = v.settings.minutes === QUICK_ATTENTION.minutes;
   const loading = v.stage === "loading";
   const ready = replay || (connected && v.files.length === 2);
+  // The decoder reads the electrodes in its own order: a board's inputs must be wired the same way.
+  const [inputs, setInputs] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (e.transport !== "cyton") return;
+    let live = true;
+    void loadAttentionModel().then((model) => {
+      if (live && model && "inputs" in model) setInputs(model.inputs as string[]);
+    });
+    return () => {
+      live = false;
+    };
+  }, [e.transport]);
 
   return (
     <div className="space-y-5">
@@ -75,6 +87,19 @@ function Setup() {
                 >
                   {t.connectBody}
                 </Callout>
+              ) : null}
+              {inputs ? (
+                <div className="rounded-[12px] border border-[var(--hairline)] bg-ink/40 p-4">
+                  <p className="t-label">{t.wiring}</p>
+                  <ol className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 font-mono text-[0.9rem] sm:grid-cols-4">
+                    {inputs.map((name, i) => (
+                      <li key={name}>
+                        <span className="text-fog">{i + 1}</span> {name}
+                      </li>
+                    ))}
+                  </ol>
+                  <p className="mt-2 text-[0.85rem] leading-relaxed text-fog">{t.wiringHint}</p>
+                </div>
               ) : null}
               <Field label={t.voices} hint={t.voicesHint}>
                 <input

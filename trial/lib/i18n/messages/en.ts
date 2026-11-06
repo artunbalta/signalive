@@ -867,6 +867,8 @@ export const en = {
       replayNote: "A replay of two real people through the simulated earbuds. The decoder was trained with them, so this shows the study working, not how well it decodes.",
       connectFirst: "Connect earbuds or a board first",
       connectBody: "In Earbuds, connect Signalive earbuds or an OpenBCI board wired four inputs to each ear, at the electrode positions research/aad ranks first.",
+      wiring: "Wire the board's inputs to these electrodes",
+      wiringHint: "Inputs 1 to 4 on the left ear, 5 to 8 on the right, at the cEEGrid positions the decoder was trained on (research/aad ranks them). Reference and bias as the dev kit guide in hardware/BOM.md shows.",
       voices: "Two recordings of speech",
       voicesHint: "Choose two, at least 3 minutes each, one voice in each: two audiobook chapters or two podcast episodes. The first plays on the left.",
       left: "Left",

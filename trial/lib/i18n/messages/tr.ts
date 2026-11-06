@@ -862,6 +862,8 @@ export const tr: Messages = {
       replayNote: "Simüle kulaklıkta iki gerçek kişinin tekrarı. Çözücü onlarla eğitildi; bu, çalışmanın işlediğini gösterir, ne kadar iyi çözdüğünü değil.",
       connectFirst: "Önce kulaklığı ya da kartı bağlayın",
       connectBody: "Kulaklık ekranında Signalive kulaklığı ya da her kulağa dört girişi, research/aad'nin ilk sıraya koyduğu elektrot konumlarına bağlanmış bir OpenBCI kartını bağlayın.",
+      wiring: "Kartın girişlerini şu elektrotlara bağlayın",
+      wiringHint: "1 ila 4. girişler sol kulağa, 5 ila 8. girişler sağ kulağa; çözücünün eğitildiği cEEGrid konumlarına (research/aad sıralar). Referans ve bias, hardware/BOM.md'deki geliştirme kiti rehberindeki gibi.",
       voices: "İki konuşma kaydı",
       voicesHint: "Her birinde tek bir ses olan, en az 3 dakikalık iki kayıt seçin: iki sesli kitap bölümü ya da iki podcast bölümü. İlki solda çalar.",
       left: "Sol",
