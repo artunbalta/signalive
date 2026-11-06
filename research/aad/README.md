@@ -385,12 +385,25 @@ Model final.seed7, 2 networks per fold; clean one minute accuracy 78.1%.
   time, five minute ones 91%, and the running belief settles on the followed
   story 87% of the time while following a switch in under a minute. Head
   orientation has to steer, the clench is the explicit command, and the EEG
-  says over a minute or two who a person keeps coming back to.
+  says over a minute or two who a person keeps coming back to: it earns its
+  place when the listener looks at someone else, and when attention moves
+  while the head stays.
+- **The contacts reach around the ear.** On Ear-SAAD, dry contacts in the
+  canal decode at chance without calibration ([../ext](../ext/README.md)).
+- **The electronics have margin; timing and movement do not.** The speech
+  envelopes must share the EEG's clock to about 10 ms, and the phone gates
+  movement jolts out.
+- **More people, better decoder.** The learned decoder was still improving
+  when the folds ran out of people to train it on.
 
 ## Limits
 
-cEEGrids around the ear are not earbuds in the ear. Attention was instructed
-and held for whole blocks, never switched, in a quiet room with people sitting
-still; the belief's switch times come from simulated switches that assume the
-decoder is as good after a real one. These are published research recordings, not Signalive product
+cEEGrids around the ear are wet electrodes glued to the skin, not an
+earbud's dry contacts. Attention was instructed and held for whole blocks,
+never switched, in a quiet room with people sitting still; the belief's switch
+times come from switches simulated by flipping decisions or by cutting two
+listeners together, both of which assume the decoder is as good straight
+after a switch as before it. The head in the hold replay is simulated, and
+the movement jolts in the hardware experiments are a model, not recorded
+movement. These are published research recordings, not Signalive product
 measurements, and nothing here supports any claim about hearing.

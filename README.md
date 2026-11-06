@@ -103,11 +103,15 @@ lives here, so that only the hardware remains to be built.
   dev kit.
 
 What the recordings say, in short: two separate earbuds, four electrodes each and no
-calibration, name the story a person follows in about 68% of one minute decisions and
-85% of five minute ones (chance is 50%), a wire between the ears adds about a point and
-a half, and following a switch takes about two minutes. So the head steers, the clench
-commands, and the EEG confirms over minutes. These are published research recordings,
-not Signalive product measurements.
+calibration, name the story a person follows in 79% of one minute decisions and 91% of
+five minute ones with the learned decoder (chance is 50%), held out by person, story and
+study; a wire between the ears adds about a point and a half, and a switch is followed in
+under a minute. The contacts have to reach around the ear: dry ones in the canal decode at
+chance. The EEG earns its place when you look at someone other than the person you follow
+and when attention moves without the head, so the head steers, the clench commands, and
+the EEG holds the voice. A double clench almost never fires by itself; a single one does,
+mostly on swallows. These are published research recordings, not Signalive product
+measurements; research/paper/main.pdf has all of it.
 
 ## Two rules that are not negotiable
 
