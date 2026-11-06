@@ -187,7 +187,7 @@ export const whereSignal = {
   headlineLines: ["The signal is around your ear,", "not inside it"],
   paragraphs: [
     "Before building anything, we asked where an earbud's contacts have to sit. On public recordings of 15 people, made in the ear canal and around the ear at the same moments, the contacts in the canal named the voice a person followed no more often than a coin flip. The ones around the ear did.",
-    "So ours reach around the ear: four contacts per ear on a slim arc that rests behind it. The same contacts feel the clench, which is strongest there too.",
+    "So ours reach around the ear: four contacts per ear on a slim arc that rests behind it. The same contacts pick up the clench, which electrodes around the ear caught on real recordings too.",
   ],
   figureAlt:
     "Side view of an ear wearing the earbud, with a slim dark arc running over the top of the ear and resting behind it.",
