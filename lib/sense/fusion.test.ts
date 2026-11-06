@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AttentionBelief, DEFAULT_EEG_WEIGHT, DEFAULT_HAZARD, fuseAttention } from "./fusion";
+import { AttentionBelief, DEFAULT_EEG_WEIGHT, DEFAULT_HAZARD, DEFAULT_KAPPA, HeadDwell, fuseAttention } from "./fusion";
 
 const sum = (x: number[]) => x.reduce((a, b) => a + b, 0);
 const argmax = (x: number[]) => x.indexOf(Math.max(...x));
@@ -125,5 +125,57 @@ describe("AttentionBelief", () => {
     expect(b.probabilities[0]).toBeCloseTo(0.9 * before + 0.1 * (1 - before), 12);
     expect(() => b.update({ talker: 2, margin: 0.1 })).toThrow(RangeError);
     expect(() => new AttentionBelief({ talkers: 2, hazard: 2 })).toThrow(RangeError);
+  });
+});
+
+describe("HeadDwell", () => {
+  const azimuthsDeg = [-60, 60];
+
+  it("grows from nothing to full weight over the ramp on one talker", () => {
+    const d = new HeadDwell({ azimuthsDeg, rampS: 40 });
+    d.update(-58, 0);
+    expect(d.faced).toBe(0);
+    expect(d.scale(0)).toBe(0);
+    expect(d.scale(20_000)).toBeCloseTo(0.5, 12);
+    expect(d.scale(40_000)).toBe(1);
+    expect(d.scale(90_000)).toBe(1);
+  });
+
+  it("starts again on another talker, and has no weight facing none", () => {
+    const d = new HeadDwell({ azimuthsDeg, rampS: 40 });
+    d.update(-60, 0);
+    d.update(-61, 30_000);
+    expect(d.scale(30_000)).toBeCloseTo(0.75, 12);
+    d.update(62, 30_000);
+    expect(d.faced).toBe(1);
+    expect(d.scale(30_000)).toBe(0);
+    d.update(0, 35_000);
+    expect(d.faced).toBe(-1);
+    expect(d.scale(50_000)).toBe(0);
+    d.update(null, 60_000);
+    expect(d.scale(60_000)).toBe(0);
+  });
+
+  it("wraps yaw around the circle", () => {
+    const d = new HeadDwell({ azimuthsDeg: [170, -90], rampS: 10 });
+    d.update(-175, 0);
+    expect(d.faced).toBe(0);
+  });
+
+  it("lets a sure belief hold through a glance that the instant prior would follow", () => {
+    const belief = [0.93, 0.07];
+    const instant = fuseAttention({ azimuthsDeg, yawDeg: 60, belief });
+    expect(argmax(instant)).toBe(1);
+    const d = new HeadDwell({ azimuthsDeg, rampS: 40 });
+    d.update(60, 0);
+    const glance = fuseAttention({ azimuthsDeg, yawDeg: 60, belief, kappa: DEFAULT_KAPPA * d.scale(10_000) });
+    expect(argmax(glance)).toBe(0);
+    const stayed = fuseAttention({ azimuthsDeg, yawDeg: 60, belief, kappa: DEFAULT_KAPPA * d.scale(40_000) });
+    expect(argmax(stayed)).toBe(1);
+  });
+
+  it("rejects a ramp that is not a positive number", () => {
+    expect(() => new HeadDwell({ azimuthsDeg, rampS: 0 })).toThrow(RangeError);
+    expect(() => new HeadDwell({ azimuthsDeg, rampS: Number.NaN })).toThrow(RangeError);
   });
 });

@@ -32,7 +32,8 @@ accuracy starts to fall.
 The curves are differences against the same model on clean input, so the
 first HW_NETS networks of each fold (default 2) are enough.
 
-Writes research/aad/hardware.json.
+Writes research/aad/hardware.json (or $HW_OUT; `hardware_bars.py merge a.json b.json`
+joins several into hardware.json).
 """
 import json
 import os
@@ -219,7 +220,18 @@ def load_models(tag, seed, cfg):
     return folds
 
 
+def merge(paths):
+    out = {}
+    for p in paths:
+        out.update(json.load(open(os.path.join(ROOT, p))))
+    with open(os.path.join(ROOT, "hardware.json"), "w") as f:
+        json.dump(out, f, indent=1)
+    print(f"[hardware] merged {len(paths)} files: {', '.join(k for k in out if k in EXPERIMENTS)}", flush=True)
+
+
 def main():
+    if len(sys.argv) > 1 and sys.argv[1] == "merge":
+        return merge(sys.argv[2:])
     tag = sys.argv[1] if len(sys.argv) > 1 else "v2"
     seed = int(sys.argv[2]) if len(sys.argv) > 2 else 7
     with open(os.path.join(D.RUNS, f"{tag}.seed{seed}.json")) as f:
@@ -227,7 +239,8 @@ def main():
     folds = load_models(tag, seed, cfg)
     chans = D.electrodes()
     only = sys.argv[3].split(",") if len(sys.argv) > 3 else list(EXPERIMENTS)
-    path = os.path.join(ROOT, "hardware.json")
+    # HW_OUT lets several processes each take some of the experiments; merge_hardware() joins them.
+    path = os.path.join(ROOT, os.environ.get("HW_OUT", "hardware.json"))
     results = json.load(open(path)) if os.path.exists(path) else {}
     results["model"] = f"{tag}.seed{seed}"
     results["networks"] = min(cfg["ensemble"], int(os.environ.get("HW_NETS", "2")))

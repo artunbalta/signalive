@@ -398,7 +398,7 @@ class AttentionStudyController {
     };
     this.view.set((s) => {
       const decisions = [...s.decisions, dec];
-      return { decisions, belief: dec.belief, score: s.plan ? scoreAttention(s.plan, decisions, s.elapsedMs) : null };
+      return { decisions, belief: dec.belief, score: s.plan ? scoreAttention(s.plan, decisions, s.elapsedMs, AZIMUTHS) : null };
     });
   }
 
@@ -437,7 +437,7 @@ class AttentionStudyController {
       stoppedEarly: early,
       cue: null,
       recorded: this.recorder?.samples ?? 0,
-      score: s.plan ? scoreAttention(s.plan, s.decisions, early ? s.elapsedMs : Infinity) : null,
+      score: s.plan ? scoreAttention(s.plan, s.decisions, early ? s.elapsedMs : Infinity, AZIMUTHS) : null,
     });
   }
 

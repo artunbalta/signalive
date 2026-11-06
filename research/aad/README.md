@@ -173,6 +173,54 @@ weight as float32. `lib/sense/neural.ts` runs it on the phone, streaming, and
 its tests match this code's own streaming reference to 1e-9 on eight seconds
 of a real recording.
 
+## Decoder v3: every block, chosen on validation
+
+Version 2 trained on the three blocks per person the data set selects.
+[`deep3.py`](deep3.py) trains on all five (the two extra blocks only ever
+train, never test) and chose its settings by a rule fixed before any run:
+the lowest mean validation log loss of ten second decisions, on the five
+validation people of each fold only, ties within 0.002 going to the simpler
+variant ([`search.py`](search.py), [`variants/`](variants/)). Of thirteen
+variants (wider or longer receptive fields, larger embeddings, contrastive
+loss, augmentation, crop length, alignment, dropout, epochs, learning rate)
+the version 2 architecture with a learning rate of 1e-3 on all blocks won
+(0.6356; a longer receptive field 0.6357, inside the tie margin). The final
+models are that variant, five networks per fold, on the same three random
+splits.
+
+| 4 per ear, wireless, no calibration | 2 s | 10 s | 60 s | 5 min | 10 min | MESD (median) | People past the bar at 60 s |
+|---|---|---|---|---|---|---|---|
+| Learned v3 | 56.6% | 64.1% | 78.9% | 91.0% | 96.9% | 57 s | 30 of 36 |
+| Learned v3, stories out of step | 49.9% | 50.3% | 49.0% | 48.0% | 49.7% | | |
+
+One minute decisions per split: 79.2% (split 7), 79.4% (11), 78.1% (23).
+
+**No onset in the numbers.** On Ear-SAAD a window that began at a trial's
+first sample heard the sound start and scored 100% at five minutes. Here the
+filters run 20 s ahead of every block, but the stories still start at its
+first sample, so [`onset_check.py`](onset_check.py) scores every test block
+again with its first seconds dropped from the EEG and both stories alike
+(split 7, five networks): one minute decisions 79.2%, 78.4% and 78.8% with 0,
+10 and 30 s dropped, five minute ones 91.2%, 90.7% and 91.7%.
+
+**Held out by story and by study.** Every person in this data set heard the
+same stories, so a network tested on new people alone could learn the
+stories. With one network per fold and the search's settings, every test
+block was also scored by networks trained without any block of the same
+part of the stories, from anyone (`"holdout": "part"`), and by networks
+trained on one source study and tested on the other (`"holdout": "study"`):
+
+| One network per fold, split 7 | 10 s | 60 s | 5 min | Out of step, 60 s |
+|---|---|---|---|---|
+| Stories shared | 61.7% | 75.6% | 91.2% | 48.4% |
+| Story content held out | 61.4% | 75.9% | 87.5% | 48.3% |
+| Source study held out | 60.0% | 72.1% | 86.1% | 47.6% |
+
+The network does not learn the stories. Set against the published around
+the ear results, all trained on the person tested
+([../LITERATURE.md](../LITERATURE.md)), a calibration free decoder over four
+electrodes per ear, each ear referenced to itself, is at least as accurate.
+
 ## What a decision is worth
 
 On the phone a ten second decision moves the estimate of who is being
@@ -185,6 +233,7 @@ second decisions of decoders that never saw the person:
 |---|---|---|---|---|
 | Linear | 2.97 | 58.0% | 0.673 | 0.758 |
 | Learned | 15.9 | 62.2% | 0.649 | 0.655 |
+| Learned v3 | 17.0 | 64.1% | 0.634 | 0.644 |
 
 At 10 the linear decoder's decisions were trusted about three times too
 much: where the fusion was 91% sure, they were right 67% of the time, and the
@@ -207,10 +256,52 @@ one, missed when that takes over five minutes.
 |---|---|---|---|---|---|---|
 | 1% | 82.5% | 95 s | 7% | 87.4% | 80 s | 2% |
 | **2%** | **80.3%** | **70 s** | **5%** | **85.9%** | **60 s** | **1%** |
+
+With decoder v3 (weight 17.0) the belief at 2% names the followed story 87.1%
+of the time and comes over to a new one in 50 s, missing 1%.
 | 5% | 75.6% | 30 s | 0% | 82.0% | 40 s | 0% |
 
 Single decisions are right 58.0% (linear) and 62.2% (learned) of the time.
 The phone uses 2% (`DEFAULT_HAZARD`).
+
+## What holding the voice is worth
+
+The belief settles on the followed story, but the product also has the
+head. [`hold_value.py`](hold_value.py) replays every held out person's real
+ten second decisions (the final models') under a simulated head that looks
+away: each ten second step it faces the followed talker, nobody (a plate, a
+phone) or the other talker, by a Markov chain with set shares and looks of
+about 20 s, the talkers at -60 and +60 degrees as in the recordings. It
+counts the steps from the second minute on in which each way of choosing
+brings the followed voice forward; times how long each takes to bring a new
+voice forward when attention and head turn together (decisions flipped at a
+random moment, as in `belief.py`); and, when attention moves and the head
+does not, how much of the last two minutes the new voice is forward. The
+decisions are real; the head is an assumption, swept in `hold_value.json`.
+A quarter of the time looking away:
+
+| How the voice is chosen | Half at the other talker | All at the other talker | All at nobody | Attention moves, head stays | To follow a real turn |
+|---|---|---|---|---|---|
+| The voice faced | 75.5% | 74.9% | 76.4% | 13.5% | 0 s |
+| Faced, the last one held while facing nobody | 84.2% | 75.1% | 95.6% | 16.0% | 0 s |
+| Faced for 20 s before it changes | 86.8% | 76.6% | 99.5% | 13.5% | 10 s |
+| The belief alone | 87.1% | 87.1% | 87.1% | 87.7% | 50 s |
+| Head and belief, as shipped (kappa 2) | 88.6% | 81.7% | 95.7% | 43.1% | 0 s |
+| Head and belief, head weighed half (kappa 1) | 91.6% | 89.2% | 94.3% | 72.0% | 10 s |
+| Head and belief, head weight growing over 40 s | 92.0% | 87.5% | 95.8% | 50.7% | 20 s |
+
+- **Looking away at nothing**, the head alone does it: hold the last voice
+  faced, or wait 20 s before changing, and nothing beats it.
+- **Looking at someone else while following** is where the EEG earns its
+  place, and **attention that moves while the head stays** is where only the
+  EEG can: every head rule stays at or under a quarter.
+- **The shipped fusion trusts the head too much.** Its weight (kappa 2) was
+  set by hand while the EEG's was fitted; at half that weight a glance no
+  longer outweighs a minute of evidence, a real turn still comes through in
+  about ten seconds, and most covert moves are followed.
+  `SessionOptions.headKappa` sets it (default unchanged: without EEG the
+  lower weight also softens how far the faced voice comes forward), and
+  `headDwellS` makes the weight grow with time on one talker.
 
 ## What it decides
 
@@ -219,9 +310,9 @@ The phone uses 2% (`DEFAULT_HAZARD`).
 - **Four electrodes per ear** leave margin: two per ear already reach 68%.
 - **No calibration step** is needed to start.
 - **EEG is the slow channel.** Two second decisions barely beat a coin flip.
-  With the learned decoder one minute decisions are right 77% of the time,
-  five minute ones 89%, and the running belief settles on the followed story
-  86% of the time while following a switch in about a minute. Head
+  With the learned decoder (v3) one minute decisions are right 79% of the
+  time, five minute ones 91%, and the running belief settles on the followed
+  story 87% of the time while following a switch in under a minute. Head
   orientation has to steer, the clench is the explicit command, and the EEG
   says over a minute or two who a person keeps coming back to.
 

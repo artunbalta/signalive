@@ -87,6 +87,25 @@ it knows something the head does not.
   cue also says to face the followed voice, the other one or straight ahead,
   each decision keeps the head's yaw and the fused estimate, and the result
   scores the EEG, the head and the two together per condition.
+- **Already learned from public data**: replaying the held out people's real
+  decisions under a simulated head ([`aad/hold_value.py`](aad/hold_value.py),
+  [`aad/README.md`](aad/README.md)) says the EEG earns its place in two
+  moments only: looking at someone other than the person followed, and
+  attention that moves while the head stays. Looking down at nothing,
+  holding the last voice faced does as well without it. It also says the
+  phone's fusion follows a glance too readily: halving the head prior's
+  weight (`SessionOptions.headKappa: 1`) holds through glances and lets the
+  EEG catch attention that moves while the head stays, and still follows a
+  real turn in about ten seconds; a prior that grows with time on one talker
+  (`headDwellS`) holds a little better and turns slower. The study should
+  score both weights side by side.
+- **Measurable before the dev kit**: how often, and at whom, people look
+  away from the person they follow is the assumption that replay rests on.
+  Any earbuds with head tracking measure it in real conversations (AirPods
+  Pro report head orientation to an iOS app through CMHeadphoneMotionManager),
+  with who was speaking taken from the phone's microphone afterwards. A few
+  dinners and meetings, with everyone's consent, turn the sweep into one
+  number.
 
 ## 4. In the ear, or around it?
 

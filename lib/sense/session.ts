@@ -22,7 +22,7 @@
  */
 import { ClenchDetector, type ClenchEvent, type ClenchWithdrawal } from "./clench";
 import { createDecoder, fusionWeight, type AnyDecoderModel, type StreamingDecoder } from "./decoders";
-import { AttentionBelief, fuseAttention } from "./fusion";
+import { AttentionBelief, DEFAULT_KAPPA, HeadDwell, fuseAttention } from "./fusion";
 import { ClockSync, EegStream, EventCode, Flag, QUAT_ONE, SspDecoder, encodeCommand, yawDeg, type EegFrame, type ImuFrame, type Side, type SspFrame } from "./protocol";
 
 export type Ear = "left" | "right";
@@ -41,6 +41,20 @@ export interface SessionOptions {
   azimuths?: number[];
   /** Milliseconds, the phone's clock. Default performance.now. */
   now?: () => number;
+  /**
+   * Let the head's prior grow over this many seconds on one talker instead of
+   * acting at once (HeadDwell), so the belief can hold through a glance; off
+   * when absent. research/aad/hold_value.py measured 40.
+   */
+  headDwellS?: number;
+  /**
+   * The head prior's full weight (fuseAttention's kappa), default
+   * DEFAULT_KAPPA. Replaying real decisions under a head that looks away
+   * (research/aad/hold_value.py), 1 held the followed voice through glances
+   * better than 2 and let the EEG follow attention that moved while the head
+   * stayed; with no EEG it only softens how far the faced voice comes forward.
+   */
+  headKappa?: number;
 }
 
 export interface EarStats {
@@ -220,6 +234,8 @@ export class PhoneSession {
   private dec: StreamingDecoder | null;
   /** Every non overlapping 10 second decision so far, weighed by what it is worth; it outlives a decoder restart. */
   private belief: AttentionBelief | null = null;
+  private readonly dwell: HeadDwell | null;
+  private readonly headKappa: number;
   /** The decoder sample the belief has taken decisions up to. */
   private judged = 0;
   private detectors!: Record<ClenchMode, ClenchDetector>;
@@ -285,6 +301,8 @@ export class PhoneSession {
     this.perEar = opts.perEar;
     this.azimuths = opts.azimuths ?? [-90, 90];
     this.now = opts.now ?? (() => performance.now());
+    this.dwell = opts.headDwellS ? new HeadDwell({ azimuthsDeg: this.azimuths, rampS: opts.headDwellS }) : null;
+    this.headKappa = opts.headKappa ?? DEFAULT_KAPPA;
     this.frame = new Float64Array(2 * opts.perEar);
     this.model = opts.model ?? null;
     this.dec = null;
@@ -478,6 +496,7 @@ export class PhoneSession {
         const v = f.values;
         const o = (f.samples - 1) * 10;
         this.head[ear] = { yaw: yawDeg(v[o + 6] / QUAT_ONE, v[o + 7] / QUAT_ONE, v[o + 8] / QUAT_ONE, v[o + 9] / QUAT_ONE), at: this.now() };
+        this.dwell?.update(this.yaw, this.now());
         if (this.motionListeners.size) this.motionIn(side, f);
         break;
       }
@@ -625,7 +644,7 @@ export class PhoneSession {
           margin: v.margin,
           belief,
           yawDeg: yaw,
-          posterior: fuseAttention({ azimuthsDeg: this.azimuths, yawDeg: yaw ?? undefined, belief }),
+          posterior: fuseAttention({ azimuthsDeg: this.azimuths, yawDeg: yaw ?? undefined, belief, kappa: this.kappa() }),
         };
         for (const cb of this.decisionListeners) cb(decision);
       }
@@ -807,6 +826,14 @@ export class PhoneSession {
    * circle: left at 179 degrees and right at -179 is the head turned all the
    * way round, not straight ahead.
    */
+  /** The head prior's weight now: headKappa, or with headDwellS the share of it the time on one talker has earned. */
+  private kappa(): number {
+    if (!this.dwell) return this.headKappa;
+    const now = this.now();
+    this.dwell.update(this.yaw, now);
+    return this.headKappa * this.dwell.scale(now);
+  }
+
   get yaw(): number | null {
     const now = this.now();
     const ys = [this.head.left, this.head.right].filter((h): h is { yaw: number; at: number } => !!h && now - h.at <= YAW_STALE_MS).map((h) => h.yaw);
@@ -857,7 +884,7 @@ export class PhoneSession {
     const eeg = d ? { talker: d.talker, margin: d.margin } : null;
     const yaw = this.yaw;
     const belief = this.dec && this.belief ? this.belief.probabilities : null;
-    const posterior = fuseAttention({ azimuthsDeg: this.azimuths, yawDeg: yaw ?? undefined, belief });
+    const posterior = fuseAttention({ azimuthsDeg: this.azimuths, yawDeg: yaw ?? undefined, belief, kappa: this.kappa() });
     return { ears: { left: ear("left"), right: ear("right") }, yaw, eeg, belief, posterior, clench: this.mode, warning: this.warn };
   }
 

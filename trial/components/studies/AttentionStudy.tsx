@@ -311,7 +311,8 @@ function Result() {
                   <th className="py-1.5 pr-4 font-normal" />
                   <th className="py-1.5 pr-4 text-right font-normal">{t.signals.eeg}</th>
                   <th className="py-1.5 pr-4 text-right font-normal">{t.signals.head}</th>
-                  <th className="py-1.5 text-right font-normal">{t.signals.fused}</th>
+                  <th className="py-1.5 pr-4 text-right font-normal">{t.signals.fused}</th>
+                  <th className="py-1.5 text-right font-normal">{t.signals.fusedLight}</th>
                 </tr>
               </thead>
               <tbody>
@@ -324,7 +325,8 @@ function Result() {
                       <td className="py-2 pr-4">{t.heads[k]}</td>
                       <td className="py-2 pr-4 text-right font-mono">{cell(h.eeg)}</td>
                       <td className="py-2 pr-4 text-right font-mono">{cell(h.head)}</td>
-                      <td className="py-2 text-right font-mono">{cell(h.fused)}</td>
+                      <td className="py-2 pr-4 text-right font-mono">{cell(h.fused)}</td>
+                      <td className="py-2 text-right font-mono">{cell(h.fusedLight)}</td>
                     </tr>
                   );
                 })}

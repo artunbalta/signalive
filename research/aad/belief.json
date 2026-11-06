@@ -65,64 +65,64 @@
   ]
  },
  "learned": {
-  "weight": 15.934,
+  "weight": 16.973,
   "splits": 3,
   "rows": [
    {
     "hazard": 0.0,
-    "steady": 0.8851,
-    "switchMedian": 260.0,
-    "switchMissed": 0.4228,
-    "decisionAccuracy": 0.6217
+    "steady": 0.9018,
+    "switchMedian": 270.0,
+    "switchMissed": 0.4167,
+    "decisionAccuracy": 0.6403
    },
    {
     "hazard": 0.005,
-    "steady": 0.8811,
-    "switchMedian": 100.0,
+    "steady": 0.8948,
+    "switchMedian": 80.0,
     "switchMissed": 0.0401,
-    "decisionAccuracy": 0.6217
+    "decisionAccuracy": 0.6403
    },
    {
     "hazard": 0.01,
-    "steady": 0.8739,
-    "switchMedian": 80.0,
-    "switchMissed": 0.0216,
-    "decisionAccuracy": 0.6217
+    "steady": 0.8869,
+    "switchMedian": 70.0,
+    "switchMissed": 0.0185,
+    "decisionAccuracy": 0.6403
    },
    {
     "hazard": 0.02,
-    "steady": 0.8594,
-    "switchMedian": 60.0,
-    "switchMissed": 0.0062,
-    "decisionAccuracy": 0.6217
+    "steady": 0.8712,
+    "switchMedian": 50.0,
+    "switchMissed": 0.0093,
+    "decisionAccuracy": 0.6403
    },
    {
     "hazard": 0.05,
-    "steady": 0.8198,
-    "switchMedian": 40.0,
+    "steady": 0.8367,
+    "switchMedian": 30.0,
     "switchMissed": 0.0,
-    "decisionAccuracy": 0.6217
+    "decisionAccuracy": 0.6403
    },
    {
     "hazard": 0.1,
-    "steady": 0.7745,
+    "steady": 0.7943,
     "switchMedian": 20.0,
     "switchMissed": 0.0,
-    "decisionAccuracy": 0.6217
+    "decisionAccuracy": 0.6403
    },
    {
     "hazard": 0.2,
-    "steady": 0.7131,
-    "switchMedian": 20.0,
+    "steady": 0.7357,
+    "switchMedian": 10.0,
     "switchMissed": 0.0,
-    "decisionAccuracy": 0.6217
+    "decisionAccuracy": 0.6403
    },
    {
     "hazard": 0.5,
-    "steady": 0.6238,
+    "steady": 0.6432,
     "switchMedian": 10.0,
     "switchMissed": 0.0,
-    "decisionAccuracy": 0.6217
+    "decisionAccuracy": 0.6403
    }
   ]
  }

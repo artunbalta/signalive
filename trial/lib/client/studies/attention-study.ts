@@ -15,6 +15,8 @@
  * never moved; this measures them where it does.
  */
 
+import { fuseAttention } from "@sense/fusion";
+
 /** The decoder's decision window, s. */
 export const DECISION_S = 10;
 /** Envelope rate, Hz: the decoder's. */
@@ -159,6 +161,13 @@ export interface HeadScore {
   head: number | null;
   /** Head and EEG together favoured the cued voice. */
   fused: number | null;
+  /**
+   * The same with the head weighed half as much (kappa 1 against the
+   * shipped 2), rebuilt from each decision's belief and yaw: the setting
+   * research/aad/hold_value.py found holds through glances. Null without
+   * a motion sensor.
+   */
+  fusedLight: number | null;
 }
 
 export interface SwitchResult {
@@ -206,7 +215,12 @@ const SINCE_BINS: [number, number | null][] = [
  * its whole window is within one cue: one that straddles a switch has heard
  * some of each voice and belongs to neither.
  */
-export function scoreAttention(plan: SwitchPlan, decisions: StudyDecision[], until = Infinity): AttentionScore {
+/** The voices' directions the study plays them from, degrees, left negative. */
+export const STUDY_AZIMUTHS = [-60, 60] as const;
+/** The lighter head prior scored beside the shipped one. */
+export const LIGHT_KAPPA = 1;
+
+export function scoreAttention(plan: SwitchPlan, decisions: StudyDecision[], until = Infinity, azimuths: readonly number[] = STUDY_AZIMUTHS): AttentionScore {
   const end = Math.min(plan.durationMs, until);
   const judged = decisions.filter((d) => d.endMs <= end);
   let n = 0;
@@ -230,11 +244,11 @@ export function scoreAttention(plan: SwitchPlan, decisions: StudyDecision[], unt
     }
   }
 
-  const byHead: Partial<Record<HeadCondition, { n: number; eeg: number; head: number; headN: number; fused: number; fusedN: number }>> = {};
+  const byHead: Partial<Record<HeadCondition, { n: number; eeg: number; head: number; headN: number; fused: number; fusedN: number; light: number; lightN: number }>> = {};
   for (const d of judged) {
     const cue = cuedAt(plan, d.startMs);
     if (!cue || !cue.head || d.endMs > cue.to) continue;
-    const h = (byHead[cue.head] ??= { n: 0, eeg: 0, head: 0, headN: 0, fused: 0, fusedN: 0 });
+    const h = (byHead[cue.head] ??= { n: 0, eeg: 0, head: 0, headN: 0, fused: 0, fusedN: 0, light: 0, lightN: 0 });
     h.n++;
     if (d.talker === cue.talker) h.eeg++;
     if (typeof d.yawDeg === "number") {
@@ -247,6 +261,11 @@ export function scoreAttention(plan: SwitchPlan, decisions: StudyDecision[], unt
       h.fusedN++;
       const best = d.posterior.indexOf(Math.max(...d.posterior));
       if (best === cue.talker) h.fused++;
+    }
+    if (typeof d.yawDeg === "number" && d.belief.length === azimuths.length) {
+      h.lightN++;
+      const p = fuseAttention({ azimuthsDeg: [...azimuths], yawDeg: d.yawDeg, belief: d.belief, kappa: LIGHT_KAPPA });
+      if (p.indexOf(Math.max(...p)) === cue.talker) h.light++;
     }
   }
 
@@ -283,7 +302,13 @@ export function scoreAttention(plan: SwitchPlan, decisions: StudyDecision[], unt
     byHead: Object.fromEntries(
       Object.entries(byHead).map(([k, h]) => [
         k,
-        { decisions: h!.n, eeg: h!.n ? h!.eeg / h!.n : null, head: h!.headN ? h!.head / h!.headN : null, fused: h!.fusedN ? h!.fused / h!.fusedN : null },
+        {
+          decisions: h!.n,
+          eeg: h!.n ? h!.eeg / h!.n : null,
+          head: h!.headN ? h!.head / h!.headN : null,
+          fused: h!.fusedN ? h!.fused / h!.fusedN : null,
+          fusedLight: h!.lightN ? h!.light / h!.lightN : null,
+        },
       ]),
     ) as Partial<Record<HeadCondition, HeadScore>>,
   };

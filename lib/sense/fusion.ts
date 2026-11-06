@@ -72,6 +72,74 @@ export function fuseAttention(input: FusionInput): number[] {
   return w.map((x) => x / total);
 }
 
+export interface HeadDwellOptions {
+  /** Where each talker stands, degrees, in the same frame as the yaw. */
+  azimuthsDeg: number[];
+  /** Seconds on one talker for the head prior to reach its full weight. */
+  rampS: number;
+  /** How far from a talker the head may point and still count as facing them. Default 30. */
+  withinDeg?: number;
+}
+
+/**
+ * How long the head has stayed on one talker, as a weight for its prior.
+ *
+ * fuseAttention's head prior acts at once, so a glance at another talker
+ * outweighs any but a very sure belief. A listener who follows one person
+ * also looks at the others at the table. research/aad/hold_value.py replayed
+ * real held out decisions under a head that looked away a quarter of the
+ * time, half of it at the other talker: the followed voice was forward 88% of
+ * the time with the instant prior and 92% with one that grows from nothing to
+ * its full weight over the first 40 s on a talker, which lets the belief hold
+ * through glances, at the price of about 20 s to follow a real turn. Facing no
+ * talker, the prior has no weight and the belief decides. Off unless a
+ * session asks for it (SessionOptions.headDwellS).
+ */
+export class HeadDwell {
+  readonly rampMs: number;
+  readonly withinDeg: number;
+  private readonly az: number[];
+  private target = -1;
+  private since = 0;
+
+  constructor(opts: HeadDwellOptions) {
+    if (!(opts.rampS > 0) || !Number.isFinite(opts.rampS)) throw new RangeError(`fusion: rampS must be a positive number, got ${opts.rampS}`);
+    this.rampMs = opts.rampS * 1000;
+    this.withinDeg = opts.withinDeg ?? 30;
+    this.az = [...opts.azimuthsDeg];
+  }
+
+  /** The head's yaw at nowMs, null when it is not known. */
+  update(yawDeg: number | null | undefined, nowMs: number): void {
+    let t = -1;
+    if (yawDeg != null && Number.isFinite(yawDeg)) {
+      let best = Infinity;
+      this.az.forEach((a, i) => {
+        const d = Math.abs(((((yawDeg - a + 180) % 360) + 360) % 360) - 180);
+        if (d <= this.withinDeg && d < best) {
+          best = d;
+          t = i;
+        }
+      });
+    }
+    if (t !== this.target) {
+      this.target = t;
+      this.since = nowMs;
+    }
+  }
+
+  /** The talker faced, or -1 for none. */
+  get faced(): number {
+    return this.target;
+  }
+
+  /** From 0, on arriving at a talker or facing none, to 1 after rampS on one. */
+  scale(nowMs: number): number {
+    if (this.target < 0) return 0;
+    return Math.min(1, Math.max(0, (nowMs - this.since) / this.rampMs));
+  }
+}
+
 export interface BeliefOptions {
   talkers: number;
   /** Log odds per unit of margin a decision is worth. Default DEFAULT_EEG_WEIGHT. */

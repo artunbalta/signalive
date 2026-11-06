@@ -155,9 +155,21 @@ describe("where the listener faces (experiment 3)", () => {
       decisions.push({ startMs: start, endMs: start + 10_000, talker: cue.talker, margin: 0.01, belief: [0.5, 0.5], yawDeg: yaw, posterior });
     }
     const s = scoreAttention(plan, decisions);
-    expect(s.byHead.toward).toEqual({ decisions: 6, eeg: 1, head: 1, fused: 1 });
-    expect(s.byHead.away).toEqual({ decisions: 6, eeg: 1, head: 0, fused: 0 });
+    // With an even belief the lighter head prior still follows the head: it leans 2 degrees right when ahead.
+    expect(s.byHead.toward).toEqual({ decisions: 6, eeg: 1, head: 1, fused: 1, fusedLight: 1 });
+    expect(s.byHead.away).toEqual({ decisions: 6, eeg: 1, head: 0, fused: 0, fusedLight: 0 });
     // Ahead the head leans neither way: a half each.
-    expect(s.byHead.ahead).toEqual({ decisions: 6, eeg: 1, head: 0.5, fused: 1 });
+    expect(s.byHead.ahead).toEqual({ decisions: 6, eeg: 1, head: 0.5, fused: 1, fusedLight: 0 });
+  });
+
+  it("lets a sure belief outweigh the lighter head prior when facing away", () => {
+    const plan: SwitchPlan = { cues: [{ from: 0, to: 60_000, talker: 0, head: "away" }], durationMs: 60_000, seed: 1 };
+    const decisions: StudyDecision[] = [];
+    for (let start = 0; start + 10_000 <= 60_000; start += 10_000) {
+      // Facing the other voice, with a belief 90% on the cued one: the shipped weight follows the head, the lighter one the belief.
+      decisions.push({ startMs: start, endMs: start + 10_000, talker: 0, margin: 0.05, belief: [0.9, 0.1], yawDeg: 60, posterior: [0.3, 0.7] });
+    }
+    const s = scoreAttention(plan, decisions);
+    expect(s.byHead.away).toEqual({ decisions: 6, eeg: 1, head: 0, fused: 0, fusedLight: 1 });
   });
 });
