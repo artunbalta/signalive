@@ -13,6 +13,7 @@ import {
   ENV_RATE,
   cuedAt,
   envelope64,
+  headTarget,
   planSwitches,
   scoreAttention,
   type AttentionScore,
@@ -49,6 +50,8 @@ export interface AttentionStudySettings {
   source: AttentionSource;
   output: AttentionOutput;
   record: boolean;
+  /** Also say where to face in each cue: the followed voice, the other one, or ahead (experiment 3). */
+  head: boolean;
   seed: number;
 }
 
@@ -101,7 +104,7 @@ interface PersonFile {
 function initial(settings?: Partial<AttentionStudySettings>): AttentionStudyView {
   return {
     stage: "setup",
-    settings: { participant: "", ...FULL_ATTENTION, source: "files", output: "headphones", record: false, seed: 0, ...settings },
+    settings: { participant: "", ...FULL_ATTENTION, source: "files", output: "headphones", record: false, head: false, seed: 0, ...settings },
     files: [],
     plan: null,
     elapsedMs: 0,
@@ -233,7 +236,12 @@ class AttentionStudyController {
       }
       const fs = left.meta.fsRaw;
       const durationMs = Math.floor((Math.min(left.meta.samples, right.meta.samples) / fs) * 1000);
-      plan = { cues: REPLAY_CUES.filter((c) => c.from < durationMs).map((c) => ({ ...c, to: Math.min(c.to, durationMs) })), durationMs, seed: 0 };
+      const heads = ["toward", "away", "ahead"] as const;
+      plan = {
+        cues: REPLAY_CUES.filter((c) => c.from < durationMs).map((c, i) => ({ ...c, to: Math.min(c.to, durationMs), ...(settings.head ? { head: heads[i % 3] } : {}) })),
+        durationMs,
+        seed: 0,
+      };
       const recording: TwinRecording = { fs, labels: left.meta.channels, data: spliceListener(left.data, right.data, fs, plan.cues) };
       await earbuds.connect("simulated", { twin: { recording, sides: { left: [0, 1, 2, 3], right: [4, 5, 6, 7] } } });
       const p = earbuds.connected;
@@ -265,7 +273,7 @@ class AttentionStudyController {
       const seconds = Math.min(...buffers.map((b) => b.duration));
       if (seconds * 1000 < LEAD_MS + 60_000) return fail("files_short");
       const minutes = Math.min(settings.minutes, seconds / 60);
-      plan = planSwitches({ minutes, leadMs: LEAD_MS, seed: settings.seed });
+      plan = planSwitches({ minutes, leadMs: LEAD_MS, head: settings.head, seed: settings.seed });
       this.envs = buffers.map((b) => envelope64(mono(b), b.sampleRate));
       this.play(buffers, settings.output);
       const ctx = engine.ctx;
@@ -385,6 +393,8 @@ class AttentionStudyController {
       talker: d.talker,
       margin: d.margin,
       belief: d.belief.map((p) => Math.round(p * 1e4) / 1e4),
+      yawDeg: d.yawDeg === null ? null : Math.round(d.yawDeg * 10) / 10,
+      posterior: d.posterior.map((p) => Math.round(p * 1e4) / 1e4),
     };
     this.view.set((s) => {
       const decisions = [...s.decisions, dec];
@@ -404,7 +414,12 @@ class AttentionStudyController {
       this.sent = upTo;
     }
     const cue = cuedAt(plan, elapsed);
-    if (cue && cue !== this.lastCue && s.settings.source === "files") this.chime(cue.talker);
+    if (cue && cue !== this.lastCue) {
+      if (s.settings.source === "files") this.chime(cue.talker);
+      // The replay's listener turns as the cue says, so head and EEG can be weighed against each other.
+      const yaw = s.settings.source === "replay" ? headTarget(cue, AZIMUTHS) : null;
+      if (yaw !== null) earbuds.twin?.setYaw(yaw);
+    }
     this.lastCue = cue;
     if (elapsed >= plan.durationMs) {
       this.view.set({ elapsedMs: plan.durationMs });
@@ -459,6 +474,7 @@ class AttentionStudyController {
       output: s.settings.output,
       files: s.files,
       azimuthsDeg: AZIMUTHS,
+      headConditions: s.settings.head,
       decisionSeconds: DECISION_S,
       stoppedEarly: s.stoppedEarly,
       elapsedMs: s.elapsedMs,

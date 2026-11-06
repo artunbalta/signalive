@@ -49,7 +49,7 @@ describe("attention study, replayed through the simulated earbuds", () => {
   });
 
   it("decodes the spliced listener with the learned model and scores the decisions against the cue", async () => {
-    attentionStudy.configure({ source: "replay", participant: "R01" });
+    attentionStudy.configure({ source: "replay", participant: "R01", head: true });
     const started = attentionStudy.start();
     // Fetching and connecting take a few turns of the event loop.
     for (let i = 0; i < 50 && attentionStudy.view.get().stage !== "running"; i++) await vi.advanceTimersByTimeAsync(50);
@@ -68,6 +68,11 @@ describe("attention study, replayed through the simulated earbuds", () => {
     expect(s.accuracy!).toBeGreaterThanOrEqual(0.5);
     expect(s.beliefRight!).toBeGreaterThan(0.6);
     expect(s.switches.map((w) => w.at)).toEqual([90_000, 150_000]);
+    // The replay's head turned as each cue said: toward the voice, away from it, ahead.
+    expect(Object.keys(s.byHead).sort()).toEqual(["ahead", "away", "toward"]);
+    expect(s.byHead.toward!.head).toBeGreaterThan(0.9);
+    expect(s.byHead.away!.head).toBeLessThan(0.1);
+    expect(v.decisions.some((d) => typeof d.yawDeg === "number")).toBe(true);
     expect(claimedCommand("jaw_clench")).toBeUndefined();
     const r = attentionStudy.report();
     expect(r).toMatchObject({ study: "attention", source: "replay", participant: "R01" });

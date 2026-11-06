@@ -83,6 +83,10 @@ it knows something the head does not.
   already fitted per decoder), and the honest pitch. If the EEG only helps
   when the head is turned away from the voice, that is the feature:
   listening without looking.
+- **Ready to run**: the attention study with "Say where to face, too": every
+  cue also says to face the followed voice, the other one or straight ahead,
+  each decision keeps the head's yaw and the fused estimate, and the result
+  scores the EEG, the head and the two together per condition.
 
 ## 4. In the ear, or around it?
 

@@ -20,12 +20,22 @@ export const DECISION_S = 10;
 /** Envelope rate, Hz: the decoder's. */
 export const ENV_RATE = 64;
 
+/**
+ * Where the person faces during a cue (research/NEXT.md, experiment 3): the
+ * voice they follow, the other one (as at a dinner table, looking at one
+ * person while following another), or straight ahead between them.
+ */
+export type HeadCondition = "toward" | "away" | "ahead";
+export const HEAD_CONDITIONS: readonly HeadCondition[] = ["toward", "away", "ahead"];
+
 export interface CueSegment {
   /** ms from the start of the study. */
   from: number;
   to: number;
   /** 0 the left voice, 1 the right one. */
   talker: number;
+  /** Where to face, when the study asks. */
+  head?: HeadCondition;
 }
 
 export interface SwitchPlan {
@@ -43,6 +53,8 @@ export interface SwitchPlanOptions {
   firstTalker?: number;
   /** Nothing is cued before this, ms: the decoder's scale settles on the first seconds of signal. */
   leadMs?: number;
+  /** Also say where to face, each cue in turn toward, away and ahead (shuffled per round). */
+  head?: boolean;
   seed?: number;
 }
 
@@ -68,13 +80,38 @@ export function planSwitches(opts: SwitchPlanOptions): SwitchPlan {
   let talker = opts.firstTalker ?? (rand() < 0.5 ? 0 : 1);
   let t = opts.leadMs ?? 0;
   const cues: CueSegment[] = [];
+  let round: HeadCondition[] = [];
   while (t < durationMs) {
     const to = Math.min(durationMs, Math.round(t + minHold + rand() * (maxHold - minHold)));
-    cues.push({ from: Math.round(t), to, talker });
+    const cue: CueSegment = { from: Math.round(t), to, talker };
+    if (opts.head) {
+      if (!round.length) round = shuffled(HEAD_CONDITIONS, rand);
+      cue.head = round.shift();
+    }
+    cues.push(cue);
     t = to;
     talker = 1 - talker;
   }
   return { cues, durationMs, seed };
+}
+
+function shuffled<T>(items: readonly T[], rand: () => number): T[] {
+  const a = items.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    const tmp = a[i]!;
+    a[i] = a[j]!;
+    a[j] = tmp;
+  }
+  return a;
+}
+
+/** Degrees the head should point for a cue, left negative, given the voices' directions. */
+export function headTarget(cue: CueSegment, azimuths: readonly number[]): number | null {
+  if (!cue.head) return null;
+  if (cue.head === "ahead") return 0;
+  const toward = azimuths[cue.talker] ?? 0;
+  return cue.head === "toward" ? toward : azimuths[1 - cue.talker] ?? -toward;
 }
 
 /** The cued voice at a moment, or null before the first cue. */
@@ -108,6 +145,20 @@ export interface StudyDecision {
   talker: number;
   margin: number;
   belief: number[];
+  /** Head yaw at the decision, degrees, right positive; null without a motion sensor. */
+  yawDeg?: number | null;
+  /** Head and EEG together, per voice. */
+  posterior?: number[];
+}
+
+export interface HeadScore {
+  decisions: number;
+  /** The EEG's decision named the cued voice. */
+  eeg: number | null;
+  /** The head pointed at the cued voice (no lean either way within 10 degrees counts a half). */
+  head: number | null;
+  /** Head and EEG together favoured the cued voice. */
+  fused: number | null;
 }
 
 export interface SwitchResult {
@@ -139,6 +190,8 @@ export interface AttentionScore {
   missed: number;
   /** Median over followed settled switches, ms. */
   switchMedianMs: number | null;
+  /** By where the person faced, when the study asked (experiment 3). */
+  byHead: Partial<Record<HeadCondition, HeadScore>>;
 }
 
 const SINCE_BINS: [number, number | null][] = [
@@ -177,6 +230,26 @@ export function scoreAttention(plan: SwitchPlan, decisions: StudyDecision[], unt
     }
   }
 
+  const byHead: Partial<Record<HeadCondition, { n: number; eeg: number; head: number; headN: number; fused: number; fusedN: number }>> = {};
+  for (const d of judged) {
+    const cue = cuedAt(plan, d.startMs);
+    if (!cue || !cue.head || d.endMs > cue.to) continue;
+    const h = (byHead[cue.head] ??= { n: 0, eeg: 0, head: 0, headN: 0, fused: 0, fusedN: 0 });
+    h.n++;
+    if (d.talker === cue.talker) h.eeg++;
+    if (typeof d.yawDeg === "number") {
+      h.headN++;
+      // Left voice at negative yaw: the head names the voice on the side it leans to.
+      if (Math.abs(d.yawDeg) < 10) h.head += 0.5;
+      else if ((d.yawDeg < 0 ? 0 : 1) === cue.talker) h.head++;
+    }
+    if (d.posterior && d.posterior.length > cue.talker) {
+      h.fusedN++;
+      const best = d.posterior.indexOf(Math.max(...d.posterior));
+      if (best === cue.talker) h.fused++;
+    }
+  }
+
   const switches: SwitchResult[] = [];
   const mid = (d: StudyDecision) => (d.startMs + d.endMs) / 2;
   for (let i = 1; i < plan.cues.length; i++) {
@@ -207,5 +280,11 @@ export function scoreAttention(plan: SwitchPlan, decisions: StudyDecision[], unt
     followed: took.length,
     missed: timed.length - took.length,
     switchMedianMs: median,
+    byHead: Object.fromEntries(
+      Object.entries(byHead).map(([k, h]) => [
+        k,
+        { decisions: h!.n, eeg: h!.n ? h!.eeg / h!.n : null, head: h!.headN ? h!.head / h!.headN : null, fused: h!.fusedN ? h!.fused / h!.fusedN : null },
+      ]),
+    ) as Partial<Record<HeadCondition, HeadScore>>,
   };
 }

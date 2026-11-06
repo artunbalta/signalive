@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DECISION_S, cuedAt, envelope64, planSwitches, scoreAttention, type StudyDecision, type SwitchPlan } from "@/lib/client/studies/attention-study";
+import { DECISION_S, cuedAt, envelope64, headTarget, planSwitches, scoreAttention, type StudyDecision, type SwitchPlan } from "@/lib/client/studies/attention-study";
 
 describe("attention study plan", () => {
   it("alternates the cued voice, holding each for 30 to 90 s, from the lead to the end", () => {
@@ -118,5 +118,46 @@ describe("attention study score", () => {
     expect(s.decisions).toBe(21);
     const early = scoreAttention(plan, decide(plan, 20, 40), 170_000);
     expect(early.switches.map((x) => x.at)).toEqual([60_000]);
+  });
+});
+
+describe("where the listener faces (experiment 3)", () => {
+  it("gives every round of three cues each head condition once, and says where to point", () => {
+    const plan = planSwitches({ minutes: 30, leadMs: 20_000, head: true, seed: 4 });
+    for (let i = 0; i + 3 <= plan.cues.length; i += 3) {
+      expect(plan.cues.slice(i, i + 3).map((c) => c.head).sort()).toEqual(["ahead", "away", "toward"]);
+    }
+    const az = [-60, 60];
+    expect(headTarget({ from: 0, to: 1, talker: 0, head: "toward" }, az)).toBe(-60);
+    expect(headTarget({ from: 0, to: 1, talker: 0, head: "away" }, az)).toBe(60);
+    expect(headTarget({ from: 0, to: 1, talker: 1, head: "ahead" }, az)).toBe(0);
+    expect(headTarget({ from: 0, to: 1, talker: 1 }, az)).toBeNull();
+    expect(planSwitches({ minutes: 5, seed: 4 }).cues.every((c) => c.head === undefined)).toBe(true);
+  });
+
+  it("scores the EEG, the head and the two together for each condition", () => {
+    const plan: SwitchPlan = {
+      cues: [
+        { from: 0, to: 60_000, talker: 0, head: "toward" },
+        { from: 60_000, to: 120_000, talker: 1, head: "away" },
+        { from: 120_000, to: 180_000, talker: 0, head: "ahead" },
+      ],
+      durationMs: 180_000,
+      seed: 1,
+    };
+    const decisions: StudyDecision[] = [];
+    for (let start = 0; start + 10_000 <= 180_000; start += 10_000) {
+      const cue = cuedAt(plan, start)!;
+      const yaw = cue.head === "ahead" ? 2 : headTarget(cue, [-60, 60]);
+      // The EEG is always right; the fused estimate follows the head where it points, the EEG where it does not.
+      const fusedTalker = cue.head === "away" ? 1 - cue.talker : cue.talker;
+      const posterior = fusedTalker === 0 ? [0.7, 0.3] : [0.3, 0.7];
+      decisions.push({ startMs: start, endMs: start + 10_000, talker: cue.talker, margin: 0.01, belief: [0.5, 0.5], yawDeg: yaw, posterior });
+    }
+    const s = scoreAttention(plan, decisions);
+    expect(s.byHead.toward).toEqual({ decisions: 6, eeg: 1, head: 1, fused: 1 });
+    expect(s.byHead.away).toEqual({ decisions: 6, eeg: 1, head: 0, fused: 0 });
+    // Ahead the head leans neither way: a half each.
+    expect(s.byHead.ahead).toEqual({ decisions: 6, eeg: 1, head: 0.5, fused: 1 });
   });
 });

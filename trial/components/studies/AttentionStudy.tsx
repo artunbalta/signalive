@@ -132,6 +132,10 @@ function Setup() {
               className="min-h-12 w-full max-w-[16rem] rounded-[12px] border border-[var(--hairline-strong)] bg-ink px-4 font-mono text-paper outline-none focus:border-signal"
             />
           </Field>
+          <Checkbox checked={v.settings.head} onChange={(on) => attentionStudy.configure({ head: on })}>
+            {t.headOption}
+            <span className="mt-1 block text-[0.85rem] text-fog">{t.headHint}</span>
+          </Checkbox>
           <Checkbox checked={v.settings.record} onChange={(on) => attentionStudy.configure({ record: on })}>
             {m.studies.clench.record}
             <span className="mt-1 block text-[0.85rem] text-fog">{t.recordHint}</span>
@@ -186,6 +190,11 @@ function Running() {
                 {v.cue.talker === 0 ? "←" : "→"}
               </p>
               <p className="t-display mt-3 text-[clamp(1.7rem,6.5vw,2.6rem)] leading-tight text-signal">{v.cue.talker === 0 ? t.followLeft : t.followRight}</p>
+              {v.cue.head ? (
+                <p className="mt-4 text-[1.05rem] text-paper">
+                  {v.cue.head === "ahead" ? t.faceAhead : (v.cue.head === "toward") === (v.cue.talker === 0) ? t.faceLeft : t.faceRight}
+                </p>
+              ) : null}
             </>
           ) : (
             <p className="t-display text-[clamp(1.5rem,5.5vw,2.2rem)] text-fog">{t.settling}</p>
@@ -267,6 +276,38 @@ function Result() {
             ))}
           </tbody>
         </table>
+
+        {Object.keys(s.byHead).length ? (
+          <>
+            <h3 className="mt-7 text-[1.05rem]">{t.byHead}</h3>
+            <table className="mt-2 w-full text-left text-[0.92rem]">
+              <thead className="text-fog">
+                <tr>
+                  <th className="py-1.5 pr-4 font-normal" />
+                  <th className="py-1.5 pr-4 text-right font-normal">{t.signals.eeg}</th>
+                  <th className="py-1.5 pr-4 text-right font-normal">{t.signals.head}</th>
+                  <th className="py-1.5 text-right font-normal">{t.signals.fused}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(["toward", "away", "ahead"] as const).map((k) => {
+                  const h = s.byHead[k];
+                  if (!h) return null;
+                  const cell = (x: number | null) => (x === null ? "-" : fmtPct(x, 0));
+                  return (
+                    <tr key={k} className="border-t border-[var(--hairline)]">
+                      <td className="py-2 pr-4">{t.heads[k]}</td>
+                      <td className="py-2 pr-4 text-right font-mono">{cell(h.eeg)}</td>
+                      <td className="py-2 pr-4 text-right font-mono">{cell(h.head)}</td>
+                      <td className="py-2 text-right font-mono">{cell(h.fused)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <p className="mt-3 max-w-[64ch] text-[0.9rem] leading-relaxed text-fog">{t.byHeadNote}</p>
+          </>
+        ) : null}
 
         {s.switches.length ? (
           <>

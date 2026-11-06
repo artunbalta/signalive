@@ -92,6 +92,10 @@ export interface AttentionDecision {
   margin: number;
   /** The belief per talker after this decision. */
   belief: number[];
+  /** Head yaw at the decision, degrees, right positive; null when no motion sensor reported lately. */
+  yawDeg: number | null;
+  /** Head direction and the belief together, per talker, as the snapshot's posterior. */
+  posterior: number[];
 }
 
 export interface SessionSnapshot {
@@ -612,7 +616,17 @@ export class PhoneSession {
       if (v) b.update(v);
       if (v && this.t0 !== null && this.decisionListeners.size) {
         const startMs = this.t0 + (this.judged * 1000) / d.fs;
-        const decision: AttentionDecision = { startMs, endMs: startMs + DECIDE_S * 1000, talker: v.talker, margin: v.margin, belief: [...b.probabilities] };
+        const yaw = this.yaw;
+        const belief = [...b.probabilities];
+        const decision: AttentionDecision = {
+          startMs,
+          endMs: startMs + DECIDE_S * 1000,
+          talker: v.talker,
+          margin: v.margin,
+          belief,
+          yawDeg: yaw,
+          posterior: fuseAttention({ azimuthsDeg: this.azimuths, yawDeg: yaw ?? undefined, belief }),
+        };
         for (const cb of this.decisionListeners) cb(decision);
       }
       this.judged += length;
