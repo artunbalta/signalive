@@ -22,7 +22,7 @@
  * instant. History lives in fixed ring buffers; nothing in the per sample
  * path allocates.
  */
-import { LinearResampler, SosFilter, type Sos } from "./dsp";
+import { ArtifactGate, LinearResampler, SosFilter, type Sos } from "./dsp";
 import type { Decision, DecoderOptions } from "./decoder";
 
 export interface ConvLayer {
@@ -254,6 +254,7 @@ export class NeuralAttentionDecoder {
   private readonly scale0: Float64Array;
   private readonly scale: Float64Array;
   private readonly adapt: boolean;
+  private readonly gate: ArtifactGate | null;
   private readonly warmup: number;
   private readonly sumSq: Float64Array;
   private warmed = 0;
@@ -312,6 +313,7 @@ export class NeuralAttentionDecoder {
     this.scale0 = Float64Array.from(model.scale);
     this.scale = Float64Array.from(model.scale);
     this.adapt = opts.adaptScale ?? true;
+    this.gate = opts.gate === false ? null : new ArtifactGate(model.fs);
     this.warmup = Math.max(1, Math.round(model.warmupSeconds * model.fs));
     this.sumSq = new Float64Array(nCh);
     this.envAlpha = 1 / (model.envTauSeconds * model.fs);
@@ -379,6 +381,7 @@ export class NeuralAttentionDecoder {
       }
     }
     for (let c = 0; c < C; c++) this.derived[c] *= this.scale[c];
+    this.gate?.apply(this.derived);
     this.pushFeatures(this.derived);
   }
 

@@ -715,7 +715,7 @@ export const research = {
       under: "under",
       downTo: "down to",
       never: "not within the range tried",
-      movement: { head: "200 \u00b5V jolts a minute", ungated: "Ungated", gated: "Gated" },
+      movement: { head: "200 \u00b5V jolts a minute", ungated: "Ungated", gated: "Gated, as the phone now does" },
       kinds: {
         noise: { label: "White noise at every electrode", unit: "nV/\u221aHz" },
         pink: { label: "1/f noise in the decoder's band", unit: "\u00b5Vrms" },
@@ -726,11 +726,12 @@ export const research = {
         burst: { label: "Frames lost in 200 ms bursts", unit: "of frames" },
         artifacts: { label: "Movement jolts, ungated", unit: "a minute" },
         gated: { label: "Movement jolts, gated", unit: "a minute" },
+        gatedc: { label: "Movement jolts, gated as the phone does", unit: "a minute" },
         mains: { label: "50 Hz mains at 1% imbalance", unit: "\u00b5V" },
         envlag: { label: "Speech envelopes late or early", unit: "ms" },
         crosstalk: { label: "The other voice in each envelope", unit: "mixed in" },
       },
-      decides: "So the amplifier is not the limit, and neither is the radio: noise, resolution, sampling and the clocks of two earbuds all leave wide margins, and a tenth of all frames can go missing one at a time. What the decoder does not forgive is a speech envelope out of step with the EEG (25 ms late already costs two points, so the microphones' envelopes must share the electrodes' clock to about 10 ms) and movement: two jolts a minute cost five points, and a gate that blanks a quarter second around each one wins most of them back while costing nothing at rest. Separation can be rough: each envelope may carry 70% of the other voice.",
+      decides: "So the amplifier is not the limit, and neither is the radio: noise, resolution, sampling and the clocks of two earbuds all leave wide margins, and a tenth of all frames can go missing one at a time. What the decoder does not forgive is a speech envelope out of step with the EEG (25 ms late already costs two points, so the microphones' envelopes must share the electrodes' clock to about 10 ms) and movement: two jolts a minute cost five points, and a gate that blanks half a second from each one, now in the phone's chain, wins most of them back while costing nothing at rest. Separation can be rough: each envelope may carry 70% of the other voice.",
     },
     clench: {
       index: "10",

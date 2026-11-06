@@ -412,7 +412,7 @@ const B = beyondData as unknown as {
   scaling?: { sizes: number[]; linear: (number | null)[]; learned: number[]; linearAll: number };
 };
 
-type HardwareKind = "noise" | "pink" | "lsb" | "rate" | "skew" | "loss" | "burst" | "artifacts" | "gated" | "mains" | "envlag" | "crosstalk";
+type HardwareKind = "noise" | "pink" | "lsb" | "rate" | "skew" | "loss" | "burst" | "artifacts" | "gated" | "gatedc" | "mains" | "envlag" | "crosstalk";
 type HardwareData = { model: string; networks: number } & Partial<Record<HardwareKind, { levels: number[]; mean10: number[]; mean60: number[]; sem60: number[]; people: number }>>;
 
 /**
@@ -615,7 +615,7 @@ function Hold({ data }: { data: HoldData }) {
 function Hardware({ data }: { data: HardwareData }) {
   const f = research.beyond.hardware;
   const shares: HardwareKind[] = ["loss", "burst", "crosstalk"];
-  const kinds = (Object.keys(f.kinds) as HardwareKind[]).filter((k) => data[k] && k !== "artifacts" && k !== "gated");
+  const kinds = (Object.keys(f.kinds) as HardwareKind[]).filter((k) => data[k] && k !== "artifacts" && k !== "gated" && k !== "gatedc");
   const rows = kinds.map((k) => {
     const d = data[k]!;
     const clean = k === "rate" ? 500 : 0;
@@ -630,15 +630,17 @@ function Hardware({ data }: { data: HardwareData }) {
     return [f.kinds[k].label, holds, t.breaks === null ? f.never : fmt(t.breaks)];
   });
   const rates = [0, 2, 5, 10];
-  const at = (k: "artifacts" | "gated") => {
+  // The phone runs the causal gate; the either side one stands in where it was not measured.
+  const gate = data.gatedc ? "gatedc" : "gated";
+  const at = (k: "artifacts" | "gated" | "gatedc") => {
     const d = data[k];
     return rates.map((r) => (d && d.levels.includes(r) ? pct(d.mean60[d.levels.indexOf(r)]!) : ""));
   };
   return (
     <Finding id="hardware" copy={f} body={f.body}>
       <Table open head={[f.table.what, f.table.holds, f.table.breaks]} rows={rows} />
-      {data.artifacts && data.gated ? (
-        <Table open head={[f.movement.head, ...rates.map(String)]} rows={[[f.movement.ungated, ...at("artifacts")], [f.movement.gated, ...at("gated")]]} />
+      {data.artifacts && data[gate] ? (
+        <Table open head={[f.movement.head, ...rates.map(String)]} rows={[[f.movement.ungated, ...at("artifacts")], [f.movement.gated, ...at(gate)]]} />
       ) : null}
       <p className="mt-8 max-w-[60ch] text-small leading-relaxed text-mist">{f.decides}</p>
     </Finding>

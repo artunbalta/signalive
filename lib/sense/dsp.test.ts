@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fixture from "./__fixtures__/dsp.json";
-import { butterBandpass, LinearResampler, SosFilter, type Sos } from "./dsp";
+import { ArtifactGate, butterBandpass, LinearResampler, SosFilter, type Sos } from "./dsp";
 
 const TOL = 1e-9;
 
@@ -151,5 +151,46 @@ describe("LinearResampler", () => {
     // A ramp resamples to k * 500 / 64 exactly, an hour in.
     expect(count).toBe(Math.floor((n - 2) * 64 / 500) + 1);
     expect(last).toBeCloseTo(((count - 1) * 500) / 64, 9);
+  });
+});
+
+describe("ArtifactGate", () => {
+  it("leaves frames under the threshold alone", () => {
+    const g = new ArtifactGate(64);
+    const f = Float64Array.from([1, -4.9, 3]);
+    expect(g.apply(f)).toBe(false);
+    expect(Array.from(f)).toEqual([1, -4.9, 3]);
+  });
+
+  it("blanks every channel from a crossing for half a second, then opens", () => {
+    const g = new ArtifactGate(64);
+    expect(g.holdSamples).toBe(32);
+    const jolt = Float64Array.from([0.5, 6, -1]);
+    expect(g.apply(jolt)).toBe(true);
+    expect(Array.from(jolt)).toEqual([0, 0, 0]);
+    let blanked = 1;
+    for (let i = 0; i < 40; i++) {
+      const f = Float64Array.from([1, 1, 1]);
+      if (g.apply(f)) {
+        blanked++;
+        expect(Array.from(f)).toEqual([0, 0, 0]);
+      } else {
+        expect(Array.from(f)).toEqual([1, 1, 1]);
+      }
+    }
+    expect(blanked).toBe(32);
+  });
+
+  it("starts the half second again at a later crossing", () => {
+    const g = new ArtifactGate(64);
+    g.apply(Float64Array.from([10]));
+    for (let i = 0; i < 20; i++) g.apply(Float64Array.from([0]));
+    g.apply(Float64Array.from([-7]));
+    expect(g.closing).toBe(31);
+  });
+
+  it("rejects settings that cannot work", () => {
+    expect(() => new ArtifactGate(64, 0)).toThrow(RangeError);
+    expect(() => new ArtifactGate(64, 5, -1)).toThrow(RangeError);
   });
 });

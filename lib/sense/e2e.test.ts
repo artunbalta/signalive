@@ -12,7 +12,8 @@ import { AttentionDecoder, type DecoderModel } from "./decoder";
 describe("end to end against the research pipeline", () => {
   it("rebuilds the same envelope from raw microvolts", () => {
     const model = fixture.model as unknown as DecoderModel;
-    const decoder = new AttentionDecoder(model, 1);
+    // research/aad/pipeline.py has no movement gate, so neither does this run of it.
+    const decoder = new AttentionDecoder(model, 1, { gate: false });
     const frame = new Float64Array(model.inputs.length);
     for (const codes of fixture.codes) {
       for (let c = 0; c < frame.length; c++) frame[c] = codes[c] * fixture.lsbUv + fixture.offsetsUv[c];

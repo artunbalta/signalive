@@ -183,8 +183,21 @@ def main():
         put("hwGatedTwo", at("gated", 2))
         put("hwGatedTen", at("gated", 10))
         put("hwGatedClean", at("gated", 0))
+        put("hwGatecClean", at("gatedc", 0))
+        put("hwGatecTwo", at("gatedc", 2))
+        put("hwGatecTen", at("gatedc", 10))
         put("hwEnvlagLate", at("envlag", 25))
         put("hwEnvlagEarly", at("envlag", -25))
+
+    gj = load(os.path.join(AAD, "gate.json"))
+    if gj:
+        put("gateOffSixty", pct(gj["mean"]["off"]["60"]))
+        put("gateOnSixty", pct(gj["mean"]["on"]["60"]))
+        put("gateOffFive", pct(gj["mean"]["off"]["300"]))
+        put("gateOnFive", pct(gj["mean"]["on"]["300"]))
+        put("gateOffTen", pct(gj["mean"]["off"]["10"]))
+        put("gateOnTen", pct(gj["mean"]["on"]["10"]))
+        put("gateBlanked", pct(gj["blankedShare"], 0))
 
     on = load(os.path.join(AAD, "runs", "final.seed7.onset.json"))
     if on:
@@ -201,7 +214,7 @@ def main():
         # Anything the text uses that has no result yet prints as ??.
         used = set()
         for tex in glob.glob(os.path.join(ROOT, "*.tex")):
-            used |= set(re.findall(r"\\((?:lin|nn|held|cl|ear|belief|splice|scale|hw|hold|onset)[A-Z][A-Za-z]*)", open(tex).read()))
+            used |= set(re.findall(r"\\((?:lin|nn|held|cl|ear|belief|splice|scale|hw|hold|onset|gate)[A-Z][A-Za-z]*)", open(tex).read()))
         for n in sorted(used - set(names)):
             f.write(f"\\providecommand{{\\{n}}}{{??}}\n")
         f.write("\\providecommand{\\missing}{??}\n")

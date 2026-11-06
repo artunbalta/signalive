@@ -195,7 +195,8 @@ describe("AttentionDecoder raw path", () => {
 
   it("matches the chain run step by step with the dsp blocks", () => {
     const model = rawModel();
-    const dec = new AttentionDecoder(model, 1);
+    // The reference chain has no movement gate; the gate has its own tests.
+    const dec = new AttentionDecoder(model, 1, { gate: false });
     const ref = new AttentionDecoder(model, 1);
     const filter = new SosFilter(model.sosRaw, 3);
     const rs = new LinearResampler(model.fsRaw, model.fs, 3);

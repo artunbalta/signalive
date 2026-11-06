@@ -15,7 +15,7 @@
  * exists lags - 1 samples after its features do. History lives in fixed ring
  * buffers and nothing in the per sample path allocates.
  */
-import { LinearResampler, SosFilter, type Sos } from "./dsp";
+import { ArtifactGate, LinearResampler, SosFilter, type Sos } from "./dsp";
 
 /** A trained decoder, as exported by the Python pipeline. */
 export interface DecoderModel {
@@ -57,6 +57,8 @@ export interface Decision {
 export interface DecoderOptions {
   /** How much reconstruction and envelope history to keep, seconds. Default 60. */
   historySeconds?: number;
+  /** Blank the scaled channels after a movement jolt (ArtifactGate). Default true. */
+  gate?: boolean;
 }
 
 export class AttentionDecoder {
@@ -86,6 +88,7 @@ export class AttentionDecoder {
   private readonly lastEnv: Float64Array;
   /** Scratch for one derived frame. */
   private readonly derived: Float64Array;
+  private readonly gate: ArtifactGate | null;
   /** The last `lags` feature frames: frame i at slot i % lags. */
   private readonly feat: Float64Array;
   private featCount = 0;
@@ -131,6 +134,7 @@ export class AttentionDecoder {
     this.lastRaw = new Float64Array(nIn);
     this.lastEnv = new Float64Array(talkers);
     this.derived = new Float64Array(nCh);
+    this.gate = opts.gate === false ? null : new ArtifactGate(model.fs);
     this.feat = new Float64Array(model.lags * nCh);
     this.recon = new Float64Array(this.capacity);
     this.env = Array.from({ length: talkers }, () => new Float64Array(this.capacity));
@@ -161,6 +165,7 @@ export class AttentionDecoder {
       for (let i = 0; i < this.inputs; i++) acc += m[row + i] * frame[i];
       this.derived[c] = acc * this.scale[c];
     }
+    this.gate?.apply(this.derived);
     this.pushFeatures(this.derived);
   }
 

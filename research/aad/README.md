@@ -350,7 +350,8 @@ Model final.seed7, 2 networks per fold; clean one minute accuracy 78.1%.
 | 200 µV jolts a minute | 0 | 2 | 5 | 10 |
 |---|---|---|---|---|
 | Ungated | 78.1% | 72.7% | 69.1% | 63.5% |
-| Gated | 78.7% | 77.8% | 74.4% | 70.1% |
+| Gated, a quarter second either side | 78.7% | 77.8% | 74.4% | 70.1% |
+| Gated as the phone does it, half a second from the jolt on | 79.8% | 77.2% | 75.1% | 71.5% |
 
 - **The amplifier is not the limit.** Noise, resolution and sampling rate
   all have wide margins over an ADS1299 class part; 1/f noise inside the
@@ -363,9 +364,15 @@ Model final.seed7, 2 networks per fold; clean one minute accuracy 78.1%.
   costs two points. Separation, on the other hand, can be rough: each
   envelope may carry 70% of the other voice.
 - **Movement is the real cost, and a gate is the answer.** Two jolts a
-  minute cost five points; a gate that blanks a quarter second around any
-  sample over five times its channel's spread wins most of them back and
-  costs nothing at rest. The phone's chain does not have it yet.
+  minute cost five points; a gate that blanks every channel around any
+  sample over five times its channel's spread wins most of them back. The
+  phone's chain now runs it (`ArtifactGate` in `lib/sense/dsp.ts`, on by
+  default) in the form that needs no delay: half a second from the crossing
+  on. Its two settings were fixed before it was tried. On the clean
+  recordings, scored with all five networks of all three splits
+  ([`gate_check.py`](gate_check.py), [`gate.json`](gate.json)), it blanked
+  6% of the samples and changed one minute accuracy from 78.9% to 79.2% and
+  five minute from 91.0% to 92.1%: it costs nothing at rest.
 
 ## What it decides
 

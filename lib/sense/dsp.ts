@@ -369,3 +369,54 @@ export class LinearResampler {
     this.next = 0;
   }
 }
+
+/* ---- Movement gate ------------------------------------------------------ */
+
+/** Gate defaults: a sample over this many times its channel's spread... */
+export const GATE_THRESHOLD = 5;
+/** ...blanks every channel for this long, seconds, from that sample on. */
+export const GATE_HOLD_S = 0.5;
+
+/**
+ * Blanks every channel of the scaled 64 Hz frames for a while after any one
+ * of them goes past GATE_THRESHOLD times its spread, so a movement jolt
+ * cannot drive a decision. Causal: nothing is delayed, the blanking starts at
+ * the sample that crossed. research/aad/hardware_bars.py (gatedc) measured it
+ * with the final networks on people they never saw: two 200 uV jolts a minute
+ * took one minute accuracy from 78% to 73% ungated and kept 77% gated, ten a
+ * minute 64% against 72%; and on the clean recordings, scored with all five
+ * networks of every split (gate_check.py), it changed one minute accuracy
+ * from 78.9% to 79.2% and five minute from 91.0% to 92.1%. The Python
+ * reference is causal_gate() there, sample for sample.
+ */
+export class ArtifactGate {
+  readonly threshold: number;
+  readonly holdSamples: number;
+  private left = 0;
+
+  constructor(fs: number, threshold = GATE_THRESHOLD, holdSeconds = GATE_HOLD_S) {
+    if (!(threshold > 0)) throw new RangeError(`gate: threshold must be positive, got ${threshold}`);
+    if (!(holdSeconds >= 0)) throw new RangeError(`gate: holdSeconds must be zero or more, got ${holdSeconds}`);
+    this.threshold = threshold;
+    this.holdSamples = Math.round(holdSeconds * fs);
+  }
+
+  /** One frame of scaled channels, blanked in place when the gate is shut. True when it was blanked. */
+  apply(frame: Float64Array): boolean {
+    for (let c = 0; c < frame.length; c++) {
+      if (Math.abs(frame[c]) > this.threshold) {
+        this.left = this.holdSamples;
+        break;
+      }
+    }
+    if (this.left <= 0) return false;
+    frame.fill(0);
+    this.left--;
+    return true;
+  }
+
+  /** Samples it will still blank. */
+  get closing(): number {
+    return this.left;
+  }
+}

@@ -143,8 +143,8 @@ enough (HW-EEG-02).
   Measured on recordings ([research/aad](../research/aad/README.md), hardware_bars.py, the final decoder on people it never saw): movement is the degradation that costs most at a plausible rate: two 200 µV jolts a
   minute cost five points of one minute accuracy and ten a minute fifteen. A software gate
   that blanks a quarter second around any sample over five times its channel's spread
-  recovered five to seven of those points and cost nothing at rest, so it belongs in the
-  phone's chain; contact stability sets how often it has to act.
+  recovered five to seven of those points and cost nothing at rest; the phone's chain now
+  runs it (lib/sense ArtifactGate). Contact stability sets how often it has to act.
 - Verification: T-05.
 
 **HW-EEG-06 Lead off detection** (Must)

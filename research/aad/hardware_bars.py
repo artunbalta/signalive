@@ -26,6 +26,8 @@ accuracy starts to fall.
   gated       movement artifacts again, with a simple gate: any 64 Hz sample
               over 5 times a channel's spread blanks every channel for 0.25 s
               either side, so a jolt cannot drive the decision
+  gatedc      the same gate made causal, as the phone runs it: from such a
+              sample on, every channel is blanked for 0.5 s
 
     python3 research/aad/hardware_bars.py [tag] [seed] [kinds]
 
@@ -69,6 +71,7 @@ EXPERIMENTS = {
     "envlag": [-200, -100, -50, -25, 0, 25, 50, 100, 200],
     "crosstalk": [0, 0.1, 0.2, 0.3, 0.5, 0.7],
     "gated": [0, 1, 2, 5, 10, 20],
+    "gatedc": [0, 2, 5, 10],
 }
 
 
@@ -135,7 +138,7 @@ def degrade(seg, kind, level, rng, names):
                 continue
             out[:, a : a + frame] = out[:, a - 1 : a]
         return out
-    if kind in ("artifacts", "gated") and level:
+    if kind in ("artifacts", "gated", "gatedc") and level:
         out = seg.copy()
         minutes = seg.shape[1] / FS_RAW / 60
         count = rng.poisson(level * minutes)
@@ -153,6 +156,21 @@ def degrade(seg, kind, level, rng, names):
         imbalance = 1.0 + 0.01 * rng.normal(size=(seg.shape[0], 1))
         return seg + imbalance * hum
     return seg
+
+
+def causal_gate(x, threshold=5.0, hold_s=0.5):
+    """Blank every channel from any sample over threshold times its spread, for hold_s after it."""
+    hold = int(round(hold_s * FS))
+    bad = (np.abs(x) > threshold).any(axis=0)
+    out = x.copy()
+    left = 0
+    for i in range(x.shape[1]):
+        if bad[i]:
+            left = hold
+        if left > 0:
+            out[:, i] = 0.0
+            left -= 1
+    return out
 
 
 def pink(shape, rms_band, rng):
@@ -201,6 +219,10 @@ def person_inputs(names, blocks, chans, kind, level, rng):
             kernel = np.ones(2 * pad + 1)
             bad = np.convolve(bad.astype(float), kernel, mode="same") > 0
             x = np.where(bad[None, :], 0.0, x)
+        if kind == "gatedc":
+            # The same gate as the phone can run it with no delay: from a sample
+            # over five times its spread, every channel is blanked for 0.5 s on.
+            x = causal_gate(x)
         out.append((x.astype(np.float32), running_norm(e1).astype(np.float32), running_norm(e2).astype(np.float32)))
     return out
 

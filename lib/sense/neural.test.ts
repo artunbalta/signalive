@@ -13,7 +13,8 @@ import { NeuralAttentionDecoder, erf, gelu, type NeuralDecoderModel } from "./ne
 const model = shipped as unknown as NeuralDecoderModel;
 
 function run(m: NeuralDecoderModel, opts: { adaptScale?: boolean; eegGain?: number; envGain?: number; nanAt?: [number, number] } = {}) {
-  const decoder = new NeuralAttentionDecoder(m, 2, { adaptScale: opts.adaptScale ?? false });
+  // The reference export has no movement gate, so the port is compared without it.
+  const decoder = new NeuralAttentionDecoder(m, 2, { adaptScale: opts.adaptScale ?? false, gate: false });
   const frame = new Float64Array(m.inputs.length);
   const g = opts.eegGain ?? 1;
   fixture.codes.forEach((codes, i) => {
@@ -120,7 +121,7 @@ describe("the learned decoder against the research pipeline", () => {
     const c = 3;
     const lost = run(m, { nanAt: [i, c] });
     // The same stream with the lost sample filled in by hand.
-    const decoder = new NeuralAttentionDecoder(m, 2, { adaptScale: false });
+    const decoder = new NeuralAttentionDecoder(m, 2, { adaptScale: false, gate: false });
     const frame = new Float64Array(m.inputs.length);
     let prev = 0;
     fixture.codes.forEach((codes, j) => {
