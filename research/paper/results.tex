@@ -95,7 +95,7 @@ With dry contacts in the ear, neither decoder did better than chance; around the
 \subsection{How accuracy grows with the people trained on}
 \label{sec:scaling}
 
-Trained on $N$ people drawn from the other 35, the linear decoder's one minute accuracy rose from \scaleLinTwo{} with two to \scaleLinFifteen{} with fifteen and then stopped: \scaleLinAll{} with all 35. The learned decoder, a single network per fold trained on 5 to 25 of each fold's people, reached \scaleNnFive{}, \scaleNnTen{}, \scaleNnFifteen{}, \scaleNnTwenty{} and \scaleNnAll{}.
+Trained on $N$ people drawn from the other 35, the linear decoder's one minute accuracy rose from \scaleLinTwo{} with two to \scaleLinFifteen{} with fifteen and then stopped: \scaleLinAll{} with all 35. The learned decoder, a single network per fold trained on 5 to 25 of each fold's people and averaged over the three splits, reached \scaleNnFive{}, \scaleNnTen{}, \scaleNnFifteen{}, \scaleNnTwenty{} and \scaleNnAll{}, still rising when the folds ran out of people to train it on.
 
 \input{results_hardware}
 

@@ -818,7 +818,7 @@ export const research = {
       },
       {
         title: "EEG is the slow channel",
-        body: "Two second decisions are barely better than a coin flip; with the learned decoder one minute decisions are right about three times in four, five minute ones {n} of the time. Turning toward someone steers in a fraction of a second, a clench is the explicit command, and the EEG's running belief tells, over a minute or two, who a person keeps coming back to.",
+        body: "Two second decisions are barely better than a coin flip; with the learned decoder one minute decisions are right nearly four times in five, five minute ones {n} of the time. Turning toward someone steers in a fraction of a second, a clench is the explicit command, and the EEG's running belief tells, over a minute or two, who a person keeps coming back to: what it adds is holding the voice while you look at someone else, and noticing when your attention moves and your head does not.",
       },
     ],
   },
@@ -920,7 +920,7 @@ export const research = {
       },
       {
         label: "Learned decoder",
-        body: "Two networks of one dimensional convolutions, about 16,000 weights each: one over the eight electrode channels, one over each story's loudness, trained on 5 second crops so that the followed story's embedding moves with the EEG's. Six folds by person, five more people held back to stop training, three networks per fold from different starting points, three different splits of the 36 people. The EEG is scaled from the person's first two minutes and each story by its own running spread; nothing reaches more than 0.44 s ahead. The control rotates both stories 97 s out of step with the EEG.",
+        body: "Two networks of one dimensional convolutions, about 16,000 weights each: one over the eight electrode channels, one over each story's loudness, trained on 5 second crops so that the followed story's embedding moves with the EEG's. Six folds by person, five more people held back to stop training, five networks per fold from different starting points, trained on every recorded block, three different splits of the 36 people. The settings were chosen among thirteen variants on validation people only, by a rule fixed before the runs. The EEG is scaled from the person's first two minutes and each story by its own running spread; nothing reaches more than 0.44 s ahead. The control rotates both stories 97 s out of step with the EEG.",
       },
       {
         label: "Trust and belief",

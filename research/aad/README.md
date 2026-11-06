@@ -308,19 +308,21 @@ A quarter of the time looking away:
 [`scaling.py`](scaling.py) trains the generic linear decoder on N people
 drawn from the other 35 (eight draws each) and tests it on the held out
 person; the learned decoder's points are single networks per fold trained
-on N of each fold's training people (`variants/scale.jsonl`, `ntrain`).
+on N of each fold's training people (`variants/scale.jsonl`, `ntrain`), on
+each of the three splits.
 One minute decisions, 4 per ear, wireless:
 
 | People trained on | 2 | 5 | 10 | 15 | 20 | 25 | 30 | 35 |
 |---|---|---|---|---|---|---|---|---|
 | Linear | 61.1% | 64.8% | 66.9% | 67.6% | 68.2% | 67.9% | 68.1% | 68.1% |
-| Learned, one network |  | 68.6% | 70.9% | 75.1% | 75.9% | 76.8% |  |  |
+| Learned, one network per fold, mean of 3 splits |  | 67.5% | 70.7% | 73.2% | 75.2% | 76.1% |  |  |
 
 The linear decoder, about 260 weights, has learned all it can from about
-fifteen people. The learned one, about 33,000, was still climbing when the
-folds ran out of people to train it on, at five minutes as at one (81.0%,
-84.3%, 87.0%, 88.9% and 91.2% from 5 to 25 people): more listeners are worth
-more than a larger network.
+fifteen people. The learned one, about 33,000, was still climbing at one
+minute when the folds ran out of people to train it on (75.2% with twenty,
+76.1% with twenty five); at five minutes it rose from 81.2% with five people
+to 90.1% with twenty and then levelled (90.3%). More listeners are worth more
+than a larger network, most of all for the short decisions the product needs.
 
 ## What the electronics may add
 
