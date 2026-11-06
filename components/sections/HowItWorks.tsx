@@ -318,6 +318,14 @@ export default function HowItWorks() {
                           under the 18px threshold, so it holds the mist value
                           at full opacity whether or not this step is attended. */}
                       <p className="mt-5 max-w-[46ch] text-mist">{step.body}</p>
+                      {step.link ? (
+                        <a href={step.link.href} className="group mt-5 inline-flex items-baseline gap-2 text-small text-ink">
+                          <span className="border-b border-hairline pb-0.5 transition-colors duration-[240ms] group-hover:border-current">{step.link.label}</span>
+                          <span aria-hidden="true" className="transition-transform duration-[240ms] group-hover:translate-x-1">
+                            {"\u2192"}
+                          </span>
+                        </a>
+                      ) : null}
                     </div>
 
                     <div

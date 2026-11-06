@@ -130,6 +130,7 @@ export const howItWorks = {
       body: "Turn toward someone and their voice comes forward within a fraction of a second. The motion sensor in each earbud knows where you face, so this part never waits for anything else.",
       media: "/media/step-01.webp",
       poster: null,
+      link: null,
       alt: "A man with grey hair listening closely to someone off camera, wearing the earbud.",
     },
     {
@@ -138,6 +139,7 @@ export const howItWorks = {
       body: "Look down at your plate, your phone, the person beside you. When you follow a voice, your auditory cortex tracks its rhythm more strongly than the others, and contacts around your ear pick up that difference. Over a minute or two they settle on the voice you keep coming back to, and it stays forward while you look away.",
       media: null,
       poster: null,
+      link: { label: "Be the head on a real listener's decisions", href: "/research#hold" },
       alt: "Diagram of two audio streams where the attended stream is brought forward and the other recedes.",
     },
     {
@@ -146,6 +148,7 @@ export const howItWorks = {
       body: "This is the part that changes your day. Hear a date, a name, a task, a number. Clench your jaw twice. The assistant already knows which conversation you were in, so it knows what you meant. The thing gets captured, filed, and handed back to you when you need it.",
       media: null,
       poster: null,
+      link: null,
       alt: "A date, a name, a task and a number being captured from a conversation and filed where each one belongs.",
     },
   ],
@@ -204,7 +207,7 @@ export const whereSignal = {
       qualifier: "Public research recordings of 15 people, not a Signalive product measurement",
     },
     {
-      value: "77%",
+      value: "79%",
       body: "Around the ear, eight contacts, on 36 other people with no calibration",
       qualifier: "Public research recordings of 36 people, not a Signalive product measurement",
     },
@@ -309,7 +312,7 @@ export const science = {
   ],
   stats: [
     {
-      value: "77%",
+      value: "79%",
       body: "Of one minute decisions name the voice a person follows, from eight contacts around the ears, on people our decoder never saw",
       /** Guards against this being shortened into a product claim. Spec 3.9. */
       qualifier: "Public research recordings of 36 people, not a Signalive product measurement",
