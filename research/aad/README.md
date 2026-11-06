@@ -303,6 +303,25 @@ A quarter of the time looking away:
   lower weight also softens how far the faced voice comes forward), and
   `headDwellS` makes the weight grow with time on one talker.
 
+## How accuracy grows with the people trained on
+
+[`scaling.py`](scaling.py) trains the generic linear decoder on N people
+drawn from the other 35 (eight draws each) and tests it on the held out
+person; the learned decoder's points are single networks per fold trained
+on N of each fold's training people (`variants/scale.jsonl`, `ntrain`).
+One minute decisions, 4 per ear, wireless:
+
+| People trained on | 2 | 5 | 10 | 15 | 20 | 25 | 30 | 35 |
+|---|---|---|---|---|---|---|---|---|
+| Linear | 61.1% | 64.8% | 66.9% | 67.6% | 68.2% | 67.9% | 68.1% | 68.1% |
+| Learned, one network |  | 68.6% | 70.9% | 75.1% | 75.9% | 76.8% |  |  |
+
+The linear decoder, about 260 weights, has learned all it can from about
+fifteen people. The learned one, about 33,000, was still climbing when the
+folds ran out of people to train it on, at five minutes as at one (81.0%,
+84.3%, 87.0%, 88.9% and 91.2% from 5 to 25 people): more listeners are worth
+more than a larger network.
+
 ## What the electronics may add
 
 [`hardware_bars.py`](hardware_bars.py) takes the raw 500 Hz recordings of

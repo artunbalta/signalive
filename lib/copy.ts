@@ -589,12 +589,24 @@ export const research = {
       headlineLines: ["A learned decoder,", "the same 36 people"],
       body: "The linear decoder rebuilds a story's loudness from the EEG through one fixed filter. The learned one trains two small networks together, one reading the electrodes and one reading each story, until the EEG's reading moves with the followed story's. Trained only on other people, scaled from the wearer's first two minutes, each window judged on its own samples. One minute decisions go from {n} to {m}.",
       check: "The check: the same stories, played out of step with the EEG. A network that had learned to tell the two voices apart and read something else in the EEG, such as where the eyes were turned, would keep scoring. This one falls to {n}, a coin flip, so what it follows is the speech.",
-      splits: "Three different splits of the 36 people into training and testing, three networks each: one minute decisions from {n} to {m} per split.",
+      splits: "Three different splits of the 36 people into training and testing, five networks each, trained on every recorded block and chosen on validation people alone: one minute decisions from {n} to {m} per split.",
       chartLabel: "Share of decisions right by decision window, 36 people, the learned and the linear decoder on people they never saw, and the learned one with the stories out of step",
       series: {
         learned: "Learned decoder",
         linear: "Linear decoder",
         control: "Learned, stories out of step",
+      },
+      scaling: {
+        title: "Trained on more people",
+        chartLabel: "One minute decisions right by how many people the decoder was trained on: the learned decoder and the linear one",
+        people: "{n} people",
+        series: {
+          learned: "Learned,",
+          learnedNote: "one network per fold",
+          linear: "Linear,",
+          linearNote: "{n} trained on all 35",
+        },
+        decides: "The linear decoder stops improving at about fifteen people. The learned one was still climbing at twenty five, the most a fold could train on: every person it learns from makes it better for the next one.",
       },
     },
     trust: {

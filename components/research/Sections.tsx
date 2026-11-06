@@ -301,6 +301,7 @@ function Learned({ band }: { band: (number | null)[] }) {
         head={[research.findings.window.x, ...series.map((s) => s.label), research.findings.window.chance]}
         rows={W.map((w, i) => [w, ...series.map((s) => pct(s.values[i])), band[i] === null ? "" : pct(band[i] as number)])}
       />
+      {B.scaling ? <Scaling data={B.scaling} /> : null}
     </Finding>
   );
 }
@@ -408,6 +409,7 @@ const B = beyondData as unknown as {
   inEar?: Partial<Record<"inear" | "aroundear" | "both" | "scalp", EarSystem>>;
   hold?: HoldData;
   hardware?: HardwareData;
+  scaling?: { sizes: number[]; linear: (number | null)[]; learned: number[]; linearAll: number };
 };
 
 type HardwareKind = "noise" | "pink" | "lsb" | "rate" | "skew" | "loss" | "burst" | "artifacts" | "gated" | "mains" | "envlag" | "crosstalk";
@@ -528,6 +530,39 @@ function InEar({ data }: { data: NonNullable<typeof B.inEar> }) {
       <p className="mt-8 max-w-[60ch] text-small leading-relaxed text-mist">{f.decides}</p>
       <Table head={[f.table.system, f.table.linear, f.table.learned, f.table.learned5]} rows={keys.map((k) => [f.systems[k], v(k, "linear", "60"), v(k, "learned", "60"), v(k, "learned", "300")])} />
     </Finding>
+  );
+}
+
+/** Inside finding 05: one minute accuracy by how many people the decoder was trained on. */
+function Scaling({ data }: { data: NonNullable<typeof B.scaling> }) {
+  const f = research.findings.learned.scaling;
+  const bar = (v: number | null, tone: string) => (
+    <span className="relative h-2 rounded-full bg-[color-mix(in_srgb,var(--color-paper)_8%,transparent)]" aria-hidden="true">
+      {v === null ? null : <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${v * 100}%`, background: tone }} />}
+    </span>
+  );
+  return (
+    <figure className="mt-12 border-t border-hairline pt-10" aria-label={f.chartLabel}>
+      <p className="t-mono text-fog">{f.title}</p>
+      <ul className="mt-5 flex flex-col gap-4">
+        {data.sizes.map((n, i) => (
+          <li key={n} className="grid grid-cols-[5.5rem_1fr] items-center gap-3 sm:grid-cols-[8rem_1fr] sm:gap-4">
+            <span className="text-small text-mist">{fill(f.people, n)}</span>
+            <span className="grid grid-cols-[1fr_3.25rem] items-center gap-x-3 gap-y-1.5 sm:grid-cols-[1fr_4rem]">
+              {bar(data.learned[i]!, "var(--color-paper)")}
+              <span className="t-mono text-right text-paper">{pct(data.learned[i]!)}</span>
+              {bar(data.linear[i] ?? null, "var(--color-fog)")}
+              <span className="t-mono text-right text-mist">{data.linear[i] == null ? "" : pct(data.linear[i]!)}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <figcaption className="mt-5 flex flex-wrap gap-x-6 gap-y-1 text-small text-fog">
+        <span><span className="text-paper">{f.series.learned}</span> {f.series.learnedNote}</span>
+        <span><span className="text-mist">{f.series.linear}</span> {fill(f.series.linearNote, pct(data.linearAll))}</span>
+      </figcaption>
+      <p className="mt-6 max-w-[60ch] text-small leading-relaxed text-mist">{f.decides}</p>
+    </figure>
   );
 }
 

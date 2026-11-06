@@ -10,6 +10,7 @@ own script wrote, and left out when that file does not exist yet.
   hardware    research/aad/hardware.json      (hardware_bars.py)
   splice      research/aad/runs/*.splice.json (switch_splice.py)
   hold        research/aad/hold_value.json    (hold_value.py)
+  scaling     research/aad/scaling.json       (scaling.py, deep3.py with "ntrain")
 
     python3 research/ext/export_page.py
 """
@@ -141,9 +142,20 @@ def replay():
     return {"weight": run["calibration"]["weight"], "hazard": 0.02, "kappa": 1.0, "margins": margins, "blocks": [len(b) for b in run["margins10"][i]], "person": {"accuracy60": r3(acc[i])}}
 
 
+def scaling():
+    """One minute accuracy by the number of people trained on: the linear decoder and one learned network per fold."""
+    sc = load(os.path.join(AAD, "scaling.json"))
+    if not sc or not sc.get("learned"):
+        return None
+    sizes = sorted(int(n) for n in sc["learned"])
+    learned = [r3(sum(v["mean"]["60"] for v in sc["learned"][str(n)].values()) / len(sc["learned"][str(n)])) for n in sizes]
+    linear = [r3(sc["linear"]["sizes"][str(n)]["mean"]["60"]) if str(n) in sc["linear"]["sizes"] else None for n in sizes]
+    return {"sizes": sizes, "linear": linear, "learned": learned, "linearAll": r3(sc["linear"]["sizes"]["35"]["mean"]["60"])}
+
+
 def main():
     page = {"note": "Results beyond research/aad's main analysis; see research/ext/README.md and research/aad/README.md"}
-    for key, fn in (("clench", clench), ("inEar", in_ear), ("heldOut", held_out), ("hold", hold)):
+    for key, fn in (("clench", clench), ("inEar", in_ear), ("heldOut", held_out), ("hold", hold), ("scaling", scaling)):
         v = fn()
         if v:
             page[key] = v
