@@ -15,6 +15,10 @@
  * starting within 450 ms of the first one's end, are a double. Anything else
  * is a single, reported once a second burst can no longer arrive in time.
  * Four bursts within 3 s is chewing, which silences everything for 2 s.
+ * The first bites of a meal have been reported by then, one by one, as
+ * clenches: so chewing also withdraws every gesture reported since the
+ * first of those four bursts (takeWithdrawals), about two seconds after the
+ * first bite, while whatever the gesture started can still be called off.
  *
  * The 50 ms RMS window trails the signal, so when a burst is seen to end the
  * window has just emptied: the burst is dated as ending one window earlier.
@@ -29,6 +33,14 @@ export type ClenchEvent = {
   time: number;
   /** Peak RMS over the noise floor during the gesture, on the weaker side. */
   strength: number;
+};
+
+/** A gesture reported a moment ago that turned out to be the start of chewing. */
+export type ClenchWithdrawal = {
+  /** The kind it was reported as. */
+  kind: ClenchEvent["kind"];
+  /** Its onset, as reported: seconds since the first frame. */
+  time: number;
 };
 
 export interface ClenchOptions {
@@ -144,6 +156,9 @@ export class ClenchDetector {
   private quietUntil = 0;
 
   private readonly queue: ClenchEvent[] = [];
+  /** Gestures reported within the last chewing window, by onset sample, so chewing can take them back. */
+  private reported: { onset: number; kind: ClenchEvent["kind"] }[] = [];
+  private withdrawals: ClenchWithdrawal[] = [];
 
   constructor(opts: ClenchOptions) {
     const { fs } = opts;
@@ -328,14 +343,17 @@ export class ClenchDetector {
     this.paired = false;
 
     // The oldest of the previous three onsets, against this one.
-    const chewing = this.onsetCount >= CHEW_BURSTS - 1 && onset - this.onsets[this.onsetPos] <= this.chewLen;
+    const oldest = this.onsets[this.onsetPos];
+    const chewing = this.onsetCount >= CHEW_BURSTS - 1 && onset - oldest <= this.chewLen;
     this.onsets[this.onsetPos] = onset;
     this.onsetPos = (this.onsetPos + 1) % this.onsets.length;
     this.onsetCount++;
     if (chewing) {
       this.quietUntil = n + this.quietLen;
       this.pendingOnset = -1;
+      this.withdrawSince(oldest);
     }
+    this.reported = this.reported.filter((r) => r.onset >= onset - this.chewLen);
     this.silenced = n < this.quietUntil;
     if (this.silenced || this.pendingOnset < 0) return;
     if (onset - this.pendingEnd <= this.doubleLen) this.paired = true;
@@ -386,6 +404,32 @@ export class ClenchDetector {
 
   private emit(kind: ClenchEvent["kind"], onset: number, strength: number): void {
     this.queue.push({ kind, time: onset / this.fs, strength });
+    this.reported.push({ onset, kind });
+  }
+
+  /** Takes back every gesture whose onset is at or after this sample: they were bites. */
+  private withdrawSince(from: number): void {
+    // One still queued never reached anyone; drop it rather than report and withdraw it.
+    for (let i = this.queue.length - 1; i >= 0; i--) {
+      const q = this.queue[i];
+      if (Math.round(q.time * this.fs) >= from) {
+        this.queue.splice(i, 1);
+        this.reported = this.reported.filter((r) => !(r.onset === Math.round(q.time * this.fs) && r.kind === q.kind));
+      }
+    }
+    for (const r of this.reported) if (r.onset >= from) this.withdrawals.push({ kind: r.kind, time: r.onset / this.fs });
+    this.reported = this.reported.filter((r) => r.onset < from);
+  }
+
+  /**
+   * Gestures reported earlier that chewing has since shown to be bites,
+   * oldest first; each is handed out once. Call after push.
+   */
+  takeWithdrawals(): ClenchWithdrawal[] {
+    if (!this.withdrawals.length) return NONE;
+    const out = this.withdrawals;
+    this.withdrawals = [];
+    return out;
   }
 
   /** Forgets everything, floors included: the next second sets them again. */
@@ -413,8 +457,12 @@ export class ClenchDetector {
     this.onsetPos = 0;
     this.quietUntil = 0;
     this.queue.length = 0;
+    this.reported = [];
+    this.withdrawals = [];
   }
 }
+
+const NONE: ClenchWithdrawal[] = [];
 
 /** Median of a buffer, sorting it in place. Runs once, when the floors are set. */
 function median(x: Float64Array): number {

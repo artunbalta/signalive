@@ -3,7 +3,7 @@
 import { gestureBus } from "@/lib/gestures/bus";
 import { claimedCommand } from "@/lib/gestures/claims";
 import { onMediaKeyFired, mediaKeys } from "@/lib/gestures/media-keys";
-import { DEFAULT_BINDINGS, momentTrigger, type Command, type GestureEvent } from "@/lib/gestures/types";
+import { DEFAULT_BINDINGS, momentTrigger, type Command, type GestureEvent, type GestureWithdrawal } from "@/lib/gestures/types";
 import { agent } from "./agent";
 import { assistant } from "./assistant";
 import { focus } from "./focus";
@@ -20,10 +20,45 @@ import { saveDeviceProfile, sessionId } from "./session";
  * clench) drives them alike.
  */
 
+/**
+ * What the earbuds' gestures did lately, so that one the earbuds take back
+ * (a bite of food read as a clench, found out at the next bites) can be
+ * undone: the moment it began is called off, the replay or the lock it
+ * started is ended.
+ */
+const acted: { at: number; cmd: Command; capture: Promise<string | null> | null; t: number }[] = [];
+const ACTED_KEEP_MS = 8000;
+
+function remember(e: GestureEvent | undefined, cmd: Command, capture: Promise<string | null> | null = null) {
+  if (e?.source !== "sensor") return;
+  const now = performance.now();
+  while (acted.length && now - acted[0]!.t > ACTED_KEEP_MS) acted.shift();
+  acted.push({ at: e.at, cmd, capture, t: now });
+}
+
+export function undoWithdrawn(w: GestureWithdrawal) {
+  const i = acted.findIndex((a) => a.at === w.of);
+  if (i < 0) return;
+  const [a] = acted.splice(i, 1);
+  switch (a!.cmd) {
+    case "capture_moment":
+      void a!.capture?.then((id) => id && moments.withdraw(id));
+      break;
+    case "rewind":
+      rewind.stop();
+      break;
+    case "lock_focus":
+      focus.toggleLock();
+      break;
+    default:
+      break;
+  }
+}
+
 export function runCommand(cmd: Command, e?: GestureEvent) {
   switch (cmd) {
     case "capture_moment":
-      void moments.capture(momentTrigger(e?.source));
+      remember(e, cmd, moments.capture(momentTrigger(e?.source)));
       break;
     case "ask_agent":
       agent.toggleVoice();
@@ -47,9 +82,11 @@ export function runCommand(cmd: Command, e?: GestureEvent) {
       break;
     case "rewind":
       void rewind.trigger();
+      remember(e, cmd);
       break;
     case "lock_focus":
       focus.toggleLock();
+      remember(e, cmd);
       break;
     case "none":
       break;
@@ -61,6 +98,7 @@ export function startCommandRouting(): () => void {
     const bindings = { ...DEFAULT_BINDINGS, ...(getPrefs().gestureBindings ?? {}) };
     runCommand(claimedCommand(e.type) ?? bindings[e.type], e);
   });
+  const offWithdrawn = gestureBus.onWithdraw(undoWithdrawn);
   // What actually fired goes into this session's device profile.
   let pending: ReturnType<typeof setTimeout> | null = null;
   const offFired = onMediaKeyFired(() => {
@@ -71,6 +109,7 @@ export function startCommandRouting(): () => void {
   });
   return () => {
     offGestures();
+    offWithdrawn();
     offFired();
     if (pending) clearTimeout(pending);
   };

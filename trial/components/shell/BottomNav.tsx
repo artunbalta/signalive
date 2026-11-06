@@ -8,7 +8,7 @@ import { Icon, type IconName } from "@/components/ui/Icon";
 import styles from "@/components/moments/motion.module.css";
 
 type MainKey = "moments" | "ask" | "earbuds" | "settings";
-type MoreKey = "assistant" | "focus" | "rewind" | "recorder" | "notes" | "lab";
+type MoreKey = "assistant" | "focus" | "rewind" | "recorder" | "notes" | "lab" | "studies";
 
 const MAIN: { href: string; key: MainKey; icon: IconName }[] = [
   { href: "/moments", key: "moments", icon: "moment" },
@@ -25,6 +25,7 @@ const MORE: { href: string; key: MoreKey; icon: IconName }[] = [
   { href: "/recorder", key: "recorder", icon: "wave" },
   { href: "/notes", key: "notes", icon: "notes" },
   { href: "/lab", key: "lab", icon: "chart" },
+  { href: "/studies", key: "studies", icon: "flag" },
 ];
 
 const at = (path: string, href: string) => path === href || path.startsWith(`${href}/`);

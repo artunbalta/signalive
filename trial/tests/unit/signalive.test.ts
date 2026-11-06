@@ -49,6 +49,46 @@ describe("Signalive earbuds, simulated", () => {
     }
   });
 
+  it("takes back the clenches that turn out to be the first bites of chewing", async () => {
+    const p = simulated();
+    const { seen, off } = gestures();
+    const withdrawn: { type: string; of: number }[] = [];
+    const offW = gestureBus.onWithdraw((w) => withdrawn.push({ type: w.type, of: w.of }));
+    await p.connect();
+    const twin = p.twin!;
+    twin.tick(1500);
+    // Six bites, one every 750 ms: a single each, until the fourth shows it is chewing.
+    for (let bite = 0; bite < 6; bite++) {
+      twin.clench("single");
+      twin.tick(750);
+    }
+    twin.tick(3000);
+    off();
+    offW();
+    await p.disconnect();
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((e) => e.type === "jaw_clench")).toBe(true);
+    // Every one of them taken back, by the time stamp it was published with.
+    expect(withdrawn.map((w) => w.of).sort()).toEqual(seen.map((e) => e.at).sort());
+    expect(withdrawn.every((w) => w.type === "jaw_clench")).toBe(true);
+  });
+
+  it("keeps a clench that no chewing follows", async () => {
+    const p = simulated();
+    const { seen, off } = gestures();
+    const withdrawn: unknown[] = [];
+    const offW = gestureBus.onWithdraw((w) => withdrawn.push(w));
+    await p.connect();
+    p.twin!.tick(1500);
+    p.twin!.clench("single");
+    p.twin!.tick(6000);
+    off();
+    offW();
+    await p.disconnect();
+    expect(seen.map((e) => e.type)).toEqual(["jaw_clench"]);
+    expect(withdrawn).toEqual([]);
+  });
+
   it("stays silent on the background alone, and publishes a held clench as jaw_hold", async () => {
     const p = simulated();
     const { seen, off } = gestures();

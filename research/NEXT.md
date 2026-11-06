@@ -33,6 +33,17 @@ muscle bursts. It has to meet real jaws, chewing, talking and walking.
 - **Bar to ship**: 95% of prompted single clenches caught, under one false
   detection an hour in conversation, under 0.7 s. The thresholds to tune are
   `k`, the band and the chewing rule.
+- **Ready to run**: the trial's Studies, clench (`/studies/clench`), plays this
+  protocol on any connected earbuds or an OpenBCI board, scores it against
+  these bars and saves the report and the raw signal for tuning offline.
+- **Already learned from the simulation**: run on the simulated earbuds with a
+  simulated participant who chews gum and eats, the detector's chewing rule
+  (four bursts in 3 s) let the first three bites of every meal through as
+  clenches: 45 false detections an hour against a bar of one. The detector
+  now takes those bites back once the fourth arrives, and a moment they began
+  is called off before it is kept; in the same simulation that is 0 an hour,
+  with every cued clench still caught. Whether real bites look enough like
+  real clenches to need this is exactly what the study measures.
 
 ## 2. Can it follow a switch?
 

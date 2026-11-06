@@ -20,7 +20,7 @@
  * It does not care where the bytes come from: the digital twin, an OpenBCI
  * board and the earbuds themselves all produce SSP, which is the point.
  */
-import { ClenchDetector, type ClenchEvent } from "./clench";
+import { ClenchDetector, type ClenchEvent, type ClenchWithdrawal } from "./clench";
 import { createDecoder, fusionWeight, type AnyDecoderModel, type StreamingDecoder } from "./decoders";
 import { AttentionBelief, fuseAttention } from "./fusion";
 import { ClockSync, EegStream, EventCode, Flag, QUAT_ONE, SspDecoder, encodeCommand, yawDeg, type EegFrame, type ImuFrame, type Side, type SspFrame } from "./protocol";
@@ -257,6 +257,7 @@ export class PhoneSession {
   private readonly contact = new Map<Side, number>();
   private readonly frame: Float64Array;
   private readonly listeners = new Set<(e: ClenchEvent, info: ClenchInfo) => void>();
+  private readonly withdrawListeners = new Set<(w: ClenchWithdrawal) => void>();
   private readonly tapListeners = new Set<(ear: Ear, uv: number[], t: number) => void>();
   private readonly motionListeners = new Set<(ear: Ear, yaw: number[], t: number) => void>();
   /** Ticks read out so far: the decoder's and the detector's shared clock, at fs. */
@@ -350,6 +351,16 @@ export class PhoneSession {
   onClench(cb: (e: ClenchEvent, info: ClenchInfo) => void): () => void {
     this.listeners.add(cb);
     return () => this.listeners.delete(cb);
+  }
+
+  /**
+   * Gestures reported a moment ago that chewing has since explained: the
+   * detector that reported them takes them back (ClenchDetector.takeWithdrawals),
+   * with the kind and onset they were reported with.
+   */
+  onClenchWithdrawn(cb: (w: ClenchWithdrawal) => void): () => void {
+    this.withdrawListeners.add(cb);
+    return () => this.withdrawListeners.delete(cb);
   }
 
   /**
@@ -701,6 +712,12 @@ export class PhoneSession {
     // that completes on the very tick of a handover is not lost.
     const was = this.mode;
     if (!finishing) this.mode = next;
+    // Withdrawals from the detector that speaks; the others' never reached anyone.
+    const speaking = was ?? this.mode;
+    for (const m of ["both", "left", "right"] as const) {
+      const ws = this.detectors[m].takeWithdrawals();
+      if (m === speaking) for (const w of ws) for (const cb of this.withdrawListeners) cb(w);
+    }
     const source = was && events[was] ? was : this.mode && events[this.mode] ? this.mode : null;
     const e = source ? events[source] : undefined;
     if (!e || !source) return;

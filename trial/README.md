@@ -23,6 +23,7 @@ the repository root. It deploys separately (its own Vercel project, root directo
 | Recorder | `/recorder` | Continuous capture cut by VAD, transcripts, notes every few utterances, "mark this moment", opt-in raw audio with automatic expiry |
 | Notes | `/notes` | Word (prefix, Turkish aware), meaning (embeddings) and hybrid search |
 | Lab | `/lab`, `/lab/results` | Fixed phrases, four processing chains from one take, two or three recognizers, WER and CER with bootstrap intervals, CSV |
+| Studies | `/studies`, `/studies/clench` | The dev kit experiments of `research/NEXT.md`, run on whatever earbuds are connected. The clench study cues 60 clenches over four conditions and a free period, scores the detector against its bars (95% of singles, under one false detection an hour, under 0.7 s), and saves a JSON report, a CSV of the cues and, if asked, every electrode's samples (`.ssr`). With the simulated earbuds a simulated participant can take part |
 | Timing | `/debug` | Last 20 exchanges, stage by stage, p50 and p95 |
 | Settings | `/settings` | Languages, devices, Signalive earbuds (simulated, Bluetooth, or an OpenBCI board over USB), gesture bindings, export (JSON, Markdown), delete everything, email upgrade |
 

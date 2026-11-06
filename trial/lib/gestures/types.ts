@@ -43,8 +43,20 @@ export interface GestureEvent {
     key?: string;
     /** Sensor classifier confidence, 0..1, when a sensor produced it. */
     confidence?: number;
+    /** How long after the movement began the sensor reported it, ms, when it knows. */
+    latencyMs?: number;
     sensorId?: string;
   };
+}
+
+/** A gesture taken back by the sensor that reported it (GestureBus.withdraw). */
+export interface GestureWithdrawal {
+  type: GestureType;
+  source: GestureSource;
+  /** performance.now() when it was taken back. */
+  at: number;
+  /** The `at` of the GestureEvent it takes back. */
+  of: number;
 }
 
 export const COMMANDS = [

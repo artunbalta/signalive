@@ -81,7 +81,15 @@ export class NullSensorProvider implements SensorProvider {
   async disconnect(): Promise<void> {}
 }
 
-/** Where a sensor classifier publishes a recognized gesture. */
-export function emitSensorGesture(type: GestureType, sensorId: string, confidence: number) {
-  gestureBus.emit({ type, source: "sensor", at: performance.now(), detail: { sensorId, confidence } });
+/** Where a sensor classifier publishes a recognized gesture. Returns its time stamp, for a withdrawal later. */
+export function emitSensorGesture(type: GestureType, sensorId: string, confidence: number, latencyMs?: number): number {
+  const detail = latencyMs === undefined ? { sensorId, confidence } : { sensorId, confidence, latencyMs };
+  const at = performance.now();
+  gestureBus.emit({ type, source: "sensor", at, detail });
+  return at;
+}
+
+/** Takes back a gesture this sensor published at `of` (see GestureBus.withdraw). */
+export function withdrawSensorGesture(type: GestureType, of: number) {
+  gestureBus.withdraw({ type, source: "sensor", at: performance.now(), of });
 }

@@ -64,8 +64,12 @@ the same one the site's research console runs.
    clench on the other. A single clench is published as `jaw_clench`, a double as
    `jaw_double_clench` and a hold (over 700 ms) as `jaw_hold`, through
    `emitSensorGesture(type, "signalive", confidence)`, the confidence being how far the
-   clench cleared that detector's threshold (`1 - k / strength`, clipped to 0..1); four
-   clenches within 3 s are chewing and are ignored for 2 s.
+   clench cleared that detector's threshold (`1 - k / strength`, clipped to 0..1), and the
+   report's latency from the jaw's onset (`detail.latencyMs`). Four bursts within 3 s are
+   chewing and are ignored for 2 s; the bites before the fourth have been published by then,
+   so the detector also takes them back (`ClenchDetector.takeWithdrawals`, the session's
+   `onClenchWithdrawn`) and the provider withdraws their gestures from the bus
+   (`withdrawSensorGesture`), about two seconds after the first bite.
 4. **Head.** The IMU's quaternion gives the head's yaw (`yawDeg`), both earbuds averaged on
    the circle and forgotten half a second after their last motion frame.
    `provider.onYaw()` passes it on at every motion frame to the head tracker's `earbuds`
@@ -119,8 +123,11 @@ event's `DataView`), always from a user gesture.
 
 **Gestures from sensors.** Classification (a jaw clench from EMG, for example) runs in
 the provider or a classifier behind it. Recognized gestures are published with
-`emitSensorGesture(type, sensorId, confidence)`, and from there they behave exactly like an
-earbud tap. To add a provider to the app, start it from a user gesture (the Earbuds
+`emitSensorGesture(type, sensorId, confidence, latencyMs?)`, and from there they behave exactly like an
+earbud tap. A sensor that finds out later that a gesture was not one takes it back with
+`withdrawSensorGesture(type, at)` (`at` is what `emitSensorGesture` returned):
+`gestureBus.onWithdraw` listeners undo what it started, and `lib/client/commands.ts` calls
+off the moment it began keeping (`moments.withdraw`), the replay or the Focus lock. To add a provider to the app, start it from a user gesture (the Earbuds
 section in Settings does) and keep its lifetime with the page (`lib/client/earbuds.ts`).
 
 ## Gestures

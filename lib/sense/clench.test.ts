@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ClenchDetector, type ClenchEvent } from "./clench";
+import { ClenchDetector, type ClenchEvent, type ClenchWithdrawal } from "./clench";
 
 /** Small seeded generator (mulberry32), so every run sees the same noise. */
 function mulberry32(seed: number) {
@@ -48,6 +48,7 @@ function run(opts: { bursts: Burst[]; seconds: number; fs?: number; seed?: numbe
   const gauss = normal(mulberry32(opts.seed ?? 1));
   const det = new ClenchDetector({ fs, left: LEFT, right: RIGHT, k: opts.k });
   const events: { event: ClenchEvent; at: number }[] = [];
+  const withdrawn: { w: ClenchWithdrawal; at: number }[] = [];
   const frame = new Float64Array(5);
   const ramp = 0.01;
   for (let n = 0; n < Math.round(opts.seconds * fs); n++) {
@@ -66,8 +67,9 @@ function run(opts: { bursts: Burst[]; seconds: number; fs?: number; seed?: numbe
     }
     const event = det.push(frame);
     if (event) events.push({ event, at: t });
+    for (const w of det.takeWithdrawals()) withdrawn.push({ w, at: t });
   }
-  return { events, det };
+  return { events, withdrawn, det };
 }
 
 describe("ClenchDetector", () => {
@@ -118,6 +120,40 @@ describe("ClenchDetector", () => {
     expect(events.filter((e) => e.at >= fourth)).toEqual([]);
     // What came before are separate bites, never a double or a hold.
     expect(events.every((e) => e.event.kind === "single")).toBe(true);
+  });
+
+  it("takes back the bites it reported before it knew they were chewing, at the fourth", () => {
+    const bursts = Array.from({ length: 6 }, (_, i) => ({ at: 2 + 0.6 * i, len: 0.12 }));
+    const { events, withdrawn } = run({ bursts, seconds: 8 });
+    expect(events.length).toBeGreaterThan(0);
+    // Every gesture reported is withdrawn, with the kind and onset it was reported with, once.
+    expect(withdrawn.map((x) => [x.w.kind, x.w.time])).toEqual(events.map((e) => [e.event.kind, e.event.time]));
+    // As soon as the fourth bite begins: about 1.8 s after the first here, well before a moment is made.
+    for (const x of withdrawn) {
+      expect(x.at).toBeGreaterThanOrEqual(bursts[3].at);
+      expect(x.at).toBeLessThan(bursts[3].at + 0.1);
+    }
+  });
+
+  it("never takes back a clench that no chewing follows", () => {
+    const { events, withdrawn } = run({ bursts: [{ at: 2, len: 0.2 }, { at: 5, len: 0.2 }, { at: 8, len: 1.2 }], seconds: 11 });
+    expect(events.map((e) => e.event.kind)).toEqual(["single", "single", "hold"]);
+    expect(withdrawn).toEqual([]);
+  });
+
+  it("takes back a clench that chewing follows within 3 s: it cannot be told from the first bite", () => {
+    const bursts = [{ at: 2, len: 0.2 }, ...Array.from({ length: 4 }, (_, i) => ({ at: 2.8 + 0.6 * i, len: 0.12 }))];
+    const { events, withdrawn } = run({ bursts, seconds: 8 });
+    expect(withdrawn.map((x) => x.w.time)).toContain(events[0]!.event.time);
+  });
+
+  it("does not take back a clench made after chewing stopped", () => {
+    const bursts = Array.from({ length: 6 }, (_, i) => ({ at: 2 + 0.6 * i, len: 0.12 }));
+    bursts.push({ at: 8, len: 0.2 });
+    const { events, withdrawn } = run({ bursts, seconds: 11 });
+    const late = events.filter((e) => e.at >= 8);
+    expect(late.map((e) => e.event.kind)).toEqual(["single"]);
+    expect(withdrawn.map((x) => x.w.time)).not.toContain(late[0]!.event.time);
   });
 
   it("listens again once chewing has stopped", () => {

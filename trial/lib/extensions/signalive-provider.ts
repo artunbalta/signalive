@@ -1,4 +1,4 @@
-import type { ClenchEvent } from "@sense/clench";
+import type { ClenchEvent, ClenchWithdrawal } from "@sense/clench";
 import type { AnyDecoderModel } from "@sense/decoders";
 import { NativeBridgeTransport, inNativeShell } from "@sense/native-bridge";
 import { encodeCommand, type HostCommand, type Side } from "@sense/protocol";
@@ -16,6 +16,7 @@ import { createStore, type Store } from "@/lib/client/store";
 import type { AttentionSignalProvider } from "./attention-provider";
 import {
   emitSensorGesture,
+  withdrawSensorGesture,
   type SensorCapabilities,
   type SensorChannel,
   type SensorProvider,
@@ -138,6 +139,11 @@ const EARBUD_RATE = 250;
  */
 const PER_EAR = 4;
 
+/** What each kind of clench is on the gesture bus. */
+const GESTURE_OF = { single: "jaw_clench", double: "jaw_double_clench", hold: "jaw_hold" } as const;
+/** A published clench can be taken back this long after it was reported: chewing shows itself within 3 s. */
+const REPORTED_KEEP_MS = 6000;
+
 const TRANSPORT: Record<SignaliveTransport, SensorCapabilities["transport"]> = {
   simulated: "simulated",
   bluetooth: "web-bluetooth",
@@ -233,6 +239,8 @@ export class SignaliveSensorProvider implements SensorProvider {
   private feeding: Side = "single";
   /** One delivery's EEG for stream(), per ear, interleaved by sample, with the first sample's time. */
   private pending: Record<Ear, { t: number; values: number[] } | null> = { left: null, right: null };
+  /** Clench gestures published lately: the detector's kind and onset, and the bus time stamp. */
+  private reported: { kind: ClenchEvent["kind"]; time: number; at: number; reportedAt: number }[] = [];
   private publishedAt = -Infinity;
   private decidedAt = -Infinity;
   private steered = "";
@@ -428,7 +436,8 @@ export class SignaliveSensorProvider implements SensorProvider {
       azimuths: this.azimuths,
       now: this.now,
     });
-    session.onClench((e, { k }) => this.gesture(e, k));
+    session.onClench((e, { k, latencyMs }) => this.gesture(e, k, latencyMs));
+    session.onClenchWithdrawn((w) => this.withdraw(w));
     session.onSamples((ear, uv, t) => this.sample(ear, uv, t));
     session.onMotion((_ear, yaw, t) => this.motion(yaw, t));
     return session;
@@ -440,9 +449,22 @@ export class SignaliveSensorProvider implements SensorProvider {
    * for one ear alone): 0 at the threshold, 0.5 at twice it, nearing 1
    * beyond.
    */
-  private gesture(e: ClenchEvent, k: number) {
+  private gesture(e: ClenchEvent, k: number, latencyMs: number) {
     const confidence = Math.max(0, Math.min(1, 1 - k / e.strength));
-    emitSensorGesture(e.kind === "single" ? "jaw_clench" : e.kind === "double" ? "jaw_double_clench" : "jaw_hold", this.id, Math.round(confidence * 100) / 100);
+    const type = GESTURE_OF[e.kind];
+    const at = emitSensorGesture(type, this.id, Math.round(confidence * 100) / 100, Math.round(latencyMs));
+    // Kept for a few seconds, so chewing found at the next bites can take it back.
+    const now = this.now();
+    this.reported = this.reported.filter((r) => now - r.reportedAt < REPORTED_KEEP_MS);
+    this.reported.push({ kind: e.kind, time: e.time, at, reportedAt: now });
+  }
+
+  /** The detector found the clench it reported to be the start of chewing: take its gesture back. */
+  private withdraw(w: ClenchWithdrawal) {
+    const i = this.reported.findIndex((r) => r.kind === w.kind && r.time === w.time);
+    if (i < 0) return;
+    const [r] = this.reported.splice(i, 1);
+    withdrawSensorGesture(GESTURE_OF[w.kind], r!.at);
   }
 
   /** An earbud that streams without having said hello is asked again, at most once a second. */

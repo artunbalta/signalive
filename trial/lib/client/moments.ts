@@ -138,6 +138,18 @@ class MomentsController {
     void this.run(id);
   }
 
+  /**
+   * The clench that started this capture was a bite of food, as the next
+   * bites showed (GestureBus.withdraw): forget it, and the moment too if it
+   * was already kept, which the seconds a moment takes make rare.
+   */
+  withdraw(id: string) {
+    const saved = this.view.get().captures.find((c) => c.id === id)?.stage === "saved";
+    this.dismiss(id);
+    this.stopSpeaking();
+    if (saved) void momentsStore.remove(id).catch(() => undefined);
+  }
+
   /** Forgets a capture, and its audio. */
   dismiss(id: string) {
     this.requests.get(id)?.abort();
