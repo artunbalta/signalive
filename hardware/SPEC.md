@@ -23,7 +23,7 @@ assumptions. **Band A** is the attention band, 1 to 9 Hz, where the decoder work
 
 | Item | Value | Requirement |
 |---|---|---|
-| Contacts per ear | 4 sensing + 1 reference + 1 bias, all dry, all in or on the same ear | HW-EEG-01 |
+| Contacts per ear | 4 sensing + 1 reference + 1 bias, all dry, all in or on the same ear, at least 2 sensing outside the canal | HW-EEG-01, -02 |
 | Contact impedance | each ≤ 1 MΩ at 10 Hz; median ≤ 200 kΩ (target) | HW-EEG-04 |
 | AFE noise, inputs shorted | ≤ 1 µVrms over 0.5 to 100 Hz and ≤ 0.3 µVrms over band A | HW-AFE-02 |
 | Sample rate | 500 Hz preferred, 250 Hz minimum, all channels simultaneous | HW-AFE-03 |
@@ -56,7 +56,11 @@ electrolyte ([Debener et al. 2015](https://pmc.ncbi.nlm.nih.gov/articles/PMC4648
 Recorded simultaneously on 15 people, attention decoding over 60 s windows reached 83.4% with
 scalp EEG, 67.2% around the ear and 61.1% in the ear with 12 dry Ag/AgCl electrodes, six per
 ear ([Geirnaert, Kappel and Kidmose 2025](https://pmc.ncbi.nlm.nih.gov/articles/PMC12644565/)).
-Plan for the earbud to land below the cEEGrid numbers until a prototype shows otherwise.
+Plan for the earbud to land below the cEEGrid numbers until a prototype shows otherwise. Our
+own run of the calibration free decoders on those recordings, each ear referenced to itself,
+puts the dry in-ear electrodes at chance and the around the ear ones at 61% in one minute
+decisions ([research/ext](../research/ext/README.md)): contacts in the canal alone are not
+enough (HW-EEG-02).
 
 **HW-EEG-01 Contact count** (Must)
 - Requirement: 6 dry contacts per ear: 4 sensing (E1 to E4), 1 reference (REF), 1 bias
@@ -74,13 +78,19 @@ Plan for the earbud to land below the cEEGrid numbers until a prototype shows ot
   [IDUN's Dryode Duo](https://iduntechnologies.com/).
 - Verification: inspection; per channel signal check in T-04.
 
-**HW-EEG-02 Placement** (Target)
-- Requirement: spread the contacts as far apart as one ear allows. Starting layout: E1 and E2
-  on the ear tip in the canal, on opposite sides; E3 and E4 on the shell in the concha
-  (cymba and cavum); REF at the reachable position farthest from the sensing contacts that
-  still keeps contact (candidate: a concha lock or fin); BIAS anywhere with reliable contact.
-- Rationale: within-ear recordings are typically 10 to 20 dB smaller than scalp referenced
-  ear recordings ([Frontiers in Neuroscience 2019](https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2019.00943/full)),
+**HW-EEG-02 Placement** (Must and Target)
+- Requirement (Must): at least two of the four sensing contacts outside the ear canal, on or
+  around the outer ear, as far from the canal and from REF as the shell, a wing or an ear hook
+  can reach (helix root, behind the ear, the upper concha). (Target): spread every contact as
+  far apart as one ear allows. Starting layout: E1 in the canal; E2 in the cymba; E3 and E4
+  outside the concha, one at the helix root and one behind the ear on a hook or wing; REF at
+  the reachable position farthest from the sensing contacts that still keeps contact; BIAS
+  anywhere with reliable contact.
+- Rationale: on the same 15 people at the same moments, with each ear referenced to itself
+  and no calibration, as two earbuds must decode, dry contacts inside the ear gave one minute
+  decisions at chance (48%) and wet contacts around the ear gave 61%, with the same decoders
+  ([research/ext](../research/ext/README.md), Ear-SAAD). Within-ear recordings are typically
+  10 to 20 dB smaller than scalp referenced ear recordings ([Frontiers in Neuroscience 2019](https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2019.00943/full)),
   and amplitude falls off steeply when electrode and reference are close
   ([Mikkelsen et al. 2015](https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2015.00438/full)).
   The lead's ranking of cEEGrid positions (left L01 L04b L06 L04, right R02 R05 R08 R04, in
