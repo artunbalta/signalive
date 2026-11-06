@@ -1,4 +1,9 @@
-@import "tailwindcss";
+/* Class names live only in these folders; the rest of the repo (research
+   data, the trial app with its own styles) stays out of the scan. */
+@import "tailwindcss" source(none);
+@source "../app";
+@source "../components";
+@source "../lib";
 
 /* ==========================================================================
    SIGNALIVE DESIGN TOKENS
