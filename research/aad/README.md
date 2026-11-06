@@ -303,6 +303,51 @@ A quarter of the time looking away:
   lower weight also softens how far the faced voice comes forward), and
   `headDwellS` makes the weight grow with time on one talker.
 
+## What the electronics may add
+
+[`hardware_bars.py`](hardware_bars.py) takes the raw 500 Hz recordings of
+every held out person, does to them what a cheaper or harsher earbud would,
+and runs the whole causal chain and the final decoder that never saw them
+(split 7, the first two networks of each fold: every curve is compared with
+the same model on the clean recording). Where one minute decisions start to
+fall is the bar each part has to clear; [`hardware.json`](hardware.json) has
+every level.
+
+Model final.seed7, 2 networks per fold; clean one minute accuracy 78.1%.
+
+| What is degraded | Within a point of clean | Three points lost at | Worst tried |
+|---|---|---|---|
+| White noise at every electrode | 100 nV/√Hz | 1600 nV/√Hz | 60.2% at 3200 nV/√Hz |
+| 1/f noise in the decoder's band | 0.5 µVrms | 2 µVrms | 57.2% at 16 µVrms |
+| One converter step | 10 µV | 20 µV | 72.6% at 20 µV |
+| Sampling rate | down to 100 Hz | not within the range tried | 78.1% at 500 Hz |
+| Clock offset between the earbuds | 20 ms | 80 ms | 64.3% at 160 ms |
+| Frames lost one at a time | 10% of frames | 40% of frames | 73.8% at 40% of frames |
+| Frames lost in 200 ms bursts | under 1% of frames | 20% of frames | 73.4% at 20% of frames |
+| 50 Hz mains, 1% imbalance | 10000 µV | 50000 µV | 72.9% at 50000 µV |
+| Speech envelopes late or early | under ±25 ms | ±50 ms | 55.7% at ±200 ms |
+| The other voice in each envelope | 70% mixed in | not within the range tried | 77.2% at 70% mixed in |
+
+| 200 µV jolts a minute | 0 | 2 | 5 | 10 |
+|---|---|---|---|---|
+| Ungated | 78.1% | 72.7% | 69.1% | 63.5% |
+| Gated | 78.7% | 77.8% | 74.4% | 70.1% |
+
+- **The amplifier is not the limit.** Noise, resolution and sampling rate
+  all have wide margins over an ADS1299 class part; 1/f noise inside the
+  decoder's band is the one to watch (half a microvolt). Attention would be
+  fine sampled at 100 Hz; the clench is what needs 250 to 500.
+- **Neither is the radio.** Two earbuds' clocks may disagree by 20 ms and a
+  tenth of all frames may go missing one at a time before a point is lost.
+- **Timing between microphones and electrodes is.** The speech envelopes
+  must sit on the EEG's clock to within about 10 ms: 25 ms late already
+  costs two points. Separation, on the other hand, can be rough: each
+  envelope may carry 70% of the other voice.
+- **Movement is the real cost, and a gate is the answer.** Two jolts a
+  minute cost five points; a gate that blanks a quarter second around any
+  sample over five times its channel's spread wins most of them back and
+  costs nothing at rest. The phone's chain does not have it yet.
+
 ## What it decides
 
 - **True wireless works.** Referencing each ear to itself costs about a point

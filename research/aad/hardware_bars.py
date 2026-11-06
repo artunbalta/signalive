@@ -95,8 +95,10 @@ def raw_blocks(pid):
 
 def resample_linear(x, n, fs_in, fs_out):
     pos = np.arange(n) * (fs_in / fs_out)
-    i = np.floor(pos).astype(np.int64)
-    frac = pos - i
+    # At a low input rate the last output position can land on the last input
+    # sample; hold it there rather than read one past the end.
+    i = np.minimum(np.floor(pos).astype(np.int64), x.shape[-1] - 2)
+    frac = np.minimum(pos - i, 1.0)
     return x[..., i] * (1.0 - frac) + x[..., i + 1] * frac
 
 

@@ -140,6 +140,11 @@ enough (HW-EEG-02).
   artifacts degrade signal to noise more in the ear than on the scalp, most in 32 to 100 Hz
   ([Kappel et al. 2017](https://pmc.ncbi.nlm.nih.gov/articles/PMC5553928/)); walking and
   running degraded cEEGrid responses in [Lee et al. 2021](https://pmc.ncbi.nlm.nih.gov/articles/PMC8688416/).
+  Measured on recordings ([research/aad](../research/aad/README.md), hardware_bars.py, the final decoder on people it never saw): movement is the degradation that costs most at a plausible rate: two 200 µV jolts a
+  minute cost five points of one minute accuracy and ten a minute fifteen. A software gate
+  that blanks a quarter second around any sample over five times its channel's spread
+  recovered five to seven of those points and cost nothing at rest, so it belongs in the
+  phone's chain; contact stability sets how often it has to act.
 - Verification: T-05.
 
 **HW-EEG-06 Lead off detection** (Must)
@@ -204,7 +209,10 @@ the linked datasheets and product pages; prices in [BOM.md](BOM.md)):
   should set the floor. Clinical EEG guidance asks for less than 1 µV peak to peak of added
   noise at any frequency from 0.5 to 100 Hz ([ACNS Guideline 4](https://www.acns.org/UserFiles/file/Guideline4-RecordingClinicalEEGonDigitalMedia_v1.pdf)).
   The three candidates above meet the Must on their datasheet numbers; band A, where 1/f
-  noise lives, has to be measured.
+  noise lives, has to be measured. Measured on recordings ([research/aad](../research/aad/README.md), hardware_bars.py, the final decoder on people it never saw): white noise added at every electrode cost under
+  a point of one minute accuracy up to 200 nV/√Hz and three points at 800; 1/f noise in the
+  decoder's band cost under a point up to 0.5 µVrms and three points at 2 µVrms. Band A is
+  the limit that matters, and the Must above keeps it at 0.3 µVrms.
 - Verification: T-01.
 
 **HW-AFE-03 Sample rate** (Must)
@@ -221,7 +229,9 @@ the linked datasheets and product pages; prices in [BOM.md](BOM.md)):
   52% from one electrode behind each ear at 256 Hz, and 99% of cued clench blocks from the
   temporal scalp at 1000 Hz ([research/ext](../research/ext/README.md)). Those sets differ in
   electrodes and people as well as rate, so this agrees with the rate mattering rather than
-  proving it; T-13 at both rates settles it.
+  proving it; T-13 at both rates settles it. Measured on recordings ([research/aad](../research/aad/README.md),
+  hardware_bars.py): attention alone would lose nothing down to 100 Hz, so the rate is set
+  by the clench.
 - Verification: T-01 at both rates; T-13 at both rates.
 
 **HW-AFE-04 Resolution and scale** (Must)
@@ -230,6 +240,8 @@ the linked datasheets and product pages; prices in [BOM.md](BOM.md)):
 - Rationale: an ADS1299 class part at gain 24 gives 22.35 nV per count over ±187.5 mV
   ([PROTOCOL.md](PROTOCOL.md), HELLO); the phone converts counts to microvolts with the HELLO
   scale, and the clench detector's thresholds are relative but the bench limits are not.
+  Measured on recordings ([research/aad](../research/aad/README.md), hardware_bars.py, the final decoder on people it never saw): converter steps of up to 10 µV cost nothing measurable and 20 µV cost five points,
+  so resolution has a margin of more than a hundred times over a 24 bit part.
 - Verification: inject a calibrated 10 µV, 5 Hz sine through a divider; compare.
 
 **HW-AFE-05 DC offset tolerance** (Must and Target)
@@ -264,7 +276,8 @@ the linked datasheets and product pages; prices in [BOM.md](BOM.md)):
   bias loop reduces the common mode itself. Dry in-ear contacts are "more prone to common-mode
   interference" ([Geirnaert et al. 2025](https://pmc.ncbi.nlm.nih.gov/articles/PMC12644565/)).
   Mains at 50 and 60 Hz (and 100, 120 Hz) sits inside band C, so this protects the clench
-  channel more than the attention band.
+  channel more than the attention band. Measured on recordings ([research/aad](../research/aad/README.md), hardware_bars.py, the final decoder on people it never saw): 50 Hz common to every electrode with 1%
+  imbalance did nothing to attention up to 10 mV and cost five points at 50 mV.
 - Verification: T-02.
 
 **HW-AFE-08 Bias drive** (Must)
@@ -573,8 +586,13 @@ latency here is about how natural and comfortable the sound is.
 - Requirement: compute one speech envelope per tracked talker at 64 Hz from the earbud's
   microphones and send it as AUDIO_ENV.
 - Rationale: lets the phone decode attention without raw audio leaving the earbud
-  ([PROTOCOL.md](PROTOCOL.md)).
-- Verification: compare with envelopes from a reference recording.
+  ([PROTOCOL.md](PROTOCOL.md)). Each envelope sample is stamped on the same clock as the
+  EEG, its microphone and DSP delay compensated to within 10 ms: measured on recordings ([research/aad](../research/aad/README.md), hardware_bars.py, the final decoder on people it never saw): envelopes 25 ms
+  late or early cost 1.3 to 2.4 points of one minute accuracy, 50 ms about four, 100 ms
+  fifteen. Separation can be rough: each envelope with 70% of the other talker mixed in cost
+  under a point, so what matters is that each envelope leans toward its own talker.
+- Verification: compare with envelopes from a reference recording; measure the envelope to
+  EEG delay with a click heard by the microphones and coupled into one electrode.
 
 ---
 
@@ -592,7 +610,10 @@ latency here is about how natural and comfortable the sound is.
   is captured by a hardware timer on that clock; frame timestamps to 1 µs resolution;
   crystal within ±50 ppm (target).
 - Rationale: the phone aligns the two earbuds by time to about 10 ms and fits each crystal's
-  drift ([PROTOCOL.md](PROTOCOL.md), time sync).
+  drift ([PROTOCOL.md](PROTOCOL.md), time sync). Measured on recordings ([research/aad](../research/aad/README.md), hardware_bars.py, the final decoder on people it never saw): an offset between the two earbuds'
+  clocks cost nothing up to 20 ms, two points at 40 ms and seven at 80 ms, so 10 ms leaves
+  twice the margin. The speech envelopes are stricter: late or early against the EEG by
+  25 ms they cost 1.3 to 2.4 points and by 50 ms about four (HW-AUD-07).
 - Verification: T-12 clock fit residuals.
 
 **HW-MCU-03 Reference encoder conformance** (Must)
@@ -688,7 +709,9 @@ latency here is about how natural and comfortable the sound is.
   over 1 h.
 - Rationale: the phone inserts missing data for gaps instead of shifting samples
   ([PROTOCOL.md](PROTOCOL.md), loss), but every gap costs decoder evidence. The head shadows
-  the link from one ear.
+  the link from one ear. Measured on recordings ([research/aad](../research/aad/README.md), hardware_bars.py, the final decoder on people it never saw): scattered 20 ms frames lost cost under a point up to 10% of
+  all frames, and 200 ms bursts three points at 20%: the targets above are set by the clench,
+  whose bursts last a few hundred milliseconds, not by attention.
 - Verification: T-12.
 
 **HW-BLE-05 RF exposure** (Must)
