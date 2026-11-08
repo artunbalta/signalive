@@ -102,9 +102,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     void momentsStore.load();
   }, []);
-  // A clench keeps a moment by default, but the Rewind screen is about
-  // rewinding: while it is open the clench rewinds, as the screen says (and
-  // as Focus takes it over to lock a voice).
+  // A clench rewinds by default; the Rewind screen claims it all the same, so
+  // it rewinds there whatever the wearer has bound it to, as the screen says
+  // (and as Focus takes it over to lock a voice).
   useEffect(() => (path === "/rewind" ? claimGesture("jaw_clench", "rewind") : undefined), [path]);
 
   const inSetup = path.startsWith("/setup");

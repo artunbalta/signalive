@@ -12,9 +12,12 @@ import type { MediaKeyAction } from "@/lib/shared/types";
  * SensorProvider. triple_tap is included because earbuds commonly send
  * "previous track" for a triple tap.
  *
- * The jaw gestures carry the product: a clench keeps the last seconds as a
- * moment, a double clench plays them again (Rewind), and a clench held for
- * longer than 700 ms asks a question by voice.
+ * The jaw gestures carry the product: a double clench keeps the last seconds
+ * as a moment, a clench plays them again (Rewind), and a clench held for
+ * longer than 700 ms asks a question by voice. Keeping is on the double
+ * clench because on real recordings a single clench fires by itself several
+ * times an hour, mostly on swallows, and a double almost never
+ * (research/ext/README.md).
  */
 export const GESTURE_TYPES = [
   "tap",
@@ -79,8 +82,8 @@ export const DEFAULT_BINDINGS: GestureBindings = {
   tap: "toggle_listening",
   double_tap: "mark_moment",
   triple_tap: "stop_recording",
-  jaw_clench: "capture_moment",
-  jaw_double_clench: "rewind",
+  jaw_clench: "rewind",
+  jaw_double_clench: "capture_moment",
   jaw_hold: "ask_agent",
   whisper_start: "none",
   whisper_end: "none",

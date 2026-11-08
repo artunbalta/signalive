@@ -8,8 +8,8 @@ import { COMMANDS, DEFAULT_BINDINGS, GESTURE_TYPES, JAW_GESTURES, momentTrigger 
 
 describe("gestures for moments", () => {
   it("binds a clench to keeping a moment, a double clench to Rewind, a held clench to asking", () => {
-    expect(DEFAULT_BINDINGS.jaw_clench).toBe("capture_moment");
-    expect(DEFAULT_BINDINGS.jaw_double_clench).toBe("rewind");
+    expect(DEFAULT_BINDINGS.jaw_double_clench).toBe("capture_moment");
+    expect(DEFAULT_BINDINGS.jaw_clench).toBe("rewind");
     expect(DEFAULT_BINDINGS.jaw_hold).toBe("ask_agent");
     expect(JAW_GESTURES).toEqual(["jaw_clench", "jaw_double_clench", "jaw_hold"]);
   });

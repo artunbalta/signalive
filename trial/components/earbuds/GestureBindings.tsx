@@ -13,8 +13,8 @@ const GROUPS: { key: "jaw" | "buttons" | "whisper"; gestures: GestureType[] }[] 
 ];
 
 /**
- * What each gesture does, the jaw first: by default a clench keeps a moment,
- * a double clench rewinds, and a held clench asks by voice.
+ * What each gesture does, the jaw first: by default a double clench keeps a
+ * moment, a clench rewinds, and a held clench asks by voice.
  */
 export function GestureBindings() {
   const { m } = useI18n();

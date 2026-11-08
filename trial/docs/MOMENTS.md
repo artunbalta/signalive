@@ -1,6 +1,6 @@
 # Moments
 
-A clench keeps the last seconds the earbuds' microphone heard as a moment: when, where,
+A double clench keeps the last seconds the earbuds' microphone heard as a moment: when, where,
 what was said, what it means, what to do about it. The app keeps moments on the device
 (IndexedDB). The server only turns those seconds into a moment once, answers questions
 about the moments the device sends along with each one, recognizes a spoken question, and
@@ -174,8 +174,8 @@ text came at 3.7 s, first audio at 4.3 s, done at 6.7 s.
 
 ## The app
 
-- **Moments** (`app/(app)/moments`) is the home screen after setup. A clench (J on the
-  keyboard) or "Keep this moment" sends the last seconds of the rewind buffer, which lives
+- **Moments** (`app/(app)/moments`) is the home screen after setup. A double clench (K on
+  the keyboard) or "Keep this moment" sends the last seconds of the rewind buffer, which lives
   in this tab's memory only, to `POST /api/moments` and writes what comes back to IndexedDB
   (`lib/client/moments-store.ts`). Where IndexedDB is refused, moments last while the page
   is open, and a notice says so. Place is off by default; turned on, the device asks

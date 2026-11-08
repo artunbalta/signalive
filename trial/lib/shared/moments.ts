@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 /**
- * Moments: what a clench keeps. The earbuds' wearer clenches, the last
- * seconds the microphone heard go to POST /api/moments once, and what comes
+ * Moments: what a double clench keeps. The earbuds' wearer clenches twice,
+ * the last seconds the microphone heard go to POST /api/moments once, and what comes
  * back is written down on the device: when, where, what was said, what it
  * means, what to do about it. Nothing about a moment is stored on the server;
  * the moments live in the browser (IndexedDB) and travel to POST /api/agent

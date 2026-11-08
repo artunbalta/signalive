@@ -54,7 +54,7 @@ test("ask: a held clench (H) listens until the talking stops, from any screen", 
   const asked = await mockAgent(page, ["agent-reminder"]);
   await startTrial(page);
   await page.goto("/moments");
-  await expect(page.getByRole("heading", { name: "Clench, and the moment is kept." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Clench twice, and the moment is kept." })).toBeVisible();
 
   // The first press opens the microphone, so it comes from a click, as a clench from the earbuds would after one.
   await page.getByRole("heading", { name: "Moments", level: 1 }).click();

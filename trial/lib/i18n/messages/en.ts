@@ -543,10 +543,10 @@ export const en = {
     title: "Signalive earbuds",
     pageTitle: "Earbuds",
     pageLead:
-      "By default a clench keeps a moment, a double clench plays the last seconds again, and a held clench asks a question by voice. Connect the earbuds, or their simulation, and change any of it below.",
+      "By default a double clench keeps a moment, a clench plays the last seconds again, and a held clench asks a question by voice. Connect the earbuds, or their simulation, and change any of it below.",
     holdClench: "Held clench",
     lead:
-      "Signalive earbuds have sensors of their own: electrodes in the ear that feel a jaw clench, and a motion sensor that follows your head. Connected here, they take over from the J, K and H keys and from the camera. Until the earbuds exist, simulated ones go through exactly the same steps.",
+      "Signalive earbuds have sensors of their own: electrodes around the ear that feel a jaw clench, and a motion sensor that follows your head. Connected here, they take over from the J, K and H keys and from the camera. Until the earbuds exist, simulated ones go through exactly the same steps.",
     transports: { simulated: "Simulated earbuds", bluetooth: "Earbuds over Bluetooth", cyton: "OpenBCI board over USB" },
     hints: {
       simulated: "Two emulated earbuds, running in this tab. Their signals go through the same detector real earbuds will use.",
@@ -654,13 +654,13 @@ export const en = {
     listening: {
       offTitle: "Listening is off",
       offBody:
-        "Turn it on and the last 30 seconds stay in this device's memory, overwritten as they go. Clench your jaw, or press Keep this moment, and those seconds become a moment.",
+        "Turn it on and the last 30 seconds stay in this device's memory, overwritten as they go. Clench your jaw twice, or press Keep this moment, and those seconds become a moment.",
       start: "Start listening",
       starting: "Opening the microphone",
       on: "Listening · {n} s kept",
     },
     keep: "Keep this moment",
-    keepKey: "J stands in for a clench",
+    keepKey: "K stands in for a double clench",
     stages: {
       listening_back: "Listening back",
       writing: "Writing it down",
@@ -679,11 +679,11 @@ export const en = {
       too_many: "Still writing down the last moments. Try again in a few seconds.",
     },
     empty: {
-      title: "Clench, and the moment is kept.",
+      title: "Clench twice, and the moment is kept.",
       body:
-        "While listening is on, the last 30 seconds stay on this device. Clench your jaw and they become a note: when and where, what was said, a short summary, and what to do next.",
-      steps: ["Turn on listening", "Clench your jaw, or press Keep this moment", "Read it here, or ask about it"],
-      keys: "No Signalive earbuds yet? The button below, or the J key, stands in for the clench.",
+        "While listening is on, the last 30 seconds stay on this device. Clench your jaw twice and they become a note: when and where, what was said, a short summary, and what to do next.",
+      steps: ["Turn on listening", "Clench your jaw twice, or press Keep this moment", "Read it here, or ask about it"],
+      keys: "No Signalive earbuds yet? The button below, or the K key, stands in for the double clench.",
     },
     search: "Search moments",
     people: "People",

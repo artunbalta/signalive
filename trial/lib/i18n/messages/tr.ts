@@ -538,10 +538,10 @@ export const tr: Messages = {
     title: "Signalive kulaklıkları",
     pageTitle: "Kulaklıklar",
     pageLead:
-      "Varsayılan olarak çene sıkmak bir anı saklar, iki kez sıkmak son saniyeleri yeniden çalar, uzun sıkmak da sesle bir soru sorar. Kulaklıkları ya da benzetimlerini bağlayın; istediğinizi aşağıdan değiştirin.",
+      "Varsayılan olarak iki kez sıkmak bir anı saklar, çene sıkmak son saniyeleri yeniden çalar, uzun sıkmak da sesle bir soru sorar. Kulaklıkları ya da benzetimlerini bağlayın; istediğinizi aşağıdan değiştirin.",
     holdClench: "Uzun sık",
     lead:
-      "Signalive kulaklıklarının kendi sensörleri var: kulak içindeki elektrotlar çene sıkmayı algılar, hareket sensörü başınızı takip eder. Buradan bağlandıklarında J, K ve H tuşlarının ve kameranın yerini alırlar. Kulaklıklar hazır olana kadar sanal kulaklıklar aynı adımlardan geçer.",
+      "Signalive kulaklıklarının kendi sensörleri var: kulağın çevresindeki elektrotlar çene sıkmayı algılar, hareket sensörü başınızı takip eder. Buradan bağlandıklarında J, K ve H tuşlarının ve kameranın yerini alırlar. Kulaklıklar hazır olana kadar sanal kulaklıklar aynı adımlardan geçer.",
     transports: { simulated: "Sanal kulaklıklar", bluetooth: "Bluetooth ile kulaklıklar", cyton: "USB ile OpenBCI kartı" },
     hints: {
       simulated: "Bu sekmede çalışan iki öykünülmüş kulaklık. Sinyalleri, gerçek kulaklıkların kullanacağı algılayıcıdan geçer.",
@@ -649,13 +649,13 @@ export const tr: Messages = {
     listening: {
       offTitle: "Dinleme kapalı",
       offBody:
-        "Açtığınızda son 30 saniye bu cihazın belleğinde durur ve sürekli üzerine yazılır. Çenenizi sıkın ya da Bu anı sakla'ya basın; o saniyeler bir ana dönüşür.",
+        "Açtığınızda son 30 saniye bu cihazın belleğinde durur ve sürekli üzerine yazılır. Çenenizi iki kez sıkın ya da Bu anı sakla'ya basın; o saniyeler bir ana dönüşür.",
       start: "Dinlemeyi başlat",
       starting: "Mikrofon açılıyor",
       on: "Dinliyor · {n} sn tutuldu",
     },
     keep: "Bu anı sakla",
-    keepKey: "J tuşu çene sıkmanın yerine geçer",
+    keepKey: "K tuşu çift çene sıkmanın yerine geçer",
     stages: {
       listening_back: "Geri dinleniyor",
       writing: "Yazıya geçiriliyor",
@@ -674,11 +674,11 @@ export const tr: Messages = {
       too_many: "Son anlar hâlâ yazıya geçiriliyor. Birkaç saniye sonra tekrar deneyin.",
     },
     empty: {
-      title: "Çenenizi sıkın, an saklansın.",
+      title: "Çenenizi iki kez sıkın, an saklansın.",
       body:
-        "Dinleme açıkken son 30 saniye bu cihazda durur. Çenenizi sıktığınızda bir nota dönüşür: ne zaman ve nerede, ne söylendi, kısa bir özet ve sırada ne var.",
-      steps: ["Dinlemeyi açın", "Çenenizi sıkın ya da Bu anı sakla'ya basın", "Burada okuyun ya da hakkında soru sorun"],
-      keys: "Henüz Signalive kulaklığınız yok mu? Aşağıdaki düğme ya da J tuşu çene sıkmanın yerine geçer.",
+        "Dinleme açıkken son 30 saniye bu cihazda durur. Çenenizi iki kez sıktığınızda bir nota dönüşür: ne zaman ve nerede, ne söylendi, kısa bir özet ve sırada ne var.",
+      steps: ["Dinlemeyi açın", "Çenenizi iki kez sıkın ya da Bu anı sakla'ya basın", "Burada okuyun ya da hakkında soru sorun"],
+      keys: "Henüz Signalive kulaklığınız yok mu? Aşağıdaki düğme ya da K tuşu çift çene sıkmanın yerine geçer.",
     },
     search: "Anlarda arayın",
     people: "Kişiler",

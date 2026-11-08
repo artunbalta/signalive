@@ -34,7 +34,7 @@ test("moments: keep one with the button, read it, ask about it, accept the remin
   await page.goto("/moments");
 
   // Nothing is kept yet, and the screen says how a moment is made.
-  await expect(page.getByRole("heading", { name: "Clench, and the moment is kept." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Clench twice, and the moment is kept." })).toBeVisible();
   await expect(page.getByText(BANNER)).toHaveCount(0);
 
   await startListening(page);
@@ -110,11 +110,11 @@ test("moments: keep one with the button, read it, ask about it, accept the remin
   await expect(page.getByText("Suggested by Ask")).toBeVisible();
   await expect(page.getByRole("group", { name: /Reminder: Call the venue/ }).getByText("Reminder added")).toBeVisible();
 
-  // J stands in for a clench: another moment, kept with a key.
+  // K stands in for a double clench: another moment, kept with a key.
   await page.getByRole("link", { name: "Moments", exact: true }).first().click();
   await page.waitForURL("**/moments");
   await startListening(page);
-  await page.keyboard.press("j");
+  await page.keyboard.press("k");
   await expect(page.getByRole("link", { name: STANDUP })).toBeVisible();
   expect((await uploads(page, "/api/moments")).at(-1)!.meta).toMatchObject({ trigger: "key" });
   await expect(page.getByText("2 moments on this device")).toBeVisible();

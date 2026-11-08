@@ -11,7 +11,7 @@ export default function manifest(): MetadataRoute.Manifest {
     id: "/",
     name: "Signalive",
     short_name: "Signalive",
-    description: "Clench, and the moment is kept: what was said, a short summary and what to do, on your phone.",
+    description: "Clench twice, and the moment is kept: what was said, a short summary and what to do, on your phone.",
     start_url: "/moments",
     scope: "/",
     display: "standalone",

@@ -229,7 +229,7 @@ the app is checked against the declarations that project writes to `.sense-types
 schema with one retry, and embedded at 1024 dimensions. Search folds case and Turkish
 letters (so "toplanti" finds "toplantıda") and matches prefixes.
 
-**Moments.** A clench keeps the last seconds as a moment, kept on the device. They go to
+**Moments.** A double clench keeps the last seconds as a moment, kept on the device. They go to
 `POST /api/moments` once, as a 16 kHz WAV: recognition, then Claude writes the moment in the
 wearer's language with structured output (title, summary, key points, action items with
 times resolved to ISO 8601 in the wearer's zone, people, topics), held to the contract in
