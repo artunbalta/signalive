@@ -47,10 +47,11 @@ How the pieces connect, the latency budget and the failure modes are in
 
 ## Open questions only hardware can answer
 
-1. **Dry contact signal quality in an earbud.** The validation data are wet electrodes around
-   the ear. Dry in-ear contacts have one to two orders of magnitude more impedance, and in a
-   direct comparison in-ear EEG decoded attention less well than around the ear (SPEC section
-   1). How much survives in our earbud is the first number to measure.
+1. **Dry contact signal quality on the arc.** The validation data are wet electrodes around
+   the ear. Dry contacts in the canal decoded attention at chance without calibration, so the
+   earbud carries its contacts on a slim arc that rests behind the ear, where the wet ones
+   sat (SPEC HW-EEG-02, HW-MECH-07). How much of the signal survives dry contacts there is
+   the first number to measure.
 2. **Contact stability while moving.** Talking, chewing and walking move the ear canal and
    the contacts. Does contact hold, and how much artifact reaches the decoder's band?
 3. **Per person calibration.** On the public data a generic decoder needs no calibration; a
@@ -65,12 +66,12 @@ How the pieces connect, the latency budget and the failure modes are in
    around the ear, streaming into lib/sense through `CytonSerialTransport` (wiring in
    [BOM.md](BOM.md)). Gate: our own recordings reproduce the wired against wireless result
    and the clench detector works on people, not just on the twin.
-2. **Wired prototype.** Dry contact ear pieces wired to AFE evaluation boards and an nRF5340
+2. **Wired prototype.** The bud and its arc, with dry contacts, wired to AFE evaluation boards and an nRF5340
    Audio DK, in two configurations, shared reference and split grounds (SPEC HW-REF-02).
    Gate: contact impedance (HW-EEG-04), decoding on the same people within reach of the
    cEEGrid result (T-07), the section 3 rule says true wireless (T-08), no audio in the EEG
    (T-06), clench detection above 95% with under 1 false positive per hour (T-13).
-3. **True wireless earbuds.** Rigid flex boards in an earbud shell, most likely with an ODM.
+3. **True wireless earbuds.** Rigid flex boards in the bud and a flex circuit in the arc, most likely with an ODM.
    Gate, from the client brief: at least 90% of the wired prototype's metrics, more than 4 h
    per charge, fits 10 different ears without custom moulds, and the latency budget of
    [ARCHITECTURE.md](ARCHITECTURE.md).

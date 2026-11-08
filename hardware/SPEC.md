@@ -23,7 +23,7 @@ assumptions. **Band A** is the attention band, 1 to 9 Hz, where the decoder work
 
 | Item | Value | Requirement |
 |---|---|---|
-| Contacts per ear | 4 sensing + 1 reference + 1 bias, all dry, all in or on the same ear, at least 2 sensing outside the canal | HW-EEG-01, -02 |
+| Contacts per ear | 4 sensing + 1 reference + 1 bias, all dry, on one ear: the sensing contacts on a slim arc that rests behind it, none in the canal | HW-EEG-01, -02, HW-MECH-07 |
 | Contact impedance | each ≤ 1 MΩ at 10 Hz; median ≤ 200 kΩ (target) | HW-EEG-04 |
 | AFE noise, inputs shorted | ≤ 1 µVrms over 0.5 to 100 Hz and ≤ 0.3 µVrms over band A | HW-AFE-02 |
 | Sample rate | 500 Hz preferred, 250 Hz minimum, all channels simultaneous | HW-AFE-03 |
@@ -78,14 +78,11 @@ enough (HW-EEG-02).
   [IDUN's Dryode Duo](https://iduntechnologies.com/).
 - Verification: inspection; per channel signal check in T-04.
 
-**HW-EEG-02 Placement** (Must and Target)
-- Requirement (Must): at least two of the four sensing contacts outside the ear canal, on or
-  around the outer ear, as far from the canal and from REF as the shell, a wing or an ear hook
-  can reach (helix root, behind the ear, the upper concha). (Target): spread every contact as
-  far apart as one ear allows. Starting layout: E1 in the canal; E2 in the cymba; E3 and E4
-  outside the concha, one at the helix root and one behind the ear on a hook or wing; REF at
-  the reachable position farthest from the sensing contacts that still keeps contact; BIAS
-  anywhere with reliable contact.
+**HW-EEG-02 Placement** (Must)
+- Requirement (Must): the four sensing contacts sit on the earbud's arc (HW-MECH-07), on its
+  inner face from the helix root to behind the ear, none in the canal, spread as far apart as
+  the arc allows. REF at whichever end of the arc measures farther from them in T-07; BIAS
+  on the bud, against the concha. The ear tip carries no contacts.
 - Rationale: on the same 15 people at the same moments, with each ear referenced to itself
   and no calibration, as two earbuds must decode, dry contacts inside the ear gave one minute
   decisions at chance (48%) and wet contacts around the ear gave 61%, with the same decoders
@@ -93,11 +90,12 @@ enough (HW-EEG-02).
   10 to 20 dB smaller than scalp referenced ear recordings ([Frontiers in Neuroscience 2019](https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2019.00943/full)),
   and amplitude falls off steeply when electrode and reference are close
   ([Mikkelsen et al. 2015](https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2015.00438/full)).
-  The lead's ranking of cEEGrid positions (left L01 L04b L06 L04, right R02 R05 R08 R04, in
-  [research/aad/README.md](../research/aad/README.md)) says which around the ear positions
-  carry the most; mapping them onto earbud positions is an open question for the wired
-  prototype.
-- Verification: T-07 compares candidate layouts on the same people.
+  Adding the dry in-ear contacts to the around-ear ones made decoding worse, so the canal
+  gets none. The lead's ranking of cEEGrid positions (left L01 L04b L06 L04, right R02 R05
+  R08 R04, in [research/aad/README.md](../research/aad/README.md)) puts the most information
+  around and behind the ear, where the arc rests; where exactly along the arc is for the
+  wired prototype. The arc was chosen as the product's form on 8 November 2026.
+- Verification: T-07 compares contact positions along the arc on the same people.
 
 **HW-EEG-03 Material** (Must)
 - Requirement: dry contact (no gel, no skin preparation), soft or compliant at the skin, with
@@ -115,7 +113,7 @@ enough (HW-EEG-02).
 
 **HW-EEG-04 Contact impedance** (Must and Target)
 - Requirement (Must): per contact, impedance magnitude at 10 Hz ≤ 1 MΩ after 5 minutes of
-  wear, without skin preparation, in at least 80% of people per tip size. (Target): median
+  wear, without skin preparation, in at least 80% of people per arc size. (Target): median
   ≤ 200 kΩ; mismatch between any two contacts of one ear ≤ 500 kΩ. Also record the 50 Hz
   value, which is how the literature reports it.
 - Rationale: dry in-ear electrodes have measured 392 kΩ at 50 Hz on average with a < 1 MΩ
@@ -167,7 +165,9 @@ enough (HW-EEG-02).
 - Verification: drawing; T-03.
 
 **HW-EEG-08 Universal fit** (Must)
-- Requirement: no custom moulds. Electrode tips in at least 3 sizes, user replaceable.
+- Requirement: no custom moulds. Ear tips in at least 3 sizes, user replaceable, carrying no
+  contacts; the arc fits at least 10 different ears in at most 2 sizes or one adjustable
+  length.
 - Rationale: the client brief treats custom moulds as fatal to a consumer product
   ([AGENT_BRIEF](../AGENT_BRIEF_ear-attention-interface.md), Phase 2.2). The dry in-ear
   results above mostly come from individualised earpieces; the universal fit precedent is
@@ -544,7 +544,7 @@ latency here is about how natural and comfortable the sound is.
   time ([Agnew and Thornton 2000](https://doi.org/10.1055/s-0042-1748062)), detection
   thresholds ranged from 0.1 to 8 ms ([Denk et al. 2021](https://doi.org/10.1121/10.0003064)),
   and delays below 2 ms were preferred ([Lelic et al. 2022](https://doi.org/10.1121/10.0014950)).
-  An electrode tip has to seal for contact, which helps, but leakage is never zero.
+  The ear tip seals the canal, which helps, but leakage is never zero.
 - Verification: T-10.
 
 **HW-AUD-03 Smooth changes** (Must)
@@ -824,9 +824,9 @@ with output rate, and the radio share is already small. The rate choice is about
 - Verification: comfort panel of ≥ 10 people; T-03, T-05.
 
 **HW-MECH-02 Tip sizes** (Must)
-- Requirement: at least 3 tip sizes, every size carrying its contacts, user replaceable, with
-  a keyed electrical connection to the shell.
-- Rationale: HW-EEG-08.
+- Requirement: at least 3 tip sizes, user replaceable. The tips carry no contacts, so they
+  need no electrical connection to the shell.
+- Rationale: HW-EEG-08. With every contact on the arc, the tip is plain silicone.
 - Verification: inspection; T-05 across sizes.
 
 **HW-MECH-03 Retention** (Must)
@@ -843,8 +843,10 @@ with output rate, and the radio share is already small. The rate choice is about
 - Verification: test lab; T-11.
 
 **HW-MECH-05 Durability** (Target)
-- Requirement: tips survive ≥ 1000 insertions with impedance staying within 2x of new.
-- Rationale: coatings wear; the tip is the consumable.
+- Requirement: the arc's contacts survive ≥ 1000 times on and off the ear with impedance
+  staying within 2x of new; tips survive ≥ 1000 insertions.
+- Rationale: coatings wear. With the contacts on the arc, its coating is what has to last,
+  and the tip is a plain consumable.
 - Verification: T-11.
 
 **HW-MECH-06 Layout separation** (Must)
@@ -854,6 +856,19 @@ with output rate, and the radio share is already small. The rate choice is about
 - Verification: T-01, T-06.
 
 ---
+
+**HW-MECH-07 The arc** (Must and Target)
+- Requirement (Must): a flexible arc from the earbud body over the top of the outer ear to
+  behind it, holding the four sensing contacts against the skin at the HW-MECH-01 force on at
+  least 10 different ears (HW-EEG-08), its traces shielded all the way to the bud
+  (HW-MECH-06). (Target): no wider than a glasses temple where it crosses the top of the
+  ear, so glasses can sit beside it, and coloured to disappear against hair and skin.
+- Rationale: the contacts have to reach around the ear (HW-EEG-02), and an arc is the one
+  part an earbud can add that rests where the around-the-ear electrodes of the validation
+  data sat. Ear hooks are a proven consumer form on sports earbuds, but glasses temples,
+  masks and hats share the same place behind the ear, so living with them is a test, not an
+  assumption.
+- Verification: fit panel of ≥ 10 people including glasses wearers; T-03, T-05, T-07.
 
 ## 10. Environmental
 
@@ -990,7 +1005,7 @@ that is tested. People counts are minimums.
 |---|---|---|---|---|
 | T-01 | Shorted input noise and coupling | HW-AFE-02, -05, -10, -11, -12 | Inputs shorted to REF at the connector, then through a dry contact phantom (1 MΩ per input, 500 kΩ imbalance), then with a ±300 mV DC source in series. 10 min at 250 and 500 SPS. Report rms over 0.5 to 100 Hz, band A and band C, and the spectrum. Repeat with BLE streaming at full rate, audio at maximum level, all converters on, at 3.0, 3.7 and 4.2 V. | HW-AFE-02 limits; no line above 0.5 µVrms in 1 to 120 Hz |
 | T-02 | Common mode and mains | HW-AFE-07, -08, HW-ENV-04 | 50 and 60 Hz common mode injected through an imbalance network, bias drive on and off; then worn in an office and a home | ≥ 80 dB system rejection with bias on |
-| T-03 | Contact impedance | HW-EEG-04, -07, HW-MECH-01 | 20 people, every contact, magnitude at 10 Hz and 50 Hz (sweep 1 Hz to 1 kHz where the equipment allows), at 0, 5, 30 and 120 min, dry skin and after exercise | ≥ 80% of people per tip size within limits |
+| T-03 | Contact impedance | HW-EEG-04, -07, HW-MECH-01 | 20 people, every contact, magnitude at 10 Hz and 50 Hz (sweep 1 Hz to 1 kHz where the equipment allows), at 0, 5, 30 and 120 min, dry skin and after exercise | ≥ 80% of people per arc size within limits |
 | T-04 | Lead off | HW-EEG-06 | Lift each contact in turn; 1 h of normal wear for false alarms | Detected within 1 s; no false alarm in 1 h |
 | T-05 | Motion, chewing and talking | HW-EEG-05, HW-MECH-03 | 10 people: rest 5 min, talking 5 min, chewing gum 5 min, treadmill walking 10 min, head turns 2 min, while a cEEGrid on the Cyton records alongside where geometry allows | No lead off; impedance within 2x; artifact power reported per activity |
 | T-06 | Audio in the EEG | HW-AUD-06 | Speech at maximum output for 10 min; contacts on a saline or resistor phantom; envelope correlation with each channel after the band A chain, against a permutation null | Inside the 95% null |
@@ -1011,6 +1026,8 @@ that is tested. People counts are minimums.
 - Audio path power: measure on the nRF5340 Audio DK; the 25 mW planning figure rests on an
   assumed AirPods Pro 2 cell energy.
 - Contact pressure and comfort target (HW-MECH-01): no verified literature value.
+- The arc (HW-MECH-07): its contact force across ear sizes, whether it lives with glasses,
+  and where along it REF and the four sensing contacts measure best (T-07).
 - Kappel and Kidmose 2015: the exact frequencies behind "low" and "high" frequency impedance.
 - Whether the LSM6DSV16BX fusion block outputs the game rotation vector SSP expects.
 - IMU drift achievable (HW-IMU-03); ESD and temperature levels (HW-ENV-01, -03) with the test

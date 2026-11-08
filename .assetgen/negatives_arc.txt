@@ -1,0 +1,1 @@
+Absolutely exclude: glowing lights, neon, blue LED glow, holograms, brain imagery, circuit patterns, wires, cables, sci-fi HUD overlays, cyberpunk, futuristic chrome, bulky oversized device, over-ear headphones, headband, hearing aid look, text, labels, logos, watermark, lens flare, heavy vignette.

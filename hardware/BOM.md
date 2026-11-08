@@ -23,22 +23,22 @@ fetched that day, showed no 1,000 piece price for any TI part below.
 | MEMS microphones, 2 required, third optional | Infineon IM72D128 | 71.5 dB SNR; -36 ± 1 dB sensitivity; 430 µA high performance, 160 µA low power; IP57; 4 x 3 x 1.2 mm ([Digi-Key](https://www.digikey.com/en/products/detail/infineon-technologies/IM72D128V01XTMA1/16730911), [release](https://www.electropages.com/2025/09/mems-microphone-lineup-delivers-best-class-audio-and-power-performance)) | Highest SNR found at under 0.5 mA, matched to ±1 dB (SPEC HW-MIC-02) | $1.39 at 1,000 (Digi-Key) |
 | Microphones, alternatives | TDK [T5838](https://invensense.tdk.com/products/t5838/); Syntiant SPH18R1LM4H-1; Infineon IM69D130 | T5838: 68 dB SNR, 133 dB SPL overload, 330 µA and 130 µA modes, 3.5 x 2.65 x 0.98 mm. SPH18R1LM4H-1: 68.5 dB SNR, 129 dB SPL overload, 470 µA ([audioXpress](https://audioxpress.com/news/knowles-debuts-trio-of-sisonic-mems-microphones-for-high-performance-tws-and-hearable-designs)); Knowles sold this business to Syntiant ([audioXpress](https://audioxpress.com/news/knowles-completes-the-sale-of-its-consumer-mems-microphone-business-to-syntiant)). IM69D130: 4 x 3 x 1.3 mm, 1.3 mA in the Digi-Key listing; Infineon's [XENSIV overview](https://www.digikey.es/en/product-highlight/i/infineon/xensiv-acoustic-sensors) gives 69 dB(A) SNR, 130 dB SPL overload, 980 µA and 300 µA low power for what appears to be this part (to verify against its datasheet) | Second sources | T5838 to verify; SPH18R1LM4H-1 $1.03 at 5,900, on backorder ([Digi-Key](https://www.digikey.com/en/products/detail/syntiant/SPH18R1LM4H-1/17798558)); IM69D130 $1.21 at 1,000 ([Digi-Key](https://www.digikey.com/en/products/detail/infineon-technologies/IM69D130V01XTSA1/8030732)) |
 | Battery | VARTA CoinPower CP1254 A4 | 74 mAh, 3.7 V, 12.1 x 5.4 mm ([Rapid](https://www.rapidonline.com/varta-88315101501-coinpower-button-cell-li-ion-3-7v-74mAh-rechargeable-08-0956)); the A3 version is 60 mAh, 1.6 g ([VARTA folder](https://www.aperza.com/catalog/page/10007767/25628/)) | The cell class earbuds use; the runtime estimate in SPEC section 8 rests on it. Second source: Grepow GRP1254, 68 to 96 mAh by variant, 12 x 5.4 mm, charging 0 to +45 °C ([Grepow](https://www.grepow.com/button-cell-battery/grp1254-g1-75mah.html)) | £11.91 at 1, excluding VAT (Rapid); $2 to $5 at volume (estimate) |
-| Dry contacts, 6 per earbud | Ag/AgCl coated conductive elastomer, or Ag/AgCl printed on tip inserts (suppliers below) | See the materials table | SPEC HW-EEG-03 | $1 to $3 per earbud (estimate) |
+| Dry contacts, 6 per earbud | Ag/AgCl printed on the arc's flex circuit, as cEEGrids are printed, or Ag/AgCl coated conductive elastomer pads on it | See the materials table | SPEC HW-EEG-03, HW-MECH-07 | $1 to $3 per earbud (estimate) |
 | Speaker | Balanced armature or 6 to 10 mm dynamic driver, chosen with the acoustic design | | | $1 to $3 (estimate) |
 | Crystals (32 MHz, 32.768 kHz), antenna, passives, ESD parts | | Low leakage protection on the AFE inputs (SPEC HW-ENV-03) | | $1.50 to $3 (estimate) |
 | Rigid flex board and assembly | | | | $4 to $8 (estimate) |
-| Shell, tips, charging contacts | | | | $2 to $4 (estimate) |
+| Shell, arc (flex circuit, overmould), plain tips, charging contacts | | | SPEC HW-MECH-02, -07 | $3 to $6 (estimate) |
 
 ### Rough total
 
 | | Low | High |
 |---|---|---|
 | Verified distributor prices: AFE, SoC, IMU, microphones | $38.01 (ADS1294R, BMI270, 2 x SPH18R1LM4H-1) | $46.18 (AFE159RP4, LSM6DSV16BX, 3 x IM72D128) |
-| Estimated lines: DSP, PMIC, battery, contacts, speaker, passives, board, mechanics | $15.50 | $33.00 |
-| **Per earbud** | **about $54** | **about $79** |
-| Two earbuds | about $107 | about $158 |
+| Estimated lines: DSP, PMIC, battery, contacts, speaker, passives, board, mechanics with the arc | $16.50 | $35.00 |
+| **Per earbud** | **about $55** | **about $81** |
+| Two earbuds | about $109 | about $162 |
 | Charging case: cell, charger, MCU, enclosure (estimate) | $8 | $15 |
-| **Per set, at prototype and low volume prices** | **about $115** | **about $173** |
+| **Per set, at prototype and low volume prices** | **about $117** | **about $177** |
 
 The AFE is about 70% of the verified spend and 40 to 50% of the whole earbud, so it is the
 cost lever: get a volume quote early, and keep footprints for a second source on Rev A until

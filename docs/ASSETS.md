@@ -23,6 +23,21 @@ product description and `.assetgen/negatives.txt` the exclusion list, which is a
 to every prompt because `nano_banana_pro` and `veo3_1_lite` have no negative prompt
 parameter.
 
+Since 8 November 2026 the earbud has its arc: the sensing contacts sit on a slim arc
+that runs over the top of the ear and rests behind it, and the tip is plain silicone
+(hardware/SPEC.md, HW-EEG-02 and HW-MECH-07). The canonical is now the concept still of
+the earbud with its arc:
+
+```
+canonical still  -> .assetgen/out/concept/concept_arc_product.png
+uploaded once    -> fe9070f9-6ab1-43f0-93ad-eb8f4fd176c3   (.assetgen/upload_canonical_arc.txt)
+```
+
+`product_block.txt` describes that earbud, and `negatives_arc.txt` adds over-ear
+headphones, a headband and a hearing aid look to the exclusions, the failure modes of
+an earbud with a part behind the ear. The eartip description the first assets used is
+kept in `product_block_v1_eartip.txt`.
+
 ## What was generated
 
 | Asset | Model | Reference | Credits |
@@ -37,6 +52,7 @@ parameter.
 | two hero voices | `text2speech_v2` | elevenlabs preset voices | 0.3 |
 | concept: earbud with its arc of contacts | `nano_banana_pro` | canonical as `--image_references` | 2.0 |
 | concept: the arc worn behind the ear | `nano_banana_pro` | canonical as `--image_references` | 2.0 |
+| carousel stills 1 to 4 and step 01, with the arc | `nano_banana_pro` | arc canonical as `--image_references` | 10.0 |
 
 The two concept stills (November 2026, `.assetgen/p_concept_arc_*.txt`) show
 the contacts where the research puts them: on a slim arc that rests behind the
@@ -45,6 +61,14 @@ calibration (research/ext/README.md, HW-EEG-02). They drop "visible
 electrodes" from the negatives on purpose, since the contacts are the point,
 and the page captions them as concept renders. Encoded as WebP at 1000 and
 1600 px into `public/media/concept/`.
+
+The arc stills (8 November 2026, `.assetgen/p_*_arc.txt`) reshoot the four carousel
+scenes and step 01 with the earbud that has its arc, each prompt the earlier scene with
+the new product block, a sentence asking for the arc to show over and behind the ear, and
+the new negatives. Card 3's take left a tablet on the counter, which that card's prompt
+excludes; it was patched out locally with the counter beside it (the same rows shifted
+right and feathered, `.assetgen/out/card3_arc_clean.png`) rather than spending a take.
+Encoded as WebP quality 76 at the page's sizes, cropped to 4:5 for the cards.
 
 Two takes were discarded and are worth knowing about:
 
@@ -69,6 +93,9 @@ Two takes were discarded and are worth knowing about:
   stderr file rather than the exit code.
 - Passing a local path to `--start_image` can fail with an S3 `SignatureDoesNotMatch`.
   Upload first with `higgsfield upload create <path>` and pass the returned uuid.
+- When the plan lapses the account enters a grace period that allows only a few jobs a
+  day whatever the credit balance: jobs fail with `grace_daily_limit_reached` and
+  `unlock_full_access_notice`, the CLI exits 3, and nothing is charged.
 
 ## Local processing
 
