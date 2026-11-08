@@ -275,7 +275,7 @@ export const useCases = {
     {
       kicker: "The handover",
       title: "Capture a number without breaking eye contact",
-      body: "An address, a flight time, a dosage, a part number. One clench and it is written down correctly.",
+      body: "An address, a flight time, a dosage, a part number. Clench twice and it is written down correctly.",
       image: "/media/card-3.webp",
       alt: "Two people talking across a workshop counter, the listener wearing the earbud with their hands empty on the counter.",
     },
