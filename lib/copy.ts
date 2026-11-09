@@ -97,7 +97,7 @@ export const oneClench = {
     time: "15:00",
   },
   videoAlt:
-    "A person at a meeting table wearing the earbud, listening to a colleague and making one small jaw clench without breaking eye contact.",
+    "A person at a meeting table wearing the earbud, its slim arc over the ear, listening to a colleague and clenching their jaw twice, barely visibly, without breaking eye contact.",
   cardAlt: "A calendar entry for a design review with Elif on Thursday 14 May at 15:00.",
 };
 
@@ -1006,5 +1006,5 @@ export const a11y = {
   closeMenu: "Close menu",
   dismissAnnouncement: "Dismiss announcement",
   heroVideoAlt:
-    "Extreme macro view of the earbud surface, with a soft highlight travelling along its titanium ring.",
+    "The Signalive earbud and the slim arc that carries its four contacts around the ear.",
 };

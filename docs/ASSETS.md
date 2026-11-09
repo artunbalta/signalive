@@ -53,6 +53,9 @@ kept in `product_block_v1_eartip.txt`.
 | concept: earbud with its arc of contacts | `nano_banana_pro` | canonical as `--image_references` | 2.0 |
 | concept: the arc worn behind the ear | `nano_banana_pro` | canonical as `--image_references` | 2.0 |
 | carousel stills 1 to 4 and step 01, with the arc | `nano_banana_pro` | arc canonical as `--image_references` | 10.0 |
+| hero loop, with the arc | `veo3_1_lite` | arc canonical as `--start_image` | 8.0 |
+| gesture start still, with the arc | `nano_banana_pro` | the first gesture start still and the arc canonical as `--image_references` | 2.0 |
+| gesture video, the double clench | `veo3_1_lite` | that still as `--start_image` | 8.0 |
 
 The two concept stills (November 2026, `.assetgen/p_concept_arc_*.txt`) show
 the contacts where the research puts them: on a slim arc that rests behind the
@@ -69,6 +72,16 @@ the new negatives. Card 3's take left a tablet on the counter, which that card's
 excludes; it was patched out locally with the counter beside it (the same rows shifted
 right and feathered, `.assetgen/out/card3_arc_clean.png`) rather than spending a take.
 Encoded as WebP quality 76 at the page's sizes, cropped to 4:5 for the cards.
+
+The two videos followed on 9 November, after the account's daily cap reset. The hero
+starts on the arc canonical and drifts in toward the arc's contacts; its take ends on a
+star shaped glint on one contact from about 4.5s, which the brand excludes, so
+`build_media.sh` uses only the first 4.5s, a 9s loop forward and back. The gesture scene
+needed a start frame with the new earbud first: the same man at the same table, made
+from the first gesture start still and the arc canonical, then a take asking for two
+subtle clenches half a second apart, which is what the section now narrates. The
+social image `og.jpg` is the arc canonical cropped to 1200x630 with the wordmark where
+it was, made locally rather than generated.
 
 Two takes were discarded and are worth knowing about:
 
@@ -104,8 +117,9 @@ Two takes were discarded and are worth knowing about:
 - **Hero loop.** The generated clip does not loop seamlessly, so it is built into a
   palindrome (forward then reversed) with
   `[0:v]split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1`. The motion is a slow drift,
-  which makes the turnaround invisible. Result: a genuinely seamless 16s loop at 823KB
-  H.264 and 284KB VP9, against a 4MB budget.
+  which keeps the turnaround gentle. The first take made a 16s loop at 823KB H.264 and
+  284KB VP9; the arc take, cut at 4.5s, a 9s loop at 466KB and 150KB, against a 4MB
+  budget.
 - **Scrub sequence.** 60 frames resampled from the 192 frame turntable, reversed so the
   sequence ends with the contact rings facing camera, written as WebP quality 72.
   275KB for all 60 frames, because the background is near black and compresses hard.
@@ -115,22 +129,27 @@ Two takes were discarded and are worth knowing about:
 - **Posters.** Encoded in a quality loop that stops as soon as the file is under the
   120KB budget.
 
-## The clench timestamp
+## The clench timestamps
 
-`components/sections/Gesture.tsx` exports `CLENCH_TIME = 2.83`, the moment the amber
-pulse fires. It was measured, not guessed:
+`lib/clench.ts` exports `CLENCH_TIMES = [4.96, 5.5]`, the moments the amber ring pulses
+for the double clench, and `EAR_X`, `EAR_Y`, where the earbud sits at them. They were
+measured, not guessed (`.assetgen/measure_clench.py`):
 
 1. All 192 frames extracted at 540x960.
 2. The earbud used as a template to track head translation frame to frame, since the
-   subject drifts up to 41px vertically through the clip and naive frame differencing
+   subject drifts up to 53px vertically through the clip and naive frame differencing
    just measures that drift.
 3. Mean absolute difference computed over the masseter region, sampled at the tracked
-   offset.
+   offset, and the same over the temple as a control: a clench moves the jaw more than
+   the temple, a movement of the head moves both.
 
-Frame 69 (t = 2.83s) is the strongest event at 2.84x the mean, both before and after
-motion compensation. The movement in the footage is subtle and partly continuous rather
-than a crisp discrete action, so if a human watching it prefers a slightly different
-moment, change the one constant and nothing else.
+Frames 119 and 132 (t = 4.96s and 5.50s) are the two strongest jaw events, 2.3x and
+3.4x the mean, each moving the jaw more than the temple, 0.54s apart as the prompt
+asked. A peak at 3.0s moved the temple more than the jaw, so it is the head. The first
+take's single clench, frame 69 at 2.83s, moved the temple almost as much as the jaw
+(3.3x and 2.8x), so it was partly the head. The poster is frame 125, between the two
+clenches, where the earbud sits at 0.73 and 0.18 of the frame. If a human watching the
+footage prefers slightly different moments, change the constants and nothing else.
 
 ## The rebalance patch, and the shot that was not taken
 
@@ -179,11 +198,19 @@ Prompts live in `.assetgen/p_*.txt`. To reshoot one asset:
 ```bash
 cd .assetgen
 higgsfield generate create veo3_1_lite \
-  --prompt "$(cat p_hero_video.txt)" \
-  --start_image e334937d-860c-417d-a4a5-3f16bd6403e9 \
-  --aspect_ratio 16:9 --wait --wait-timeout 25m
-./build_media.sh    # re-encodes the hero variants into public/media
+  --prompt "$(cat p_hero_video_arc.txt)" \
+  --start_image fe9070f9-6ab1-43f0-93ad-eb8f4fd176c3 \
+  --aspect_ratio 16:9 --wait --wait-timeout 25m        # save as out/hero_arc.mp4
+higgsfield generate create veo3_1_lite \
+  --prompt "$(cat p_gesture_arc.txt)" \
+  --start_image 342e87f4-1fab-450f-9c46-909af03c5397 \
+  --aspect_ratio 9:16 --wait --wait-timeout 25m        # save as out/gesture_arc.mp4
+./build_media.sh    # re-encodes the hero and gesture variants into public/media
+python3 measure_clench.py out/gesture_arc.mp4 0.73 0.15   # then update lib/clench.ts
 ```
+
+Check a new hero take for glints before choosing where to cut it, and re-measure the
+clenches whenever the gesture take changes.
 
 ## The Focus room
 

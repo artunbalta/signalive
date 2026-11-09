@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { oneClench } from "@/lib/copy";
 import {
   CLENCH_TIME,
+  CLENCH_TIMES,
   CLENCH_LEAD,
   EAR_X,
   EAR_Y,
@@ -142,7 +143,9 @@ export default function OneClench() {
     if (!video || !ring) return;
 
     let raf = 0;
-    let armed = true;
+    /** Which of the two clenches the marker pulses at next; past the last, it
+     *  is spent until it re-arms. */
+    let next = 0;
     /** The marker re-arms once currentTime falls below this. Normally that
      *  means the clip has looped. A cue lowers it to just under the clench so
      *  the seek itself re-arms the marker for the pass it just set up. */
@@ -168,16 +171,16 @@ export default function OneClench() {
      */
     const tick = () => {
       const t = video.currentTime;
-      if (armed) {
-        // Held until the clench beat so the ring fires once, with its line,
+      if (next < CLENCH_TIMES.length) {
+        // Held until the clench beat so the ring fires twice, with its line,
         // rather than quietly on every earlier loop.
-        if (t >= CLENCH_TIME && beatRef.current >= CLENCH_BEAT) {
-          armed = false;
+        if (t >= CLENCH_TIMES[next] && beatRef.current >= CLENCH_BEAT) {
+          next += 1;
           rearmBelow = REARM_TIME;
           pulse();
         }
       } else if (t < rearmBelow) {
-        armed = true;
+        next = 0;
       }
       raf = requestAnimationFrame(tick);
     };
@@ -217,7 +220,7 @@ export default function OneClench() {
         // Disarmed first, so a frame landing between here and the seek taking
         // effect cannot fire the ring at whatever time the clip happened to be
         // at. The lowered floor re-arms it as soon as the seek lands.
-        armed = false;
+        next = CLENCH_TIMES.length;
         rearmBelow = CLENCH_TIME - 0.05;
         try {
           video.currentTime = Math.max(0, CLENCH_TIME - CLENCH_LEAD);
