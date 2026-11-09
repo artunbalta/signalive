@@ -53,9 +53,9 @@ kept in `product_block_v1_eartip.txt`.
 | concept: earbud with its arc of contacts | `nano_banana_pro` | canonical as `--image_references` | 2.0 |
 | concept: the arc worn behind the ear | `nano_banana_pro` | canonical as `--image_references` | 2.0 |
 | carousel stills 1 to 4 and step 01, with the arc | `nano_banana_pro` | arc canonical as `--image_references` | 10.0 |
-| hero loop, with the arc | `veo3_1_lite` | arc canonical as `--start_image` | 8.0 |
+| hero loop, with the arc | `veo3_1_lite` | arc canonical as `--start_image` | 12.0 |
 | gesture start still, with the arc | `nano_banana_pro` | the first gesture start still and the arc canonical as `--image_references` | 2.0 |
-| gesture video, the double clench | `veo3_1_lite` | that still as `--start_image` | 8.0 |
+| gesture video, the double clench | `veo3_1_lite` | that still as `--start_image` | 12.0 |
 
 The two concept stills (November 2026, `.assetgen/p_concept_arc_*.txt`) show
 the contacts where the research puts them: on a slim arc that rests behind the
